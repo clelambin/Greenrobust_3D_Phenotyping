@@ -1,12 +1,14 @@
 # ModelPrep: main script for the 3d model processing
 
 # User variables
-module_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\00_Scripts\Blender"
+module_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\00_Scripts\Mcs_3D_Digitisation_Scripts\03_Blender"
 working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
 output_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\04_Output_BlenderScript"
-volume_file  = "Plant_volume.csv"
-#working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana\01_Metashape_BatchProc"
-#model_file   = "Metashape_NB005_S26_20250519_1428.obj"
+output_table = "Plant_volume.csv"
+model_folder = "02_Metashape_BatchProc_Conf"
+model_format = "ply"
+working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana\02_Metashape_BatchProc_Conf"
+model_file   = "Metashape_NB004_S30_20250612_2048.ply"
 
 # Workflow:
 # - Import obj
@@ -18,44 +20,46 @@ volume_file  = "Plant_volume.csv"
 # - Use pot cross-section to scale model
 
 # Import libraries
+import os             # File manager
+import sys            # Add other module to sys.path
 import bpy            # Blender python
 import bmesh          # Blender mesh module
 import mathutils      # Blender object type
-import os             # File manager
-import sys            # Edit python path
 import numpy as np    # Array and math operations
 
-# Edit python path to import user modules
+# Edit python path
 sys.path.insert(0, module_path)
 
 # Import user modules
 import Blender_Extract_Skeleton
 import Blender_Plant_RmNoise
 import Blender_Extract_CrossSection
+import Blender_Extract_AttributeFiltering
 
-def cleanup_env(obj_to_remove:list[str] = ["Cube"], type_to_remove:list[str] = ["MESH"]):
+def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
     """Remove non-relevant object from scene"""
     # Unselect all to avoid deleting previously selected object
     bpy.ops.object.select_all(action='DESELECT')
-    
+
     # Loop through object and delete object in the list
     for obj in bpy.data.objects:
         if obj.type in type_to_remove or obj.name in obj_to_remove:
             obj.select_set(True)
             bpy.ops.object.delete(use_global=False)
 
-def import_obj(filepath:str):
-    """Import obj file"""
+def import_file(filepath:str, format:str="obj"):
+    """Import obj or ply file"""
     # Check if file exist and is obj
     if not os.path.isfile(filepath):
         raise OSError(f"File {filepath} not found")
-    if not filepath.endswith(".obj"):
+    if not filepath.endswith(format):
         raise OSError(f"File {filepath} is not an obj")
-        
-    # Import file
-    bpy.ops.wm.obj_import(filepath=filepath)
-    
-def get_location(obj=None) -> mathutils.Vector:
+
+    # Import file (based on the format)
+    import_command = {"ply":"ply_import", "obj":"obj_import"}
+    getattr(bpy.ops.wm, import_command[format])(filepath=filepath, forward_axis='NEGATIVE_Z', up_axis='Y')
+
+def get_location(obj:(bpy.types.Object)=None) -> mathutils.Vector:
     """Reset center and get location of active object or sepified object"""
     bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
     if obj is None:
@@ -77,7 +81,7 @@ def translate_to_center(ref_obj:bpy.types.Object) -> None:
             obj.select_set(True)
             bpy.ops.transform.translate(value=-ref_location, orient_type='GLOBAL')
             obj.select_set(False)
-            
+
 def allign_to_z(ref_obj:bpy.types.Object) -> None:
     """Rotate object around 2 axis to allign center of ref object to Z axis"""
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
@@ -106,12 +110,12 @@ def allign_to_z(ref_obj:bpy.types.Object) -> None:
                                      orient_type='GLOBAL',
                                      center_override=(0.0, 0.0, 0.0))
             obj.select_set(False)
-            
+
 def calc_scale_ratio(measure:np.ndarray, expected:float, method:str) -> float:
     """Return scale ratio to scale to the expected value"""
     avg_measure = getattr(np, method, "average")(measure)
     return expected / avg_measure
-            
+
 def scale_to_ref(ratio) -> None:
     """Scale all mesh object to defined ratio"""
     # Initialise transformation
@@ -125,7 +129,7 @@ def scale_to_ref(ratio) -> None:
             bpy.ops.transform.resize(value=(ratio, ratio, ratio), orient_type='GLOBAL',
                                      center_override=(0.0, 0.0, 0.0))
             obj.select_set(False)
-    
+
 # Warning: if switch scaling to bmesh, would need to update        
 def calc_volume(obj:bpy.types.Object) -> float:
     """Return volume from bmesh after application of transformation"""
@@ -150,12 +154,12 @@ def calc_volume(obj:bpy.types.Object) -> float:
     # Return volume
     return volume
 
-def import_model(obj_path:str) -> None:
+def import_model(obj_path:str, format:str="obj") -> None:
     """Prepare the working environment and load the 3D model"""
     # Prepare working environment
     cleanup_env()
-    import_obj(obj_path)
-    
+    import_file(obj_path, format)
+
 def save_blend(obj_path:str, output_path:str) -> None:
     """Save the prepared model as blend file in output file"""
     # Extract plant name
@@ -167,22 +171,24 @@ def save_blend(obj_path:str, output_path:str) -> None:
 def model_prep(pot_size:float=0.13) -> float:
     """Main function, prepare the geometry and output the prepared volume"""
     plant = bpy.context.active_object
-    
+
     # Clean up obj
     Blender_Plant_RmNoise.main()
-    Blender_Extract_Skeleton.main(name="Pot")
-    Blender_Extract_Skeleton.delete_isolated()
+    # Pot detection by skeleton or by color
+#    Blender_Extract_Skeleton.main(name="Pot")
+#    Blender_Extract_Skeleton.delete_isolated()
+    Blender_Extract_AttributeFiltering.copy_pot(name="Pot")
     Blender_Extract_Skeleton.keep_biggest_cluster()
-    
+
     # Allign Object based on pot center
     pot = bpy.context.active_object
     translate_to_center(ref_obj = pot)
     allign_to_z(plant)
-    
+
     # Compute Cross-section
     section = Blender_Extract_CrossSection.main(plant)
     section_dim = Blender_Extract_CrossSection.get_section_dimension(section)
-    
+
     # Perform scaling based on measured ratio if the cross-section returned proper values
     if len(section_dim) != 1:
         ratio = calc_scale_ratio(section_dim, pot_size, method="min")
@@ -191,21 +197,21 @@ def model_prep(pot_size:float=0.13) -> float:
     else:
         # section returned -1, skip the scaling and multiply the volume by -1 to alert the user
         volume_coef = -1
-    
+
     # Compute volume
     plant_volume = calc_volume(plant) * volume_coef
     print(f"{plant_volume = }")
-    
+
     # Cleanup unused data
     bpy.ops.outliner.orphans_purge()
-    
+
     # Return the volume
     return plant_volume
 
-def single_model_prep(obj_path:str, output_path:str="", pot_size:float=0.13) -> float:
+def single_model_prep(obj_path:str, output_path:str="", pot_size:float=0.13, format:str="obj") -> float:
     """Single model preparation: import the model, compute the volume and save output blend file"""
     # Import the model
-    import_model(obj_path)
+    import_model(obj_path, format)
     # Prepare the model and compute the volume
     volume = model_prep(pot_size)
     # Save blend file in output folder
@@ -214,29 +220,29 @@ def single_model_prep(obj_path:str, output_path:str="", pot_size:float=0.13) -> 
     # Return the volume
     return volume
 
-def loop_through_files(file_list:list[str], volume_path:str) -> None:
+def loop_through_files(file_list:list[str], volume_path:str, format:str="obj") -> None:
     """Loop through file list and process all obj files"""
-    for name in files:
+    for name in file_list:
         if not name.lower().endswith(".obj") or "ptscloud" in name.lower():
             continue
         # Process plant model
         model_path = os.path.join(root, name)
-        volume = single_model_prep(model_path, output_path=output_path)
+        volume = single_model_prep(model_path, output_path=output_path, format=format)
         # Save volume to csv file
-        with open(volume_path, "a") as volume_file:
+        with open(volume_path, "a", encoding="utf-8") as volume_file:
             volume_file.write(f"{root},{name},{volume}\n")
-    
+
 if __name__ == "__main__":
-#    # Test on one file
-#    model_path = os.path.join(working_path, model_file)
-#    volume = single_model_prep(model_path, output_path=output_path)
-    
-    # Loop through all files and process plant model
-    volume_path = os.path.join(output_path, volume_file)
-    with open(volume_path, "w") as volume_file:
-        volume_file.write("Path,Plant name,Volume\n")
-    for root, dirs, files in os.walk(working_path):
-        if not "01_Metashape_BatchProc" in root:
-            continue
-        print(f"Processing {root}")
-        loop_through_files(files, volume_path)
+    # Test on one file
+    model_path = os.path.join(working_path, model_file)
+    volume = single_model_prep(model_path, format=model_format)
+
+#    # Loop through all files and process plant model
+#    volume_path = os.path.join(output_path, output_table)
+#    with open(volume_path, "w", encoding="utf-8") as volume_file:
+#        volume_file.write("Path,Plant name,Volume\n")
+#    for root, dirs, files in os.walk(working_path):
+#        if not model_folder in root:
+#            continue
+#        print(f"Processing {root}")
+#        loop_through_files(files, volume_path, model_format)
