@@ -7,8 +7,8 @@ output_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and
 output_table = "Plant_volume.csv"
 model_folder = "02_Metashape_BatchProc_Conf"
 model_format = "ply"
-working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana\02_Metashape_BatchProc_Conf"
-model_file   = "Metashape_NB004_S30_20250612_2048.ply"
+#working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana\02_Metashape_BatchProc_Conf"
+#model_file   = "Metashape_NB004_S30_20250612_2048.ply"
 
 # Workflow:
 # - Import obj
@@ -223,7 +223,7 @@ def single_model_prep(obj_path:str, output_path:str="", pot_size:float=0.13, for
 def loop_through_files(file_list:list[str], volume_path:str, format:str="obj") -> None:
     """Loop through file list and process all obj files"""
     for name in file_list:
-        if not name.lower().endswith(".obj") or "ptscloud" in name.lower():
+        if not name.lower().endswith(format) or "ptscloud" in name.lower():
             continue
         # Process plant model
         model_path = os.path.join(root, name)
@@ -233,16 +233,16 @@ def loop_through_files(file_list:list[str], volume_path:str, format:str="obj") -
             volume_file.write(f"{root},{name},{volume}\n")
 
 if __name__ == "__main__":
-    # Test on one file
-    model_path = os.path.join(working_path, model_file)
-    volume = single_model_prep(model_path, format=model_format)
+#    # Test on one file
+#    model_path = os.path.join(working_path, model_file)
+#    volume = single_model_prep(model_path, format=model_format)
 
-#    # Loop through all files and process plant model
-#    volume_path = os.path.join(output_path, output_table)
-#    with open(volume_path, "w", encoding="utf-8") as volume_file:
-#        volume_file.write("Path,Plant name,Volume\n")
-#    for root, dirs, files in os.walk(working_path):
-#        if not model_folder in root:
-#            continue
-#        print(f"Processing {root}")
-#        loop_through_files(files, volume_path, model_format)
+    # Loop through all files and process plant model
+    volume_path = os.path.join(output_path, output_table)
+    with open(volume_path, "w", encoding="utf-8") as volume_file:
+        volume_file.write("Path,Plant name,Volume\n")
+    for root, dirs, files in os.walk(working_path):
+        if not model_folder in root:
+            continue
+        print(f"Processing {root}")
+        loop_through_files(files, volume_path, model_format)
