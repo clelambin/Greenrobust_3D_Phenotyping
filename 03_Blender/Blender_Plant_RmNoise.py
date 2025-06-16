@@ -17,7 +17,7 @@ def reduce_mesh_count(dist:float=0.01) -> None:
     # Decimate does not preserve attribute, use remove double instead
 #    bpy.ops.mesh.decimate(ratio=ratio)
     bpy.ops.mesh.remove_doubles(threshold=dist)
-        
+
 def expand_mesh(dist:float=0.1) -> None:
     """Expend mesh of selected object(used to connect element"""
     # Switch to edit mode
@@ -35,7 +35,7 @@ def self_intersect() -> None:
     bpy.ops.mesh.intersect(mode='SELECT', separate_mode='NONE', solver='FAST')
     # Unselect intersection
     bpy.ops.mesh.select_all(action="DESELECT")
-    
+
 def distance_to_center(point_coord:list[float], center_coord:list[float]) -> float:
     """Compute the distance from a given point to a center coordinate"""
     # Convert coordinates to numpy array
@@ -71,7 +71,7 @@ def reset_center() -> None:
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     # Set origin to the selected object
     bpy.ops.object.origin_set(type = 'ORIGIN_GEOMETRY')
-    
+
 # Not really a list of float
 def local_to_global(matrix, coord) -> list[float]:
     """Convert vertex coordinate from local to global"""
@@ -105,7 +105,7 @@ def select_from_center(center_range_ratio:float=0.05) -> None:
 #    obj.data.vertices[near_center].select = True
 #    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
 #    bpy.ops.mesh.select_linked()
-    
+
 def select_from_index(obj, vertex_list:list[int], select_link:bool=True) -> None:
     """Select vertices from index list and linked vertices"""
     # Unselect all
@@ -122,7 +122,7 @@ def select_from_index(obj, vertex_list:list[int], select_link:bool=True) -> None
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     if select_link:
         bpy.ops.mesh.select_linked()
-    
+
 # list output can be of different type based on attribute
 def get_attribute_from_selected(attribute_name:str) -> list:
     """Return a list of attributes from all selected vertices"""
@@ -153,7 +153,7 @@ class select_mesh:
         # Save active object
         self.obj = obj
         self.obj_data = bpy.context.collection.objects[obj.name].data
-        
+
     def duplicate_object(self) -> None:
         """Duplicate the object and save original vertex id as attributes of duplicated object"""
         # Duplicate object
@@ -165,14 +165,14 @@ class select_mesh:
         # (because vertex not edited, vertex id is 0:len(vertices)
         vertex_id = range(0, len(self.obj_data.vertices))
         dup_attr.data.foreach_set("value", vertex_id)
-        
+
 def main() -> None:
     """Main function, remove background noise on selected object"""
     # Initialise class and working object
     reset_center()
     obj = bpy.context.active_object
     select_proc = select_mesh(obj)
-    
+
     # Duplicate object and work on duplicated object
     select_proc.duplicate_object()
     reduce_mesh_count()
@@ -182,7 +182,7 @@ def main() -> None:
     source_vertices = get_attribute_from_selected(attribute_name="source_id")
 #    for vertices in source_vertices:
 #        print(vertices)
-    
+
     # Work back on original object and select vertices from duplicated object source id
     bpy.context.view_layer.objects.active = obj
     # Remove dupplicated and select original object
@@ -194,7 +194,6 @@ def main() -> None:
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     bpy.ops.mesh.select_all(action='INVERT')
     bpy.ops.mesh.delete(type='VERT')
-        
+
 if __name__ == "__main__":
     main()
-    

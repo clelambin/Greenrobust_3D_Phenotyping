@@ -25,7 +25,7 @@ import sys            # Add other module to sys.path
 import bpy            # Blender python
 import bmesh          # Blender mesh module
 import mathutils      # Blender object type
-import numpy as np    # Array and math operations
+import numpy as np    # Array and matrix operations
 
 # Edit python path
 sys.path.insert(0, module_path)
@@ -59,11 +59,18 @@ def import_file(filepath:str, format:str="obj"):
     import_command = {"ply":"ply_import", "obj":"obj_import"}
     getattr(bpy.ops.wm, import_command[format])(filepath=filepath, forward_axis='NEGATIVE_Z', up_axis='Y')
 
-def get_location(obj:(bpy.types.Object)=None) -> mathutils.Vector:
+def get_location(obj:(bpy.types.Object|None)=None) -> mathutils.Vector:
     """Reset center and get location of active object or sepified object"""
-    bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+    # If no input object, work on active object, otherwise, select input object
     if obj is None:
         obj = bpy.context.active_object
+    else:
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+    # Set object origin based on pivot point
+    #bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
     return obj.location
 
 def translate_to_center(ref_obj:bpy.types.Object) -> None:
@@ -71,16 +78,41 @@ def translate_to_center(ref_obj:bpy.types.Object) -> None:
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     # Set reference object as active
     bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.objects.active = ref_obj
     ref_obj.select_set(True)
     # Get reference object location
     ref_location = get_location()
     # Translate all mesh object based on ref location
-    bpy.ops.object.select_all(action='DESELECT')
+#    bpy.ops.object.select_all(action='DESELECT')
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
+            obj.location -= ref_location
             obj.select_set(True)
-            bpy.ops.transform.translate(value=-ref_location, orient_type='GLOBAL')
+            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
+#            bpy.ops.transform.translate(value=-ref_location, orient_type='GLOBAL')
             obj.select_set(False)
+
+def get_rotation_to_z(ref_obj:bpy.types.Object) -> mathutils.Matrix:
+    """Compute rotation matrix vector to allign center of reference object to Z axis"""
+    center = get_location(ref_obj)
+    # Compute rotation vector (using Euler rotation), then convert to Matrix
+    rotation_x =  mathutils.Euler((np.pi/2 - np.arctan2(center.z, center.y), 0, 0), "XYZ")
+    matrix_x   = rotation_x.to_matrix()
+    rotation_y = mathutils.Euler((0, np.pi/2 - np.arctan2(center.z, center.x), 0), "XYZ")
+    matrix_y   = rotation_y.to_matrix()
+    # Transformation by first rotation in Y, then in X
+    # (with numpy library @ act as matrix mulitplication operator)
+    return matrix_y @ matrix_x
+
+def apply_rotation(obj:bpy.types.Object, rotation_matrix:mathutils.Matrix) -> None:
+    """Apply input Euler rotation vector to object"""
+    # Position object around origin for the rotation
+    init_location = obj.location.copy()
+    obj.location = mathutils.Vector((0, 0, 0))
+    obj.rotation_euler.rotate(rotation_matrix)
+    # To revert object location, need to multiply the initial location with the rotation matrix
+    # (with numpy library @ act as matrix mulitplication operator)
+    obj.location = rotation_matrix @ init_location
 
 def allign_to_z(ref_obj:bpy.types.Object) -> None:
     """Rotate object around 2 axis to allign center of ref object to Z axis"""
@@ -91,25 +123,11 @@ def allign_to_z(ref_obj:bpy.types.Object) -> None:
     # Set pivot point to center of grid
     bpy.context.scene.cursor.location = mathutils.Vector((0, 0, 0))
     bpy.context.scene.tool_settings.transform_pivot_point = 'CURSOR'
+    rotation_vector = get_rotation_to_z(ref_obj)
     # Perform the two rotation
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
-            obj.select_set(True)
-            # - Rotation along Y
-            center = get_location(ref_obj)
-            rotation_angle = np.pi/2 - np.arctan2(center.z, center.x)
-            bpy.ops.transform.rotate(value=rotation_angle,
-                                     orient_axis='Y',
-                                     orient_type='GLOBAL',
-                                     center_override=(0.0, 0.0, 0.0))
-            # - Rotation along X
-            center = get_location()
-            rotation_angle = -np.pi/2 + np.arctan2(center.z, center.y)
-            bpy.ops.transform.rotate(value=rotation_angle,
-                                     orient_axis='X',
-                                     orient_type='GLOBAL',
-                                     center_override=(0.0, 0.0, 0.0))
-            obj.select_set(False)
+            apply_rotation(obj, rotation_vector)
 
 def calc_scale_ratio(measure:np.ndarray, expected:float, method:str) -> float:
     """Return scale ratio to scale to the expected value"""
@@ -125,12 +143,17 @@ def scale_to_ref(ratio) -> None:
     # Loop through all object and scale mesh objects
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
-            obj.select_set(True)
-            bpy.ops.transform.resize(value=(ratio, ratio, ratio), orient_type='GLOBAL',
-                                     center_override=(0.0, 0.0, 0.0))
-            obj.select_set(False)
+            # Position object around origin for the rotation
+            init_location = obj.location.copy()
+            obj.location = mathutils.Vector((0, 0, 0))
+            obj.scale = mathutils.Vector((ratio, ratio, ratio))
+            obj.location = init_location * ratio
+#            obj.select_set(True)
+#            bpy.ops.transform.resize(value=(ratio, ratio, ratio), orient_type='GLOBAL',
+#                                     center_override=(0.0, 0.0, 0.0))
+#            obj.select_set(False)
 
-# Warning: if switch scaling to bmesh, would need to update        
+# Warning: if switch scaling to bmesh, would need to update
 def calc_volume(obj:bpy.types.Object) -> float:
     """Return volume from bmesh after application of transformation"""
     # Mark object as active and switch to Edit mode
@@ -174,16 +197,18 @@ def model_prep(pot_size:float=0.13) -> float:
 
     # Clean up obj
     Blender_Plant_RmNoise.main()
-    # Pot detection by skeleton or by color
+    # Pot and cup detection by skeleton or by color
 #    Blender_Extract_Skeleton.main(name="Pot")
 #    Blender_Extract_Skeleton.delete_isolated()
-    Blender_Extract_AttributeFiltering.copy_pot(name="Pot")
-    Blender_Extract_Skeleton.keep_biggest_cluster()
+#    Blender_Extract_Skeleton.keep_biggest_cluster()
+    [pot, cup] = Blender_Extract_AttributeFiltering.copy_pot()
+    # For each extracted objects, only keep the biggest cluster
+    for obj in [pot, cup]:
+        Blender_Extract_Skeleton.keep_biggest_cluster(obj)
 
-    # Allign Object based on pot center
-    pot = bpy.context.active_object
+    # Allign Object based on pot and cup center
     translate_to_center(ref_obj = pot)
-    allign_to_z(plant)
+    allign_to_z(ref_obj=cup)
 
     # Compute Cross-section
     section = Blender_Extract_CrossSection.main(plant)

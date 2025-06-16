@@ -53,11 +53,17 @@ def delete_isolated() -> None:
     # Switch back to object mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     
-def keep_biggest_cluster():
+def keep_biggest_cluster(obj:(bpy.types.Object|None)=None):
     """Select biggest cluster by looking at points closest to median coordinate, then delete remainnig"""
+    # If no object given in input, work on active object, otherwise, set input object as active
+    if obj is None:
+        obj = bpy.context.active_object
+    else:
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
     # Switch to edit mode
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    obj = bpy.context.active_object
     # Unselect all vertices
     bpy.ops.mesh.select_all(action='DESELECT')
     # Extract vertex median coordinates
@@ -78,7 +84,6 @@ def keep_biggest_cluster():
     
 def main(name:str = "Skeleton") -> None:
     """Main function, generate the skeleton from active object"""
-    obj = bpy.context.active_object
     # Duplicate object
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     bpy.ops.object.duplicate()
