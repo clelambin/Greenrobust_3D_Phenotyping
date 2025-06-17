@@ -88,21 +88,14 @@ def translate_to_center(ref_obj:bpy.types.Object) -> None:
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
             obj.location -= ref_location
-            obj.select_set(True)
-            bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
-#            bpy.ops.transform.translate(value=-ref_location, orient_type='GLOBAL')
-            obj.select_set(False)
 
 def get_rotation_to_z(ref_obj:bpy.types.Object) -> mathutils.Matrix:
     """Compute rotation matrix vector to allign center of reference object to Z axis"""
     center = get_location(ref_obj)
     # Compute rotation vector (using Euler rotation), then convert to Matrix
-    rotation_y = mathutils.Euler((0, np.pi - np.arctan2(center.x, center.z), 0), "XYZ")
-    matrix_y   = rotation_y.to_matrix()
-    # For secont rotation, need to update z coordinate (because of the first rotation)
     rotation_x =  mathutils.Euler((-np.pi + np.arctan2(center.y, center.z), 0, 0), "XYZ")
     matrix_x   = rotation_x.to_matrix()
-    rotation_y = mathutils.Euler((0, np.pi/2 - np.arctan2(center.z, center.x), 0), "XYZ")
+    rotation_y = mathutils.Euler((0, np.pi - np.arctan2(center.x, center.z), 0), "XYZ")
     matrix_y   = rotation_y.to_matrix()
     # Transformation by first rotation in Y, then in X
     # (with numpy library @ act as matrix mulitplication operator)
