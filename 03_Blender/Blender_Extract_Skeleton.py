@@ -1,4 +1,5 @@
 import bpy
+import bmesh
 import numpy as np
 
 # To do:
@@ -14,7 +15,7 @@ def face_collapse(select_ratio:float = 0.5, collapse_dist:float = 0.01) -> None:
     bpy.ops.mesh.select_mode(type='FACE')
     bpy.ops.mesh.select_random(ratio=select_ratio)
     bpy.ops.mesh.remove_doubles(threshold=collapse_dist)
-    
+
 def hide_loose():
     """Hide loose faces from active view"""
     # Switch to edit mode
@@ -26,14 +27,14 @@ def hide_loose():
     bpy.ops.mesh.select_loose()
     # Hide selected
     bpy.ops.mesh.hide(unselected=False)
-    
+
 def itterative_collapse(min_collapse:float = 0.01, collapse_increment:float = 0.01, nb_itteration:int = 10) -> None:
     """Itteratively run face_collapse, increasing the collapse distance"""
     for itter in range(nb_itteration):
         collapse_dist = min_collapse + collapse_increment*itter
         face_collapse(collapse_dist=collapse_dist)
         hide_loose()
-        
+
 def delete_isolated() -> None:
     """Delete isolated faces and vertices not linked to a face"""
     # Switch to edit mode
@@ -52,7 +53,7 @@ def delete_isolated() -> None:
     bpy.ops.mesh.delete(type='VERT')
     # Switch back to object mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    
+
 def keep_biggest_cluster(obj:(bpy.types.Object|None)=None):
     """Select biggest cluster by looking at points closest to median coordinate, then delete remainnig"""
     # If no object given in input, work on active object, otherwise, set input object as active
@@ -81,18 +82,18 @@ def keep_biggest_cluster(obj:(bpy.types.Object|None)=None):
     bpy.ops.mesh.delete(type='VERT')
     # Switch back to object mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    
+
 def main(name:str = "Skeleton") -> None:
     """Main function, generate the skeleton from active object"""
     # Duplicate object
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     bpy.ops.object.duplicate()
-    
+
     # Itteratively collapse the mesh to get the skeleton
     itterative_collapse(min_collapse=0.02,
                         collapse_increment=0.02,
                         nb_itteration=20)
-                        
+
     # Rename duplicated object
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     dup_obj = bpy.context.active_object
