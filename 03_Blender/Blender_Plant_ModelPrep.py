@@ -9,6 +9,7 @@ model_folder = "02_Metashape_BatchProc_Conf"
 model_format = "ply"
 #working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana\02_Metashape_BatchProc_Conf"
 #model_file   = "Metashape_NB004_S30_20250612_2048.ply"
+#model_file   = "Metashape_NB005_S34_20250612_2121.ply"
 
 # Workflow:
 # - Import obj
@@ -201,10 +202,7 @@ def model_prep(pot_size:float=0.13) -> float:
 #    Blender_Extract_Skeleton.main(name="Pot")
 #    Blender_Extract_Skeleton.delete_isolated()
 #    Blender_Extract_Skeleton.keep_biggest_cluster()
-    [pot, cup] = Blender_Extract_AttributeFiltering.copy_pot()
-    # For each extracted objects, only keep the biggest cluster
-    for obj in [pot, cup]:
-        Blender_Extract_Skeleton.keep_biggest_cluster(obj)
+    (pot, cup) = Blender_Extract_AttributeFiltering.copy_pot()
 
     # Allign Object based on pot and cup center
     translate_to_center(ref_obj = pot)
