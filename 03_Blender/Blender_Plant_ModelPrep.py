@@ -97,7 +97,10 @@ def get_rotation_to_z(ref_obj:bpy.types.Object) -> mathutils.Matrix:
     """Compute rotation matrix vector to allign center of reference object to Z axis"""
     center = get_location(ref_obj)
     # Compute rotation vector (using Euler rotation), then convert to Matrix
-    rotation_x =  mathutils.Euler((np.pi/2 - np.arctan2(center.z, center.y), 0, 0), "XYZ")
+    rotation_y = mathutils.Euler((0, np.pi - np.arctan2(center.x, center.z), 0), "XYZ")
+    matrix_y   = rotation_y.to_matrix()
+    # For secont rotation, need to update z coordinate (because of the first rotation)
+    rotation_x =  mathutils.Euler((-np.pi + np.arctan2(center.y, center.z), 0, 0), "XYZ")
     matrix_x   = rotation_x.to_matrix()
     rotation_y = mathutils.Euler((0, np.pi/2 - np.arctan2(center.z, center.x), 0), "XYZ")
     matrix_y   = rotation_y.to_matrix()
@@ -124,11 +127,11 @@ def allign_to_z(ref_obj:bpy.types.Object) -> None:
     # Set pivot point to center of grid
     bpy.context.scene.cursor.location = mathutils.Vector((0, 0, 0))
     bpy.context.scene.tool_settings.transform_pivot_point = 'CURSOR'
-    rotation_vector = get_rotation_to_z(ref_obj)
+    rotation_matrix = get_rotation_to_z(ref_obj)
     # Perform the two rotation
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
-            apply_rotation(obj, rotation_vector)
+            apply_rotation(obj, rotation_matrix)
 
 def calc_scale_ratio(measure:np.ndarray, expected:float, method:str) -> float:
     """Return scale ratio to scale to the expected value"""
@@ -195,6 +198,8 @@ def save_blend(obj_path:str, output_path:str) -> None:
 def model_prep(pot_size:float=0.13) -> float:
     """Main function, prepare the geometry and output the prepared volume"""
     plant = bpy.context.active_object
+    # If no active object alert the user
+    assert plant is not None, "No active object"
 
     # Clean up obj
     Blender_Plant_RmNoise.main()
@@ -206,6 +211,8 @@ def model_prep(pot_size:float=0.13) -> float:
 
     # Allign Object based on pot and cup center
     translate_to_center(ref_obj = pot)
+    # Object rotation needs to be aplpied twice, otherwise, allignment not correct (why? to check)
+    allign_to_z(ref_obj=cup)
     allign_to_z(ref_obj=cup)
 
     # Compute Cross-section
