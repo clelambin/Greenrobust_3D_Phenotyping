@@ -27,7 +27,7 @@ def is_in_range(value:float, min_:float, max_:float, transf:(None|Callable)=None
     if transf is not None:
         value = transf(value)
     # Return true if value within [min_, max_]
-    return value < max_ and value > min_
+    return value <= max_ and value >= min_
 
 def vertex_by_attribute(mesh:bmesh.types.BMesh,
                         attribute:str="confidence",
@@ -56,6 +56,19 @@ def delete_vertices(mesh: bmesh.types.BMesh,
     """Delete vertices from vertex list"""
     for vertex in vertex_list:
         mesh.verts.remove(vertex)
+
+def edit_active_object(name:(str|None)=None) -> tuple[bpy.types.Object, bmesh.types.BMesh]:
+    """Extract object and mesh from active object and swtich to edit mode"""
+    obj = bpy.context.active_object
+    # If no active object, alert the user
+    assert obj is not None, "No active object"
+    if name is not None:
+        obj.name = name
+    # Switch to Edit mode and load mesh
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    obj_mesh = bmesh.from_edit_mesh(obj.data)
+    # Return both object and mesh
+    return (obj, obj_mesh)
 
 # From https://blenderartists.org/t/get-amount-of-connected-geometry-within-a-mesh/1454143/2
 def get_connected_faces(face):
@@ -108,12 +121,8 @@ def extract_component(name:str="Pot",
     # Duplicate active object
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     bpy.ops.object.duplicate()
-    # Rename duplicated object
-    obj = bpy.context.active_object
-    obj.name = name
-    # Switch to Edit mode and load mesh
-    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    obj_mesh = bmesh.from_edit_mesh(obj.data)
+    # Rename duplicated object and switch to edit mode
+    (obj, obj_mesh) = edit_active_object(name=name)
     # Get list of non-pot vertices (with non-dark color)
     vertices_nonpot = vertex_by_attribute(obj_mesh, "Col",
                                           min_=color_min,
@@ -143,17 +152,21 @@ def copy_pot() -> tuple[bpy.types.Object, bpy.types.Object]:
     # Return list of generated object
     return (pot, cup)
 
+def delete_low_confidence() -> None:
+    """Delete vertices with low confidence value from active object"""
+    # Read active object and mesh
+    _, mesh = edit_active_object()
+    # Get list of vertices with low confidence value
+    vertices_low_conf = vertex_by_attribute(mesh, max_=0)
+    # Select low confidence vertices (Debug)
+    select_mesh_entry(vertices_low_conf)
+    # Delete low confidence vertices
+    delete_vertices(mesh, vertices_low_conf)
+    # Switch back to object mode
+    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
 if __name__ == "__main__":
+    # Test removing low confidence
+    delete_low_confidence()
     # Test pot detection
     copy_pot()
-
-#    # Test vertex selection tool
-#    # Test on active object
-#    obj = bpy.context.active_object
-#    # Switch to Edit mode and load mesh
-#    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-#    obj_mesh = bmesh.from_edit_mesh(obj.data)
-#    # Select biggest cluster of connected faces among selected mesh
-#    face_group = get_biggest_cluster(obj_mesh)
-#    select_mesh_entry(face_group)
-#    print(f"{type(face_group)=}")
