@@ -1,35 +1,20 @@
 # CrossSection: Extract cross section of object at a given location
 
-# User variables
-module_path = r"C:\Users\cleme\AppData\Roaming\Python\Python311\site-packages"
-
 # To do:
 # - Find way to rename input socket (instead of using Socket_2)
 
 import bpy
 import bmesh
 import numpy as np
-import sys
-
-# Add local modul path to sys
-sys.path.insert(0, module_path)
-
-# Local modules (require sys path updated)
-from scipy.spatial import ConvexHull
-from scipy.ndimage import rotate
 
 def geonode_init(name:str = "Geometry node") -> bpy.types.GeometryNodeTree:
     """Initialise geo-node object"""
     # Create Geometry node
     geonode  = bpy.data.node_groups.new(type = 'GeometryNodeTree', name = name)
     geonode.is_modifier = True
-#    # Create input and output socket (the input and output of each node)
-    socket_geo_input  = geonode.interface.new_socket(name = "Geometry", in_out='INPUT', socket_type = 'NodeSocketGeometry')
-    socket_geo_output = geonode.interface.new_socket(name = "Geometry", in_out='OUTPUT', socket_type = 'NodeSocketGeometry')
-#    socket_obj_input  = geonode.interface.new_socket(name = "Geometry", in_out='INPUT', socket_type = 'NodeSocketGeometry')
-#    socket_geo_input.attribute_domain = 'POINT'
-#    socket_geo_output.attribute_domain = 'POINT'
-#    socket_obj_input.attribute_domain = 'POINT'
+    # Create input and output socket (the input and output of each node)
+    geonode.interface.new_socket(name = "Geometry", in_out='INPUT', socket_type = 'NodeSocketGeometry')
+    geonode.interface.new_socket(name = "Geometry", in_out='OUTPUT', socket_type = 'NodeSocketGeometry')
     # Create group input and output nodes
     group_input  = geonode.nodes.new("NodeGroupInput")
     group_output = geonode.nodes.new("NodeGroupOutput")
@@ -38,7 +23,7 @@ def geonode_init(name:str = "Geometry node") -> bpy.types.GeometryNodeTree:
     # Return initialised geometry node
     return geonode
 
-def cross_section_node(plane:bpy.types.Object, name:str="Geometry node") -> bpy.types.GeometryNodeTree:
+def cross_section_node(name:str="Geometry node") -> bpy.types.GeometryNodeTree:
     """Create geometry node on plane object and use it to generate cross-section modifier"""
 #    # Mark plane object as active
 #    bpy.ops.object.select_all(action='DESELECT')
@@ -48,7 +33,7 @@ def cross_section_node(plane:bpy.types.Object, name:str="Geometry node") -> bpy.
     group_input  = geonode.nodes["Group Input"]
     group_output = geonode.nodes["Group Output"]
     # Create additional input socket to reference external object
-    socket_obj_input  = geonode.interface.new_socket(name = "Object", in_out='INPUT', socket_type = 'NodeSocketObject')
+    geonode.interface.new_socket(name = "Object", in_out='INPUT', socket_type = 'NodeSocketObject')
     # Add reference to external object
     object_info = geonode.nodes.new("GeometryNodeObjectInfo")
     object_info.name = "Object Info"
@@ -62,8 +47,6 @@ def cross_section_node(plane:bpy.types.Object, name:str="Geometry node") -> bpy.
     separate_geometry = geonode.nodes.new("GeometryNodeSeparateGeometry")
     separate_geometry.name = "Separate Geometry"
     separate_geometry.domain = 'POINT'
-#    # Add input to Input Group (to connect object info)
-#    group_input.inputs.new(type='OBJECT', name="IntersectGeometry", identifier="IntersectGeometry")
     # Create links between nodes
     geonode.links.new(group_input.outputs["Object"], object_info.inputs["Object"])
     geonode.links.new(group_input.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
@@ -73,9 +56,9 @@ def cross_section_node(plane:bpy.types.Object, name:str="Geometry node") -> bpy.
     geonode.links.new(separate_geometry.outputs["Selection"], group_output.inputs["Geometry"])
     # Return geometry node
     return geonode
-    
+
 def cross_section_modifier(plane:bpy.types.Object, intersect:bpy.types.Object, name:str="Geometry node") -> None:
-    """Apply cross-section modifier on the object to intersect"""
+    """Apply cross-section modifier on input object to intersect"""
     # Create modifier
     modifier = plane.modifiers.new(name=name, type='NODES')
     # Check if geometry node exist, if not, create it
@@ -112,18 +95,14 @@ def minimum_bounding_rectangle(points):
     :rval: an nx2 matrix of coordinates
     """
     pi2 = np.pi/2.
-    # get the convex hull for the points
-    #hull_points = points[ConvexHull(points).vertices]
-    hull_points = points
     # calculate edge angles
-    edges = np.zeros((len(hull_points)-1, 2))
-    edges = hull_points[1:] - hull_points[:-1]
+    edges = np.zeros((len(points)-1, 2))
+    edges = points[1:] - points[:-1]
     angles = np.zeros((len(edges)))
     angles = np.arctan2(edges[:, 1], edges[:, 0])
     angles = np.abs(np.mod(angles, pi2))
     angles = np.unique(angles)
     # find rotation matrices
-    # XXX both work
     rotations = np.vstack([np.cos(angles),
                            np.cos(angles-pi2),
                            np.cos(angles+pi2),
@@ -131,7 +110,7 @@ def minimum_bounding_rectangle(points):
     rotations = rotations.reshape((-1, 2, 2))
 
     # apply rotations to the hull
-    rot_points = np.dot(rotations, hull_points.T)
+    rot_points = np.dot(rotations, points.T)
     # find the bounding points
     min_x = np.nanmin(rot_points[:, 0], axis=1)
     max_x = np.nanmax(rot_points[:, 0], axis=1)
@@ -175,7 +154,7 @@ def draw_polygon_2d(vertex_coord, z:float=0.0) -> None:
     # Update mesh and free bmesh memory
     bmesh.update_edit_mesh(obj.data)
     obj_mesh.free()
-    
+
 def cleanup_section(max_edge_length:float=0.1) -> None:
     """Delete long edges and remove uncnnected vertices to center cluster"""
     obj  = bpy.context.active_object
@@ -237,7 +216,7 @@ def get_section_dimension(obj:bpy.types.Object) -> np.ndarray:
     # Switch back to object mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     return np.array(bbox_dim)
-    
+
 if __name__ == "__main__":
     # Apply cross-section on active object
     obj = bpy.context.active_object
