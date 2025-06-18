@@ -65,7 +65,7 @@ def cross_section_modifier(plane:bpy.types.Object, intersect:bpy.types.Object, n
     if bpy.data.node_groups.find(name) >= 0:
         geonode = bpy.data.node_groups[name]
     else:
-        geonode = cross_section_node(plane, name=name)
+        geonode = cross_section_node(name=name)
     # Assign geometry node to modifier
     modifier.node_group = geonode
     # Assign external geometry socket
@@ -79,7 +79,7 @@ def main(intersect:bpy.types.Object) -> bpy.types.Object:
     bpy.ops.mesh.primitive_plane_add(size=10, align='WORLD', location=(0, 0, 0))
     plane = bpy.context.active_object
 #    # Create geometry node on plane
-#    cross_section_node(plane, name="Cross-section")
+#    cross_section_node(name="Cross-section")
     # Apply modifier on intersect object
     cross_section_modifier(plane, intersect, name="Cross-section")
     # Return generated plane
@@ -156,20 +156,20 @@ def draw_polygon_2d(vertex_coord, z:float=0.0) -> None:
     obj_mesh.free()
 
 def cleanup_section(max_edge_length:float=0.1) -> None:
-    """Delete long edges and remove uncnnected vertices to center cluster"""
+    """Delete long edges and remove unconnected vertices to center cluster"""
     obj  = bpy.context.active_object
     mesh = bmesh.from_edit_mesh(obj.data)
     # Remove too long edges
     for edge in mesh.edges:
         v1, v2 = [vertex.co for vertex in edge.verts]
-        dist = np.linalg.norm(v2-v1)
+        dist = np.linalg.norm(np.array(v2-v1))
         if dist > max_edge_length:
-            mesh.edges.remove(edge)     
+            mesh.edges.remove(edge)
     # Keep only vertices connected to the vertex closest to the center
     smallest_dist  = float("Inf")
     closest_vertex = None
     for vertex in mesh.verts:
-        dist_to_center = np.linalg.norm(vertex.co)
+        dist_to_center = np.linalg.norm(np.array(vertex.co))
         if dist_to_center < smallest_dist:
             smallest_dist = dist_to_center
             closest_vertex = vertex
