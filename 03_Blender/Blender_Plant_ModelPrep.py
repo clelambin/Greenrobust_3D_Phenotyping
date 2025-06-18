@@ -6,7 +6,7 @@ working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and
 output_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\04_Output_BlenderScript"
 output_table = "Plant_volume.csv"
 model_folder = "02_Metashape_BatchProc_Conf"
-model_format = "ply"
+model_file_ext = "ply"
 #working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana\02_Metashape_BatchProc_Conf"
 #model_file   = "Metashape_NB004_S30_20250612_2048.ply"
 #model_file   = "Metashape_NB005_S34_20250612_2121.ply"
@@ -32,10 +32,10 @@ import numpy as np    # Array and matrix operations
 sys.path.insert(0, module_path)
 
 # Import user modules
-import Blender_Extract_Skeleton
-import Blender_Plant_RmNoise
-import Blender_Extract_CrossSection
-import Blender_Extract_AttributeFiltering
+#import Blender_Extract_Skeleton as Skeleton
+import Blender_Plant_RmNoise as RmNoise
+import Blender_Extract_CrossSection as CrossSection
+import Blender_Extract_AttributeFiltering as AttributeFiltering
 
 def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
     """Remove non-relevant object from scene"""
@@ -48,17 +48,17 @@ def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = 
             obj.select_set(True)
             bpy.ops.object.delete(use_global=False)
 
-def import_file(filepath:str, format:str="obj"):
+def import_file(filepath:str, file_ext:str="obj"):
     """Import obj or ply file"""
     # Check if file exist and is obj
     if not os.path.isfile(filepath):
         raise OSError(f"File {filepath} not found")
-    if not filepath.endswith(format):
+    if not filepath.endswith(file_ext):
         raise OSError(f"File {filepath} is not an obj")
 
-    # Import file (based on the format)
+    # Import file (based on the file_ext)
     import_command = {"ply":"ply_import", "obj":"obj_import"}
-    getattr(bpy.ops.wm, import_command[format])(filepath=filepath, forward_axis='NEGATIVE_Z', up_axis='Y')
+    getattr(bpy.ops.wm, import_command[file_ext])(filepath=filepath, forward_axis='NEGATIVE_Z', up_axis='Y')
 
 def get_location(obj:(bpy.types.Object|None)=None) -> mathutils.Vector:
     """Reset center and get location of active object or sepified object"""
@@ -174,11 +174,11 @@ def calc_volume(obj:bpy.types.Object) -> float:
     # Return volume
     return volume
 
-def import_model(obj_path:str, format:str="obj") -> None:
+def import_model(obj_path:str, file_ext:str="obj") -> None:
     """Prepare the working environment and load the 3D model"""
     # Prepare working environment
     cleanup_env()
-    import_file(obj_path, format)
+    import_file(obj_path, file_ext)
 
 def save_blend(obj_path:str, output_path:str) -> None:
     """Save the prepared model as blend file in output file"""
@@ -195,12 +195,13 @@ def model_prep(pot_size:float=0.13) -> float:
     assert plant is not None, "No active object"
 
     # Clean up obj
-    Blender_Plant_RmNoise.main()
+#    AttributeFiltering.delete_low_confidence()
+    RmNoise.main()
     # Pot and cup detection by skeleton or by color
-#    Blender_Extract_Skeleton.main(name="Pot")
-#    Blender_Extract_Skeleton.delete_isolated()
-#    Blender_Extract_Skeleton.keep_biggest_cluster()
-    (pot, cup) = Blender_Extract_AttributeFiltering.copy_pot()
+#    Skeleton.main(name="Pot")
+#    Skeleton.delete_isolated()
+#    Skeleton.keep_biggest_cluster()
+    (pot, cup) = AttributeFiltering.copy_pot()
 
     # Allign Object based on pot and cup center
     translate_to_center(ref_obj = pot)
@@ -209,20 +210,24 @@ def model_prep(pot_size:float=0.13) -> float:
     allign_to_z(ref_obj=cup)
 
     # Compute Cross-section
-    section = Blender_Extract_CrossSection.main(plant)
-    section_dim = Blender_Extract_CrossSection.get_section_dimension(section)
+    section = CrossSection.main(plant)
+    section_dim = CrossSection.get_section_dimension(section)
 
     # Perform scaling based on measured ratio if the cross-section returned proper values
     if len(section_dim) != 1:
         ratio = calc_scale_ratio(section_dim, pot_size, method="min")
         scale_to_ref(ratio)
-        volume_coef = 1
+        error_indicator = 1
     else:
         # section returned -1, skip the scaling and multiply the volume by -1 to alert the user
-        volume_coef = -1
+        error_indicator = -1
+
+    # Create copy of plant excluding pot
+    plant_green = AttributeFiltering.copy_green_plant(plant)
+    RmNoise.main()
 
     # Compute volume
-    plant_volume = calc_volume(plant) * volume_coef
+    plant_volume = calc_volume(plant_green) * error_indicator
     print(f"{plant_volume = }")
 
     # Cleanup unused data
@@ -231,10 +236,13 @@ def model_prep(pot_size:float=0.13) -> float:
     # Return the volume
     return plant_volume
 
-def single_model_prep(obj_path:str, output_path:str="", pot_size:float=0.13, format:str="obj") -> float:
+def single_model_prep(obj_path:str,
+                      output_path:str="",
+                      pot_size:float=0.13,
+                      file_ext:str="obj") -> float:
     """Single model preparation: import the model, compute the volume and save output blend file"""
     # Import the model
-    import_model(obj_path, format)
+    import_model(obj_path, file_ext)
     # Prepare the model and compute the volume
     volume = model_prep(pot_size)
     # Save blend file in output folder
@@ -243,14 +251,14 @@ def single_model_prep(obj_path:str, output_path:str="", pot_size:float=0.13, for
     # Return the volume
     return volume
 
-def loop_through_files(file_list:list[str], volume_path:str, format:str="obj") -> None:
+def loop_through_files(file_list:list[str], volume_path:str, file_ext:str="obj") -> None:
     """Loop through file list and process all obj files"""
     for name in file_list:
-        if not name.lower().endswith(format) or "ptscloud" in name.lower():
+        if not name.lower().endswith(file_ext) or "ptscloud" in name.lower():
             continue
         # Process plant model
         model_path = os.path.join(root, name)
-        volume = single_model_prep(model_path, output_path=output_path, format=format)
+        volume = single_model_prep(model_path, output_path=output_path, file_ext=file_ext)
         # Save volume to csv file
         with open(volume_path, "a", encoding="utf-8") as volume_file:
             volume_file.write(f"{root},{name},{volume}\n")
@@ -258,7 +266,7 @@ def loop_through_files(file_list:list[str], volume_path:str, format:str="obj") -
 if __name__ == "__main__":
 #    # Test on one file
 #    model_path = os.path.join(working_path, model_file)
-#    volume = single_model_prep(model_path, format=model_format)
+#    volume = single_model_prep(model_path, file_ext=model_file_ext)
 
     # Loop through all files and process plant model
     volume_path = os.path.join(output_path, output_table)
@@ -268,4 +276,4 @@ if __name__ == "__main__":
         if not model_folder in root:
             continue
         print(f"Processing {root}")
-        loop_through_files(files, volume_path, model_format)
+        loop_through_files(files, volume_path, model_file_ext)
