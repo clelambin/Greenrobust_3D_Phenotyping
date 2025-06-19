@@ -1,7 +1,7 @@
 # ModelPrep: main script for the 3d model processing
 
 # User variables
-module_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\00_Scripts\Mcs_3D_Digitisation_Scripts\03_Blender"
+module_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\00_Scripts\Mcs_3D_Digitisation_Scripts\cc_blender_plant_volume"
 working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
 output_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\04_Output_BlenderScript"
 output_table = "Plant_volume.csv"
@@ -33,9 +33,9 @@ sys.path.insert(0, module_path)
 
 # Import user modules
 #import Blender_Extract_Skeleton as Skeleton
-import Blender_Plant_RmNoise as RmNoise
-import Blender_Extract_CrossSection as CrossSection
-import Blender_Extract_AttributeFiltering as AttributeFiltering
+import blender_plant_rmnoise as rmnoise
+import blender_extract_crosssection as section
+import blender_extract_attributefiltering as attribute
 
 def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
     """Remove non-relevant object from scene"""
@@ -195,13 +195,13 @@ def model_prep(pot_size:float=0.13) -> float:
     assert plant is not None, "No active object"
 
     # Clean up obj
-#    AttributeFiltering.delete_low_confidence()
-    RmNoise.main()
+#    attribute.delete_low_confidence()
+    rmnoise.main()
     # Pot and cup detection by skeleton or by color
 #    Skeleton.main(name="Pot")
 #    Skeleton.delete_isolated()
 #    Skeleton.keep_biggest_cluster()
-    (pot, cup) = AttributeFiltering.copy_pot()
+    (pot, cup) = attribute.copy_pot()
 
     # Allign Object based on pot and cup center
     translate_to_center(ref_obj = pot)
@@ -210,8 +210,8 @@ def model_prep(pot_size:float=0.13) -> float:
     allign_to_z(ref_obj=cup)
 
     # Compute Cross-section
-    section = CrossSection.main(plant)
-    section_dim = CrossSection.get_section_dimension(section)
+    cross_section = section.main(plant)
+    section_dim = section.get_section_dimension(cross_section)
 
     # Perform scaling based on measured ratio if the cross-section returned proper values
     if len(section_dim) != 1:
@@ -223,8 +223,8 @@ def model_prep(pot_size:float=0.13) -> float:
         error_indicator = -1
 
     # Create copy of plant excluding pot
-    plant_green = AttributeFiltering.copy_green_plant(plant)
-    RmNoise.main()
+    plant_green = attribute.copy_green_plant(plant)
+    rmnoise.main()
 
     # Compute volume
     plant_volume = calc_volume(plant_green) * error_indicator
