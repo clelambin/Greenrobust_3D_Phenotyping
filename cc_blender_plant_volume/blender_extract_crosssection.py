@@ -7,6 +7,9 @@ import bpy
 import bmesh
 import numpy as np
 
+# Import user modules
+from cc_blender_plant_volume import blender_utility_functions as utility
+
 def geonode_init(name:str = "Geometry node") -> bpy.types.GeometryNodeTree:
     """Initialise geo-node object"""
     # Create Geometry node
@@ -155,24 +158,32 @@ def draw_polygon_2d(vertex_coord, z:float=0.0) -> None:
     bmesh.update_edit_mesh(obj.data)
     obj_mesh.free()
 
-def cleanup_section(max_edge_length:float=0.1) -> None:
-    """Delete long edges and remove unconnected vertices to center cluster"""
-    obj  = bpy.context.active_object
-    mesh = bmesh.from_edit_mesh(obj.data)
-    # Remove too long edges
+def remove_long_edges(mesh:bmesh.types.BMesh, max_length: float=0.1) -> None:
+    """Remove edges exceeding max_length"""
     for edge in mesh.edges:
         v1, v2 = [vertex.co for vertex in edge.verts]
         dist = np.linalg.norm(np.array(v2-v1))
-        if dist > max_edge_length:
+        if dist > max_length:
             mesh.edges.remove(edge)
-    # Keep only vertices connected to the vertex closest to the center
+
+def get_closest_to_center(vertex_list:bmesh.types.BMVertSeq) -> bmesh.types.BMVert:
+    """Return vertex closest to center"""
     smallest_dist  = float("Inf")
     closest_vertex = None
-    for vertex in mesh.verts:
+    for vertex in vertex_list:
         dist_to_center = np.linalg.norm(np.array(vertex.co))
         if dist_to_center < smallest_dist:
             smallest_dist = dist_to_center
             closest_vertex = vertex
+    # If no closest vertex found, alert the user
+    assert closest_vertex is not None, "No vertex found"
+    # Return vertex closest to center
+    return closest_vertex
+
+def remove_far_to_center(obj: bpy.types.Object, mesh: bmesh.types.BMesh) -> None:
+    """Delete long edges and remove unconnected vertices to center cluster"""
+    # Keep only vertices connected to the vertex closest to the center
+    closest_vertex = get_closest_to_center(mesh.verts)
     # Select closest vertex
     bpy.ops.mesh.select_all(action='DESELECT')
     closest_vertex.select_set(True)
@@ -184,6 +195,23 @@ def cleanup_section(max_edge_length:float=0.1) -> None:
     bpy.ops.mesh.select_all(action='INVERT')
     bpy.ops.mesh.delete(type='VERT')
 
+def cleanup_section(max_edge_length:float=0.1, method:str="center") -> None:
+    """Clean up section.
+    Depending on method, remove vertex cluser far from center or non biggest vertex cluster
+    """
+    obj  = bpy.context.active_object
+    mesh = bmesh.from_edit_mesh(obj.data)
+    # Remove too long edges
+    remove_long_edges(mesh, max_edge_length)
+    if method == "center":
+        remove_far_to_center(obj, mesh)
+    elif method == "cluster":
+        # Remove vertices not connected to the biggest edge cluster
+        utility.keep_biggest_cluster(mesh, cluster_type="edges")
+        # Update mesh and free bmesh
+        bmesh.update_edit_mesh(obj.data)
+        mesh.free()
+
 def get_section_dimension(obj:bpy.types.Object) -> np.ndarray:
     """Fit a rotating bounding box on set of point and return the dimension of the bounding box"""
     # Set plane as active and switch to Edit mode
@@ -192,7 +220,7 @@ def get_section_dimension(obj:bpy.types.Object) -> np.ndarray:
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     # Siplify geometry to reduce computing time and exclude leaves clusters
     bpy.ops.mesh.remove_doubles(threshold=0.25)
-    cleanup_section(max_edge_length=0.25)
+    cleanup_section(max_edge_length=0.25, method="cluster")
     # Update object data
     obj = bpy.context.active_object
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)

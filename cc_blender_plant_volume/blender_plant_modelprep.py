@@ -18,9 +18,9 @@ import numpy as np    # Array and matrix operations
 
 # Import user modules
 #from . import Blender_Extract_Skeleton as Skeleton
-from . import blender_plant_rmnoise as rmnoise
-from . import blender_extract_crosssection as section
-from . import blender_extract_attributefiltering as attribute
+from cc_blender_plant_volume import blender_plant_rmnoise as rmnoise
+from cc_blender_plant_volume import blender_extract_crosssection as section
+from cc_blender_plant_volume import blender_extract_attributefiltering as attribute
 
 # User variables
 working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"

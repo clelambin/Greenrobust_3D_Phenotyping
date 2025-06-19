@@ -2,13 +2,12 @@
 
 # Import libraries
 from collections.abc import Callable
-from queue import Queue  # Multi-threading
 import bpy               # Blender python
 import bmesh             # Blender mesh module
 import mathutils         # Blender object type
 
-# Complex type anotation
-BMEntry = bmesh.types.BMVert | bmesh.types.BMEdge | bmesh.types.BMFace
+# Import user modules
+from cc_blender_plant_volume import blender_utility_functions as utility
 
 def rgba_to_grey(RGBA:mathutils.Vector) -> float:
     """Convert color from RGBA (values from 0 to 1 for each channel) to greyscale"""
@@ -43,20 +42,6 @@ def vertex_by_attribute(mesh:bmesh.types.BMesh,
                     if is_in_range(vertex[mesh_attr], min_, max_, transf)]
     return verts_thresh
 
-def select_mesh_entry(mesh_list:list[BMEntry]) -> None:
-    """Select vertices, edges or faces from mesh_list"""
-    # Deselect all
-    bpy.ops.mesh.select_all(action='DESELECT')
-    # Select all mesh elements within the list
-    for element in mesh_list:
-        element.select_set(True)
-
-def delete_vertices(mesh: bmesh.types.BMesh,
-                    vertex_list:list[bmesh.types.BMVert]) -> None:
-    """Delete vertices from vertex list"""
-    for vertex in vertex_list:
-        mesh.verts.remove(vertex)
-
 def edit_active_object(name:(str|None)=None) -> tuple[bpy.types.Object, bmesh.types.BMesh]:
     """Extract object and mesh from active object and swtich to edit mode"""
     obj = bpy.context.active_object
@@ -69,49 +54,6 @@ def edit_active_object(name:(str|None)=None) -> tuple[bpy.types.Object, bmesh.ty
     obj_mesh = bmesh.from_edit_mesh(obj.data)
     # Return both object and mesh
     return (obj, obj_mesh)
-
-# From https://blenderartists.org/t/get-amount-of-connected-geometry-within-a-mesh/1454143/2
-def get_connected_faces(face):
-    """Return a set containing the faces connected to the input face"""
-    return { f for e in face.edges for f in e.link_faces if f != face }
-
-# From https://blenderartists.org/t/get-amount-of-connected-geometry-within-a-mesh/1454143/2
-def get_biggest_cluster(mesh:bmesh.types.BMesh):
-    """Return biggest set of connected faces from input mesh"""
-    connected_groups = []
-    work_list = [f for f in mesh.faces]
-    while work_list:
-        # Create worker for parrallel computation
-        frontier = Queue()
-        frontier.put( work_list[0] )
-        this_group = [work_list[0]]
-        work_list.pop(0)
-        # Loop through all connected faces set to group them into one
-        while not frontier.empty():
-            for next_face in get_connected_faces(frontier.get()):
-                if next_face not in this_group:
-                    frontier.put(next_face)
-                    this_group.append(next_face)
-                    work_list.remove(next_face)
-        # Append face cluster to the list
-        connected_groups.append(this_group)
-    # Sort connected group by number of faces
-    connected_groups = sorted(connected_groups, key=len)
-    # Return biggest set of connected faces
-    return connected_groups[-1]
-
-def keep_biggest_cluster(mesh:bmesh.types.BMesh) -> None:
-    """Extract biggest mesh cluster from given object and delete vertices not part of the cluster"""
-    # Extract biggest face cluster from given mesh
-    face_cluster = get_biggest_cluster(mesh)
-    # Extract set of all vertices included in mesh cluster
-    # (Use double list comprehension: face.verts return a containing containing both vertices)
-    vert_cluster = { vertex for face in face_cluster for vertex in face.verts }
-    vert_all     = set(mesh.verts)
-    # Use difference to get non included vertices
-    vert_outside = vert_all.difference(vert_cluster)
-    # Delete verts outside of face cluster
-    delete_vertices(mesh, list(vert_outside))
 
 def remesh_block_modifier(obj:bpy.types.Object, octree_depth:int=8) -> None:
     """Use block remesh modifier to simplify the geometry and remove unconnected"""
@@ -145,7 +87,7 @@ def extract_component(name:str="Pot",
                                           layer="float_color",
                                           transf=color_selection)
     # Delete these vertices
-    delete_vertices(obj_mesh, vertices_nonpot)
+    utility.delete_vertices(obj_mesh, vertices_nonpot)
     # From remaining vertices, keep biggest face cluster
     if filtering_mth == "remesh":
         # Switch back to object mode to apply block remesh
@@ -153,7 +95,7 @@ def extract_component(name:str="Pot",
         remesh_block_modifier(obj, octree_depth=remesh_octree)
     elif filtering_mth == "cluster":
         # Stay in edit mode, then switch to object mode after face clustering
-        keep_biggest_cluster(obj_mesh)
+        utility.keep_biggest_cluster(obj_mesh)
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
     # Return the extracted object
@@ -199,9 +141,9 @@ def delete_low_confidence() -> None:
     # Get list of vertices with low confidence value
     vertices_low_conf = vertex_by_attribute(mesh, max_=0)
     # Select low confidence vertices (Debug)
-    select_mesh_entry(vertices_low_conf)
+    utility.select_mesh_entry(vertices_low_conf)
     # Delete low confidence vertices
-    delete_vertices(mesh, vertices_low_conf)
+    utility.delete_vertices(mesh, vertices_low_conf)
     # Switch back to object mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
