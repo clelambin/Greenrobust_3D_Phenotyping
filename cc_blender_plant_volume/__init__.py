@@ -1,0 +1,78 @@
+# Libraries
+import os             # File manager
+import bpy            # Blender python
+# User module
+from cc_blender_plant_volume import blender_plant_modelprep as modelprep
+
+# User variables
+WORKING_PATH   = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
+OUTPUT_PATH    = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\04_Output_BlenderScript"
+OUTPUT_TABLE   = "Plant_volume.csv"
+MODEL_FOLDER   = "02_Metashape_BatchProc_Conf"
+MODEL_FILE_EXT = "ply"
+MODEL_FILE     = "Metashape_NB004_S30_20250612_2048.ply"
+#MODEL_FILE    = "Metashape_NB005_S34_20250612_2121.ply"
+
+# Operator classes
+# (Registering operators to be callable in Blender)
+class PlantModelPrep(bpy.types.Operator):
+    """Operator for single plant model preparation.
+    Allign plant model, apply scaling and compute volume.
+    """
+    # Blender identifiers
+    bl_idname  = "object.plant_model_prep"
+    bl_label   = "Model preparation for single plant"
+    bl_options = {"REGISTER", "UNDO"}
+
+    # Class properties
+    model_file_ext: bpy.props.EnumProperty(
+        name = "File extension type",
+        description = "File extension type",
+        items = (
+            # name, value, description
+            ("ply", "ply", "Standford PLY (.ply)"),
+            ("obj", "obj", "Wavefront (.obj)"),
+        ),
+        default = "ply",
+    )
+#    model_file_ext: bpy.props.StringProperty(default = "ply")
+    working_path  : bpy.props.StringProperty(default=".")
+    model_folder  : bpy.props.StringProperty()
+    model_file    : bpy.props.StringProperty()
+
+    def pool(self, context):
+        """Check if context suitable to call the function"""
+        return bpy.context.object.mode == "OBJECT"
+
+    def execute(self, context):
+        """Execute operator"""
+        model_path = os.path.join(self.working_path, self.model_folder, self.model_file)
+        modelprep.single_model_prep(model_path, file_ext=self.model_file_ext)
+        return {"FINISHED"}
+
+
+# Register full classes
+classes = (
+    PlantModelPrep,
+)
+
+def register():
+    """Register specified classes to Blender"""
+    for _class in classes:
+        bpy.utils.register_class(_class)
+
+def unregister():
+    """Unregister specified classes to Blender"""
+    for _class in classes:
+        bpy.utils.unregister_class(_class)
+
+if __name__ == "__main__":
+    register()
+
+    # Test functions
+    bpy.ops.object.plant_model_prep(
+        working_path   = WORKING_PATH,
+        model_folder   = MODEL_FOLDER,
+        model_file     = MODEL_FILE,
+        model_file_ext = MODEL_FILE_EXT,
+    )

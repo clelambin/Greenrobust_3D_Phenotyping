@@ -1,16 +1,5 @@
 # ModelPrep: main script for the 3d model processing
 
-# User variables
-module_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\00_Scripts\Mcs_3D_Digitisation_Scripts\cc_blender_plant_volume"
-working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
-output_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\04_Output_BlenderScript"
-output_table = "Plant_volume.csv"
-model_folder = "02_Metashape_BatchProc_Conf"
-model_file_ext = "ply"
-#working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana\02_Metashape_BatchProc_Conf"
-#model_file   = "Metashape_NB004_S30_20250612_2048.ply"
-#model_file   = "Metashape_NB005_S34_20250612_2121.ply"
-
 # Workflow:
 # - Import obj
 # - Remove background noise
@@ -22,20 +11,26 @@ model_file_ext = "ply"
 
 # Import libraries
 import os             # File manager
-import sys            # Add other module to sys.path
 import bpy            # Blender python
 import bmesh          # Blender mesh module
 import mathutils      # Blender object type
 import numpy as np    # Array and matrix operations
 
-# Edit python path
-sys.path.insert(0, module_path)
-
 # Import user modules
-#import Blender_Extract_Skeleton as Skeleton
-import blender_plant_rmnoise as rmnoise
-import blender_extract_crosssection as section
-import blender_extract_attributefiltering as attribute
+#from . import Blender_Extract_Skeleton as Skeleton
+from . import blender_plant_rmnoise as rmnoise
+from . import blender_extract_crosssection as section
+from . import blender_extract_attributefiltering as attribute
+
+# User variables
+working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
+output_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\04_Output_BlenderScript"
+output_table = "Plant_volume.csv"
+model_folder = "02_Metashape_BatchProc_Conf"
+model_file_ext = "ply"
+#working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana\02_Metashape_BatchProc_Conf"
+#model_file   = "Metashape_NB004_S30_20250612_2048.ply"
+#model_file   = "Metashape_NB005_S34_20250612_2121.ply"
 
 def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
     """Remove non-relevant object from scene"""
