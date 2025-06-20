@@ -55,8 +55,11 @@ def import_file(filepath:str, file_ext:str="obj"):
     import_command = {"ply":"ply_import", "obj":"obj_import"}
     getattr(bpy.ops.wm, import_command[file_ext])(filepath=filepath, forward_axis='NEGATIVE_Z', up_axis='Y')
 
-def get_location(obj:(bpy.types.Object|None)=None) -> mathutils.Vector:
+def get_location(obj:(bpy.types.Object|None)=None, center_ref:str="surface") -> mathutils.Vector:
     """Reset center and get location of active object or sepified object"""
+    # Set the origine reference based on input
+    origin_def = {"surface":"ORIGIN_CENTER_OF_MASS",
+                  "volume":"ORIGIN_CENTER_OF_VOLUME",}
     # If no input object, work on active object, otherwise, select input object
     if obj is None:
         obj = bpy.context.active_object
@@ -65,8 +68,7 @@ def get_location(obj:(bpy.types.Object|None)=None) -> mathutils.Vector:
         bpy.context.view_layer.objects.active = obj
         obj.select_set(True)
     # Set object origin based on pivot point
-    #bpy.ops.object.origin_set(type='ORIGIN_GEOMETRY')
-    bpy.ops.object.origin_set(type='ORIGIN_CENTER_OF_VOLUME', center='MEDIAN')
+    bpy.ops.object.origin_set(type=origin_def[center_ref], center='MEDIAN')
     return obj.location
 
 def translate_to_center(ref_obj:bpy.types.Object) -> None:
