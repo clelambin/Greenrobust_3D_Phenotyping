@@ -10,6 +10,25 @@ from queue import Queue  # Multi-threading
 # Complex type anotation
 BMEntry = bmesh.types.BMVert | bmesh.types.BMEdge | bmesh.types.BMFace
 
+def edit_active_object(name:(str|None)=None) -> tuple[bpy.types.Object, bmesh.types.BMesh]:
+    """Extract object and mesh from active object and swtich to edit mode"""
+    obj = bpy.context.active_object
+    # If no active object, alert the user
+    assert obj is not None, "No active object"
+    if name is not None:
+        obj.name = name
+    # Switch to Edit mode and load mesh
+    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
+    obj_mesh = bmesh.from_edit_mesh(obj.data)
+    # Return both object and mesh
+    return (obj, obj_mesh)
+
+def make_active(obj:bpy.types.Object) -> None:
+    """Make input object as active and the only selected one"""
+    bpy.ops.object.select_all(action='DESELECT')
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+
 def select_mesh_entry(mesh_list:list[BMEntry]) -> None:
     """Select vertices, edges or faces from mesh_list"""
     # Deselect all

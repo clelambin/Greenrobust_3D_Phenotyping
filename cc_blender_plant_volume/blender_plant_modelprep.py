@@ -21,6 +21,7 @@ import numpy as np    # Array and matrix operations
 from cc_blender_plant_volume import blender_plant_rmnoise as rmnoise
 from cc_blender_plant_volume import blender_extract_crosssection as section
 from cc_blender_plant_volume import blender_extract_attributefiltering as attribute
+from cc_blender_plant_volume import blender_point_clustering as cluster
 
 # User variables
 working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
@@ -221,7 +222,8 @@ def model_prep(pot_size:float=0.13) -> float:
 
     # Create copy of plant excluding pot
     plant_green = attribute.copy_green_plant(plant)
-    rmnoise.main()
+    # Use clusting to only keep biggest cluster
+    cluster.dbscan_filter(plant_green)
 
     # Compute volume
     plant_volume = calc_volume(plant_green) * error_indicator

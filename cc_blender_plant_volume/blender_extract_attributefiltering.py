@@ -42,19 +42,6 @@ def vertex_by_attribute(mesh:bmesh.types.BMesh,
                     if is_in_range(vertex[mesh_attr], min_, max_, transf)]
     return verts_thresh
 
-def edit_active_object(name:(str|None)=None) -> tuple[bpy.types.Object, bmesh.types.BMesh]:
-    """Extract object and mesh from active object and swtich to edit mode"""
-    obj = bpy.context.active_object
-    # If no active object, alert the user
-    assert obj is not None, "No active object"
-    if name is not None:
-        obj.name = name
-    # Switch to Edit mode and load mesh
-    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    obj_mesh = bmesh.from_edit_mesh(obj.data)
-    # Return both object and mesh
-    return (obj, obj_mesh)
-
 def remesh_block_modifier(obj:bpy.types.Object, octree_depth:int=8) -> None:
     """Use block remesh modifier to simplify the geometry and remove unconnected"""
     # Add remesh modifier
@@ -79,7 +66,7 @@ def extract_component(name:str="Pot",
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     bpy.ops.object.duplicate()
     # Rename duplicated object and switch to edit mode
-    (obj, obj_mesh) = edit_active_object(name=name)
+    (obj, obj_mesh) = utility.edit_active_object(name=name)
     # Get list of non-pot vertices (with non-dark color)
     vertices_nonpot = vertex_by_attribute(obj_mesh, "Col",
                                           min_=delete_min,
@@ -96,6 +83,7 @@ def extract_component(name:str="Pot",
     elif filtering_mth == "cluster":
         # Stay in edit mode, then switch to object mode after face clustering
         utility.keep_biggest_cluster(obj_mesh)
+        bmesh.update_edit_mesh(obj.data)
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
     # Return the extracted object
@@ -137,7 +125,7 @@ def copy_green_plant(source_obj:bpy.types.Object) -> bpy.types.Object:
 def delete_low_confidence() -> None:
     """Delete vertices with low confidence value from active object"""
     # Read active object and mesh
-    _, mesh = edit_active_object()
+    _, mesh = utility.edit_active_object()
     # Get list of vertices with low confidence value
     vertices_low_conf = vertex_by_attribute(mesh, max_=0)
     # Select low confidence vertices (Debug)
