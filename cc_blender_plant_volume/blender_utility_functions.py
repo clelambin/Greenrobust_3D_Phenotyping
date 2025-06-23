@@ -9,6 +9,7 @@ from queue import Queue  # Multi-threading
 
 # Complex type anotation
 BMEntry = bmesh.types.BMVert | bmesh.types.BMEdge | bmesh.types.BMFace
+BMFaceList = list[bmesh.types.BMFace] | None
 
 def edit_active_object(name:(str|None)=None) -> tuple[bpy.types.Object, bmesh.types.BMesh]:
     """Extract object and mesh from active object and swtich to edit mode"""
@@ -53,7 +54,7 @@ def get_connected_elements(input, cluster_type:str="faces", link_type:str="edges
     return { c for l in getattr(input,link_type) for c in getattr(l, linked_input) if c != input }
 
 # From https://blenderartists.org/t/get-amount-of-connected-geometry-within-a-mesh/1454143/2
-def get_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces"):
+def get_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> BMFaceList:
     """Return biggest set of connected faces from input mesh"""
     # define link element used to connect cluster type entries
     link_entry = {"faces": "edges",
@@ -61,7 +62,7 @@ def get_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces"):
     link_type = link_entry[cluster_type]
     # Initialise mesh entry
     connected_groups = []
-    work_list = [f for f in getattr(mesh, cluster_type)]
+    work_list = list(getattr(mesh, cluster_type))
     while work_list:
         # Create worker for parrallel computation
         frontier = Queue()
@@ -80,13 +81,21 @@ def get_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces"):
         connected_groups.append(this_group)
     # Sort connected group by number of elements
     connected_groups = sorted(connected_groups, key=len)
-    # Return biggest set of connected elements
+    # If no element found, alert the user and return None
+    if len(connected_groups) == 0:
+        print("Warning, no connected element found, return None")
+        return None
+    # If at least one group found return biggest set of connected elements
     return connected_groups[-1]
 
-def keep_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> None:
+
+def keep_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> int:
     """Extract biggest mesh cluster from given object and delete vertices not part of the cluster"""
     # Extract biggest face cluster from given mesh
     cluster = get_biggest_cluster(mesh, cluster_type)
+    # If cluster return None, indicate that no element found, skip the element deletion
+    if cluster is None:
+        return 0
     # Extract set of all vertices included in mesh cluster
     # (Use double list comprehension: element.verts return a containing containing both vertices)
     vert_cluster = { vertex for element in cluster for vertex in element.verts }
@@ -95,3 +104,5 @@ def keep_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> No
     vert_outside = vert_all.difference(vert_cluster)
     # Delete verts outside of face cluster
     delete_vertices(mesh, list(vert_outside))
+    # Return the amount of deleted vertices
+    return len(vert_outside)
