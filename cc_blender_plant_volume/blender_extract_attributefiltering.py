@@ -46,7 +46,7 @@ def remesh_block_modifier(obj:bpy.types.Object, octree_depth:int=8) -> None:
     """Use block remesh modifier to simplify the geometry and remove unconnected"""
     # Add remesh modifier
     modifier = obj.modifiers.new(name="Remesh", type="REMESH")
-    modifier.mode = "BLOCKS"
+    modifier.mode = "SMOOTH"
     modifier.scale = 0.9
     modifier.octree_depth = octree_depth
     # Make input object as active and switch to object mode to apply the modifier

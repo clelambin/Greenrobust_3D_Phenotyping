@@ -27,9 +27,6 @@ def assign_attribute(obj:bpy.types.Object, labels:np.ndarray) -> None:
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False) # Go to object mode
     # Add label as vertices atribute
     vertices_attribute = obj.data.attributes.new(name="dbscan_label", type="INT", domain="POINT")
-    print(f"Final {obj.name=}")
-    print(f"Final {len(obj.data.vertices)=}")
-    print(f"{len(labels)=}")
     vertices_attribute.data.foreach_set("value", labels)
 
 def get_biggest_cluster(label:np.ndarray) -> np.intp:
@@ -55,8 +52,6 @@ def dbscan_filter(obj:bpy.types.Object):
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False) # Go to object mode
     # Read object vertex coordinates and convert to np_array
     vertices_coord = np.array([vertex.co for vertex in obj.data.vertices])
-    print(f"Initial {obj.name=}")
-    print(f"Initial {len(obj.data.vertices)=}")
     # Run dbscan clustering
     cluster_label = dbscan_clustering(vertices_coord)
     print(f"{len(cluster_label)=}")
@@ -72,6 +67,21 @@ def dbscan_filter(obj:bpy.types.Object):
     utility.delete_vertices(obj_mesh, vertex_toexclude)
     # Return to object mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+
+def ransac_plane(obj: bpy.types.Object, ransac_dist=0.1) -> np.ndarray:
+    """Return coordinate of the plane fitting point cluster (using RANSAC algorythm)"""
+    bpy.ops.object.mode_set(mode='OBJECT', toggle=False) # Go to object mode
+    # Read object vertex coordinates and convert to np_array
+    vertices_coord = np.array([vertex.co for vertex in obj.data.vertices])
+    # Load vertice corrdinate as point cloud
+    vertices_ptcloud = o3d.geometry.PointCloud()
+    vertices_ptcloud.points = o3d.utility.Vector3dVector(vertices_coord)
+    # Fit plane to point cloud
+    plane_model, _ = vertices_ptcloud.segment_plane(distance_threshold=ransac_dist,
+                                                    ransac_n=3,
+                                                    num_iterations=1000)
+    # Return plane coordinate
+    return plane_model
 
 if __name__ == "__main__":
     # Test dbscan filtering on active object

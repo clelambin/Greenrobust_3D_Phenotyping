@@ -22,6 +22,7 @@ from cc_blender_plant_volume import blender_plant_rmnoise as rmnoise
 from cc_blender_plant_volume import blender_extract_crosssection as section
 from cc_blender_plant_volume import blender_extract_attributefiltering as attribute
 from cc_blender_plant_volume import blender_point_clustering as cluster
+from cc_blender_plant_volume import blender_utility_functions as utility
 
 # User variables
 working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
@@ -87,9 +88,13 @@ def translate_to_center(ref_obj:bpy.types.Object) -> None:
         if obj.type == 'MESH':
             obj.location -= ref_location
 
-def get_rotation_to_z(ref_obj:bpy.types.Object) -> mathutils.Matrix:
+def get_rotation_to_z(ref_obj:bpy.types.Object, plane_normal:bool=False) -> mathutils.Matrix:
     """Compute rotation matrix vector to allign center of reference object to Z axis"""
     center = get_location(ref_obj)
+    if plane_normal:
+        # Fit plane to object and allign z axis to plane normal
+        plane = cluster.ransac_plane(ref_obj)
+        center = mathutils.Vector(plane[0:3])
     # Compute rotation vector (using Euler rotation), then convert to Matrix
     rotation_x =  mathutils.Euler((-np.pi + np.arctan2(center.y, center.z), 0, 0), "XYZ")
     matrix_x   = rotation_x.to_matrix()
@@ -98,6 +103,25 @@ def get_rotation_to_z(ref_obj:bpy.types.Object) -> mathutils.Matrix:
     # Transformation by first rotation in Y, then in X
     # (with numpy library @ act as matrix mulitplication operator)
     return matrix_y @ matrix_x
+
+def skew_sym_cross_product(vec1:np.ndarray, vec2:np.ndarray) -> np.ndarray:
+    """Return the skew symetric cross product matrix of the cross product of vec1 and vec2"""
+    cross = np.cross(vec1, vec2)
+    return np.array([[0, -cross[2], cross[1]],
+                     [cross[2], 0, -cross[0]],
+                     [-cross[1], cross[0], 0]])
+
+# Using https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+def get_rotation_to_axis(ref_obj: bpy.types.Object,
+                         target:np.ndarray=np.array([0., 0., 1.])) -> mathutils.Matrix:
+    """Compute rotation matrix from normal of reference object to terget vector"""
+    # Fit plane to object and allign z axis to plane normal
+    ref_vector  = cluster.ransac_plane(ref_obj)[0:3]
+    # Compute skew symetric matrix and cos of angle
+    skew = skew_sym_cross_product(ref_vector, target)
+    cos  = np.dot(ref_vector, target)
+    # Return rotation matrix
+    return mathutils.Matrix(np.identity(3) + skew + skew**2 / (1+cos))
 
 def apply_rotation(obj:bpy.types.Object, rotation_matrix:mathutils.Matrix) -> None:
     """Apply input Euler rotation vector to object"""
@@ -109,17 +133,25 @@ def apply_rotation(obj:bpy.types.Object, rotation_matrix:mathutils.Matrix) -> No
     # (with numpy library @ act as matrix mulitplication operator)
     obj.location = rotation_matrix @ init_location
 
-def allign_to_z(ref_obj:bpy.types.Object) -> None:
+def allign_to_z(ref_obj:bpy.types.Object, plane_normal=True) -> None:
     """Rotate object around 2 axis to allign center of ref object to Z axis"""
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     # Mark reference object as active
-    bpy.ops.object.select_all(action='DESELECT')
+    utility.select_all(select=False)
     bpy.context.view_layer.objects.active = ref_obj
-    # Set pivot point to center of grid
-    bpy.context.scene.cursor.location = mathutils.Vector((0, 0, 0))
-    bpy.context.scene.tool_settings.transform_pivot_point = 'CURSOR'
-    rotation_matrix = get_rotation_to_z(ref_obj)
-    # Perform the two rotation
+    # Compute rotation matrix differently if using the plane normal or not
+    if plane_normal:
+        # Apply all previous transformation
+        utility.select_all(select=True)
+        bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+        rotation_matrix = get_rotation_to_axis(ref_obj)
+        utility.select_all(select=False)
+    else:
+        # Set pivot point to center of grid
+        bpy.context.scene.cursor.location = mathutils.Vector((0, 0, 0))
+        bpy.context.scene.tool_settings.transform_pivot_point = 'CURSOR'
+        rotation_matrix = get_rotation_to_z(ref_obj)
+    # Perform the rotation
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
             apply_rotation(obj, rotation_matrix)

@@ -106,3 +106,10 @@ def keep_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> in
     delete_vertices(mesh, list(vert_outside))
     # Return the amount of deleted vertices
     return len(vert_outside)
+
+def select_all(select:bool= True, target_type:str="MESH") -> None:
+    """Select or deselect all object of the given type"""
+    # Loop through existing object, if object of the given type, edit selection
+    for obj in bpy.data.objects:
+        if obj.type in target_type:
+            obj.select_set(select)
