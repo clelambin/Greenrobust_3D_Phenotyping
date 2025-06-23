@@ -37,7 +37,7 @@ model_file_ext = "ply"
 def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
     """Remove non-relevant object from scene"""
     # Unselect all to avoid deleting previously selected object
-    bpy.ops.object.select_all(action='DESELECT')
+    utility.select_all(select=False)
 
     # Loop through object and delete object in the list
     for obj in bpy.data.objects:
@@ -66,7 +66,7 @@ def get_location(obj:(bpy.types.Object|None)=None, center_ref:str="surface") -> 
     if obj is None:
         obj = bpy.context.active_object
     else:
-        bpy.ops.object.select_all(action='DESELECT')
+        utility.select_all(select=False)
         bpy.context.view_layer.objects.active = obj
         obj.select_set(True)
     # Set object origin based on pivot point
@@ -77,13 +77,12 @@ def translate_to_center(ref_obj:bpy.types.Object) -> None:
     """Move all mesh objects to center reference object"""
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     # Set reference object as active
-    bpy.ops.object.select_all(action='DESELECT')
+    utility.select_all(select=False)
     bpy.context.view_layer.objects.active = ref_obj
     ref_obj.select_set(True)
     # Get reference object location
     ref_location = get_location()
     # Translate all mesh object based on ref location
-#    bpy.ops.object.select_all(action='DESELECT')
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
             obj.location -= ref_location
@@ -165,7 +164,7 @@ def scale_to_ref(ratio) -> None:
     """Scale all mesh object to defined ratio"""
     # Initialise transformation
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    bpy.ops.object.select_all(action='DESELECT')
+    utility.select_all(select=False)
     bpy.context.scene.tool_settings.transform_pivot_point = 'CURSOR'
     # Loop through all object and scale mesh objects
     for obj in bpy.data.objects:
@@ -184,10 +183,8 @@ def scale_to_ref(ratio) -> None:
 def calc_volume(obj:bpy.types.Object) -> float:
     """Return volume from bmesh after application of transformation"""
     # Mark object as active and switch to Edit mode
-    # ERROR: Operator bpy.ops.object.select_all.poll() failed, context is incorrect
-    #        (Happened in Edit mode)
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    bpy.ops.object.select_all(action='DESELECT')
+    utility.select_all(select=False)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     # Extract bmesh from object

@@ -99,7 +99,7 @@ def copy_pot() -> tuple[bpy.types.Object, bpy.types.Object]:
                             delete_min=0.1,
                             filtering_mth="cluster")
     # Marke original active object as active and perform second copy
-    bpy.ops.object.select_all(action='DESELECT')
+    utility.select_all(select=False)
     bpy.context.view_layer.objects.active = source_obj
     source_obj.select_set(True)
     cup = extract_component(name="Cup",
@@ -113,7 +113,7 @@ def copy_pot() -> tuple[bpy.types.Object, bpy.types.Object]:
 def copy_green_plant(source_obj:bpy.types.Object) -> bpy.types.Object:
     """Extract non-black part of the source model to get green parts"""
     # Mark plant as active and selected
-    bpy.ops.object.select_all(action='DESELECT')
+    utility.select_all(select=False)
     bpy.context.view_layer.objects.active = source_obj
     source_obj.select_set(True)
     # Create copy of plant excluding pot

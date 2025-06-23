@@ -28,9 +28,6 @@ def geonode_init(name:str = "Geometry node") -> bpy.types.GeometryNodeTree:
 
 def cross_section_node(name:str="Geometry node") -> bpy.types.GeometryNodeTree:
     """Create geometry node on plane object and use it to generate cross-section modifier"""
-#    # Mark plane object as active
-#    bpy.ops.object.select_all(action='DESELECT')
-#    bpy.context.view_layer.objects.active = plane
     # Initialise cross-section geometry node
     geonode = geonode_init(name=name)
     group_input  = geonode.nodes["Group Input"]
@@ -215,7 +212,7 @@ def cleanup_section(max_edge_length:float=0.1, method:str="center") -> None:
 def get_section_dimension(obj:bpy.types.Object) -> np.ndarray:
     """Fit a rotating bounding box on set of point and return the dimension of the bounding box"""
     # Set plane as active and switch to Edit mode
-    bpy.ops.object.select_all(action='DESELECT')
+    utility.select_all(select=False)
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     # Siplify geometry to reduce computing time and exclude leaves clusters

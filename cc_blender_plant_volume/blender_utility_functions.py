@@ -26,7 +26,7 @@ def edit_active_object(name:(str|None)=None) -> tuple[bpy.types.Object, bmesh.ty
 
 def make_active(obj:bpy.types.Object) -> None:
     """Make input object as active and the only selected one"""
-    bpy.ops.object.select_all(action='DESELECT')
+    select_all(select=False)
     bpy.context.view_layer.objects.active = obj
     obj.select_set(True)
 
