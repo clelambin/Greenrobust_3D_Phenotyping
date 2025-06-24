@@ -242,7 +242,10 @@ def model_prep(pot_size:float=0.13) -> float:
     # Create copy of plant excluding pot
     plant_green = attribute.copy_green_plant(plant)
     # Use clusting to only keep biggest cluster
-    cluster.dbscan_filter(plant_green)
+    deleted_vertices = cluster.dbscan_filter(plant_green)
+    # If -1 returned as number of deleted vertices, no cluster detected, set error to -1 to indicate error
+    if deleted_vertices == -1:
+        error_indicator = -1
 
     # Compute volume
     plant_volume = calc_volume(plant_green) * error_indicator
@@ -296,10 +299,11 @@ def loop_through_folders(working_path:str,
     with open(volume_path, "w", encoding="utf-8") as volume_file:
         volume_file.write("Path,Plant name,Volume\n")
     for root, _, files in os.walk(working_path):
-        if not model_folder in root:
-            continue
-        print(f"Processing {root}")
-        process_model_folder(files, root, volume_path, output_path, model_file_ext)
+        # Check if last folder in root matches with specified model folder
+        last_folder = root.split(os.sep)[-1]
+        if model_folder == last_folder:
+            print(f"Processing {root}")
+            process_model_folder(files, root, volume_path, output_path, model_file_ext)
 
 if __name__ == "__main__":
     # Test model preparation on active file

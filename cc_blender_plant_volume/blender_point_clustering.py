@@ -33,6 +33,10 @@ def get_biggest_cluster(label:np.ndarray) -> np.intp:
     """Return integer of the cluster containing the most amount of points"""
     # Remove all -1 values from label (represent isolated point)
     label_noneg = np.delete(label, np.where(label == -1)[0])
+    # If no negative value found, return -1 and alert the user
+    if len(label_noneg) == 0:
+        print("Warning, empty sequence, only isolated points found")
+        return np.intp(-1)
     # Count the frequency of each remaining cluster label
     label_count = np.bincount(label_noneg)
     # Return most frequent value
@@ -47,8 +51,10 @@ def exclude_label(mesh:bmesh.types.BMesh,
     # Return vertex whose attribute does not match the target
     return [vertex for vertex in vertex_list if vertex[attribute] != target_label]
 
-def dbscan_filter(obj:bpy.types.Object):
-    """Apply dbscan clustering on input object and keep biggest cluster"""
+def dbscan_filter(obj:bpy.types.Object) -> int:
+    """Apply dbscan clustering on input object and keep biggest cluster.
+    Return number of deleted vertices
+    """
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False) # Go to object mode
     # Read object vertex coordinates and convert to np_array
     vertices_coord = np.array([vertex.co for vertex in obj.data.vertices])
@@ -58,6 +64,9 @@ def dbscan_filter(obj:bpy.types.Object):
     assign_attribute(obj, cluster_label)
     # Get label of biggest cluster
     biggest_cluster = get_biggest_cluster(cluster_label)
+    # If no cluster found, return -1 to indicate that no cluster found
+    if biggest_cluster == -1:
+        return -1
     # Switch to edit mesh and load bmesh
     utility.make_active(obj)
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
@@ -65,8 +74,10 @@ def dbscan_filter(obj:bpy.types.Object):
     # Delete vertices not belonging to the biggest cluster
     vertex_toexclude = exclude_label(obj_mesh, biggest_cluster)
     utility.delete_vertices(obj_mesh, vertex_toexclude)
-    # Return to object mode
+    # Switch back to object mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    # Return number of deleted vertices
+    return len(vertex_toexclude)
 
 def ransac_plane(obj: bpy.types.Object, ransac_dist=0.1) -> np.ndarray:
     """Return coordinate of the plane fitting point cluster (using RANSAC algorythm)"""
