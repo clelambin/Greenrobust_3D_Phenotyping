@@ -2,3 +2,9 @@
 __pycache__/
 *.py[codz]
 *$py.class
+# Jupyter notbook checkpoints
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+# IPython files
+profile_default/
+ipython_config.py
