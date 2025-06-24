@@ -60,7 +60,7 @@ def extract_component(name:str="Pot",
                       delete_min:float=0,
                       delete_max:float=float("Inf"),
                       filtering_mth:str|None=None,
-                      remesh_octree:float|None=0.8) -> bpy.types.Object:
+                      remesh_octree:float=0.8) -> bpy.types.Object:
     """Duplicate active object and keep only selected component (selected by color range)"""
     # Duplicate active object
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
@@ -85,18 +85,21 @@ def extract_component(name:str="Pot",
         utility.keep_biggest_cluster(obj_mesh)
         bmesh.update_edit_mesh(obj.data)
         bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    else:
+        # No filtering method defined, used whole model
+        bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
     # Return the extracted object
     return obj
 
-def copy_pot() -> tuple[bpy.types.Object, bpy.types.Object]:
+def copy_pot(pot_thresh:float=0.05, cup_thresh:float=-0.05) -> tuple[bpy.types.Object, bpy.types.Object]:
     """Extract pot and cup from active object (selected by color range)"""
     # Keep active object in memory (for second duplication)
     source_obj = bpy.context.active_object
     # Extract pot
     pot = extract_component(name="Pot",
                             color_selection=rgba_to_grey,
-                            delete_min=0.1,
+                            delete_min=pot_thresh,
                             filtering_mth="cluster")
     # Marke original active object as active and perform second copy
     utility.select_all(select=False)
@@ -104,13 +107,13 @@ def copy_pot() -> tuple[bpy.types.Object, bpy.types.Object]:
     source_obj.select_set(True)
     cup = extract_component(name="Cup",
                             color_selection=filter_pure_red,
-                            delete_min=-0.1,
+                            delete_min=cup_thresh,
                             filtering_mth="remesh",
                             remesh_octree=8)
     # Return list of generated object
     return (pot, cup)
 
-def copy_green_plant(source_obj:bpy.types.Object) -> bpy.types.Object:
+def copy_green_plant(source_obj:bpy.types.Object, color_thresh:float=0.05) -> bpy.types.Object:
     """Extract non-black part of the source model to get green parts"""
     # Mark plant as active and selected
     utility.select_all(select=False)
@@ -119,7 +122,7 @@ def copy_green_plant(source_obj:bpy.types.Object) -> bpy.types.Object:
     # Create copy of plant excluding pot
     plant_green = extract_component(name="Plant_green",
                                     color_selection=rgba_to_grey,
-                                    delete_max=0.1)
+                                    delete_max=color_thresh)
     return plant_green
 
 def delete_low_confidence() -> None:
@@ -138,7 +141,13 @@ def delete_low_confidence() -> None:
 if __name__ == "__main__":
 #    # Test removing low confidence
 #    delete_low_confidence()
-#    # Test pot detection
-#    copy_pot()
-    obj = bpy.context.active_object
-    copy_green_plant(obj)
+    # Test pot detection
+    copy_pot()
+#    obj = bpy.context.active_object
+#    copy_green_plant(obj)
+
+#    # Test cup extraction without filtering method
+#    cup = extract_component(name="Cup",
+#                            color_selection=filter_pure_red,
+#                            delete_min=-0.1,
+#                            remesh_octree=8)

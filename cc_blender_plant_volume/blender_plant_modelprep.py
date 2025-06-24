@@ -24,16 +24,6 @@ from cc_blender_plant_volume import blender_extract_attributefiltering as attrib
 from cc_blender_plant_volume import blender_point_clustering as cluster
 from cc_blender_plant_volume import blender_utility_functions as utility
 
-# User variables
-working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
-output_path  = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\04_Output_BlenderScript"
-output_table = "Plant_volume.csv"
-model_folder = "02_Metashape_BatchProc_Conf"
-model_file_ext = "ply"
-#working_path = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana\02_Metashape_BatchProc_Conf"
-#model_file   = "Metashape_NB004_S30_20250612_2048.ply"
-#model_file   = "Metashape_NB005_S34_20250612_2121.ply"
-
 def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
     """Remove non-relevant object from scene"""
     # Unselect all to avoid deleting previously selected object
@@ -279,29 +269,41 @@ def single_model_prep(obj_path:str,
     # Return the volume
     return volume
 
-def loop_through_files(file_list:list[str], volume_path:str, file_ext:str="obj") -> None:
-    """Loop through file list and process all obj files"""
+def process_model_folder(file_list:list[str],
+                         working_path:str,
+                         volume_path:str,
+                         output_path:str="",
+                         file_ext:str="obj") -> None:
+    """Loop through file list and process all model files"""
     for name in file_list:
         if not name.lower().endswith(file_ext) or "ptscloud" in name.lower():
             continue
         # Process plant model
-        model_path = os.path.join(root, name)
+        model_path = os.path.join(working_path, name)
         volume = single_model_prep(model_path, output_path=output_path, file_ext=file_ext)
         # Save volume to csv file
         with open(volume_path, "a", encoding="utf-8") as volume_file:
-            volume_file.write(f"{root},{name},{volume}\n")
+            volume_file.write(f"{working_path},{name},{volume}\n")
 
-if __name__ == "__main__":
-#    # Test on one file
-#    model_path = os.path.join(working_path, model_file)
-#    volume = single_model_prep(model_path, file_ext=model_file_ext)
-
+def loop_through_folders(working_path:str,
+                         model_folder:str,
+                         model_file_ext:str,
+                         output_path:str,
+                         output_table:str) -> None:
+    """Loop through the folders and process folders matching input name"""
     # Loop through all files and process plant model
     volume_path = os.path.join(output_path, output_table)
     with open(volume_path, "w", encoding="utf-8") as volume_file:
         volume_file.write("Path,Plant name,Volume\n")
-    for root, dirs, files in os.walk(working_path):
+    for root, _, files in os.walk(working_path):
         if not model_folder in root:
             continue
         print(f"Processing {root}")
-        loop_through_files(files, volume_path, model_file_ext)
+        process_model_folder(files, root, volume_path, output_path, model_file_ext)
+
+if __name__ == "__main__":
+    # Test model preparation on active file
+    obj = bpy.context.active_object
+    assert obj is not None, "No active object"
+    volume = model_prep()
+    print(f"{volume=}")

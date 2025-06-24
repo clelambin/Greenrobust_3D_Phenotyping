@@ -111,5 +111,5 @@ def select_all(select:bool= True, target_type:str="MESH") -> None:
     """Select or deselect all object of the given type"""
     # Loop through existing object, if object of the given type, edit selection
     for obj in bpy.data.objects:
-        if obj.type in target_type:
+        if obj.type == target_type:
             obj.select_set(select)
