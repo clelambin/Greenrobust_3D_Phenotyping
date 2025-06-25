@@ -11,7 +11,9 @@ sys.path.append(MODULE_PATH)
 sys.path.append(LOCAL_LIBRARY)
 
 def register():
+    """Empty register, used for Blender referencing"""
     pass
 
 def unregister():
+    """Empty unregister, used for Blender referencing"""
     pass

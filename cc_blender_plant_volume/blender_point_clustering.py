@@ -1,3 +1,5 @@
+"""Use Open3D point cloud utilities for clustering and plane fitting"""
+
 # Import libraries
 import open3d as o3d  # Used for point clustering
 import numpy as np    # Array and matrix operations

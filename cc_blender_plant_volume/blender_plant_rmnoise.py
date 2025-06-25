@@ -1,3 +1,8 @@
+"""Reduce model noise from plant model.
+Expend mesh and run self-intersection to check for nearby meshes, remove the isolated elements
+(Use attribute and vertex index to compare processed model with initial, lead to unreliable results)
+"""
+
 import bpy
 import numpy as np
 

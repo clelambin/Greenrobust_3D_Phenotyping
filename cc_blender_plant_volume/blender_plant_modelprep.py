@@ -1,13 +1,15 @@
-# ModelPrep: main script for the 3d model processing
+"""Main script for the model processing, allign model and compute volume of green plant.
 
-# Workflow:
-# - Import obj
-# - Remove background noise
-# - Generate plant skeleton to extract pot center
-# - Position pot center to global center
-# - Allign object center to +Z axis
-# - Intersect obj with XY plane to get pot cross-section
-# - Use pot cross-section to scale model
+Workflow:
+- Import obj
+- Remove background noise
+- Use color attribute to detect pot and cup
+- Position pot center to global center
+- Allign object center to +Z axis
+- Intersect obj with XY plane to get pot cross-section
+- Use pot cross-section to scale model
+- Compute volume of green plant
+"""
 
 # Import libraries
 import os             # File manager

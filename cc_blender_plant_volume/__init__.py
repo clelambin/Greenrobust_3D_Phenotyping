@@ -1,3 +1,19 @@
+"""Blender volume computation for digitised 3D plant model.
+Can be called on a signle model (by defining MODEL_FILE) or on a whole folder.
+Position and align plant model to the origin, scale the plant based on the plant pot dimension,
+then compute the volume of the green part of the plant.
+
+Workflow:
+- Import obj
+- Remove background noise
+- Use color attribute to detect pot and cup
+- Position pot center to global center
+- Allign object center to +Z axis
+- Intersect obj with XY plane to get pot cross-section
+- Use pot cross-section to scale model
+- Compute volume of green plant
+"""
+
 # Libraries
 import os             # File manager
 import bpy            # Blender python

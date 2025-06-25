@@ -1,4 +1,4 @@
-# CrossSection: Extract cross section of object at a given location
+"""Extract cross section of object at a given location, used for model scaling"""
 
 # To do:
 # - Find way to rename input socket (instead of using Socket_2)

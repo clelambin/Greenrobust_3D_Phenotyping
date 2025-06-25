@@ -1,11 +1,9 @@
 """Utilitiy functions used for the plant_volume modules"""
 
 # Import libraries
+from queue import Queue  # Multi-threading
 import bpy               # Blender python
 import bmesh             # Blender mesh module
-import mathutils         # Blender object type
-import numpy as np       # Array and matrix operations
-from queue import Queue  # Multi-threading
 
 # Complex type anotation
 BMEntry = bmesh.types.BMVert | bmesh.types.BMEdge | bmesh.types.BMFace

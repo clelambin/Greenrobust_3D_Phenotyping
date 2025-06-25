@@ -1,5 +1,10 @@
-import bpy
+"""Model rendering in blender.
+As a stand alone, run animation of all model in the scene containing a substring in their names.
+"""
+
+# Import libraries
 import os
+import bpy
 
 # To improve:
 # - Add type anotation
@@ -25,7 +30,7 @@ def plant_rendering(obj):
     bpy.ops.render.render(animation=True, use_viewport=True)
     # Hide object
     hide_object(obj, True)
-    
+
 def loop_through_plants(contain_string, call_function, *args, **kwargs):
     """Loop through object containing the defined string and apply the function on each object"""
     # Cannot loop directly through all objects, but itterating through the object list by index worked
@@ -40,7 +45,7 @@ def loop_through_plants(contain_string, call_function, *args, **kwargs):
                 print(f"Object {obj.name} not including Metashape")
         except IndexError:
             print("No object detected")
-            
+
 if __name__ == "__main__":
     # Stating script
     print("Starting script")
@@ -49,13 +54,11 @@ if __name__ == "__main__":
         print(obj.name)
     # hide_view_clear is supposed to reset the view
     #bpy.ops.object.hide_view_clear()
-    
+
     # Hide all object
     print("- Hide all objects")
     loop_through_plants(contain_string="Metashape", call_function=hide_object, hide_bool=True)
-    
+
     # Loop through objects, for each, show the object, and start the render
     print("- Start animation rendering")
     loop_through_plants(contain_string="Metashape", call_function=plant_rendering)
-        
-

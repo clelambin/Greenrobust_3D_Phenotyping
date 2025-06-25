@@ -1,5 +1,9 @@
+"""Iterative face collapse to derive the rough skeleton from the 3D model.
+Initially used to detect pot location.
+(Currently replaced by color attribute to detect the different componants)
+"""
+
 import bpy
-import bmesh
 import numpy as np
 
 # To do:

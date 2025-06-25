@@ -1,4 +1,4 @@
-# AttributeFiltering: Perform attribute based filtering on model (confidence, color, ...)
+"""Perform filtering based on model attribute values (color, confidence, ...)"""
 
 # Import libraries
 from collections.abc import Callable
