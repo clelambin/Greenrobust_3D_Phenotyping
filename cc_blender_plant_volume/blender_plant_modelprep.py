@@ -45,7 +45,9 @@ def import_file(filepath:str, file_ext:str="obj"):
 
     # Import file (based on the file_ext)
     import_command = {"ply":"ply_import", "obj":"obj_import"}
-    getattr(bpy.ops.wm, import_command[file_ext])(filepath=filepath, forward_axis='NEGATIVE_Z', up_axis='Y')
+    getattr(bpy.ops.wm, import_command[file_ext])(filepath=filepath,
+                                                  forward_axis='NEGATIVE_Z',
+                                                  up_axis='Y')
 
 def get_location(obj:(bpy.types.Object|None)=None, center_ref:str="surface") -> mathutils.Vector:
     """Reset center and get location of active object or sepified object"""
@@ -122,9 +124,15 @@ def apply_rotation(obj:bpy.types.Object, rotation_matrix:mathutils.Matrix) -> No
     # (with numpy library @ act as matrix mulitplication operator)
     obj.location = rotation_matrix @ init_location
 
-def allign_to_z(ref_obj:bpy.types.Object, plane_normal=True) -> None:
-    """Rotate object around 2 axis to allign center of ref object to Z axis"""
+def allign_to_z(ref_obj:bpy.types.Object, plane_normal=True) ->  int:
+    """Rotate object around 2 axis to allign center of ref object to Z axis
+    Return -1 if an error happen (otherwise, return 1)
+    """
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    # If reference object does not contain any vertices, return -1 and alert the user
+    if len(ref_obj.data.vertices) == 0:
+        print(f"Warning {ref_obj.name} is empty, cannot be used to for allignment")
+        return -1
     # Mark reference object as active
     utility.select_all(select=False)
     bpy.context.view_layer.objects.active = ref_obj
@@ -144,6 +152,7 @@ def allign_to_z(ref_obj:bpy.types.Object, plane_normal=True) -> None:
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
             apply_rotation(obj, rotation_matrix)
+    return 1
 
 def calc_scale_ratio(measure:np.ndarray, expected:float, method:str) -> float:
     """Return scale ratio to scale to the expected value"""
@@ -223,8 +232,14 @@ def model_prep(pot_size:float=0.13) -> float:
     # Allign Object based on pot and cup center
     translate_to_center(ref_obj = pot)
     # Object rotation needs to be aplpied twice, otherwise, allignment not correct (why? to check)
-    allign_to_z(ref_obj=cup)
-    allign_to_z(ref_obj=cup)
+    # Each time call the alignment, record the allignment status
+    alignment_status = []
+    alignment_status.append(allign_to_z(ref_obj=cup))
+    alignment_status.append(allign_to_z(ref_obj=cup))
+
+    # If any of the alignment status returned -1, save error indicator as -1,
+    # otherwise, initialise it as 1
+    error_indicator = -1 if -1 in alignment_status else 1
 
     # Compute Cross-section
     cross_section = section.main(plant)
@@ -234,7 +249,6 @@ def model_prep(pot_size:float=0.13) -> float:
     if len(section_dim) != 1:
         ratio = calc_scale_ratio(section_dim, pot_size, method="min")
         scale_to_ref(ratio)
-        error_indicator = 1
     else:
         # section returned -1, skip the scaling and multiply the volume by -1 to alert the user
         error_indicator = -1
@@ -243,7 +257,8 @@ def model_prep(pot_size:float=0.13) -> float:
     plant_green = attribute.copy_green_plant(plant)
     # Use clusting to only keep biggest cluster
     deleted_vertices = cluster.dbscan_filter(plant_green)
-    # If -1 returned as number of deleted vertices, no cluster detected, set error to -1 to indicate error
+    # If -1 returned as number of deleted vertices, no cluster detected,
+    # set error to -1 to indicate error
     if deleted_vertices == -1:
         error_indicator = -1
 

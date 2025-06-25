@@ -58,6 +58,8 @@ def dbscan_filter(obj:bpy.types.Object) -> int:
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False) # Go to object mode
     # Read object vertex coordinates and convert to np_array
     vertices_coord = np.array([vertex.co for vertex in obj.data.vertices])
+    # If no vertices found, empty object, return -1 to indicate that no cluster found
+    if len(vertices_coord) == 0: return -1
     # Run dbscan clustering
     cluster_label = dbscan_clustering(vertices_coord)
     print(f"{len(cluster_label)=}")
@@ -65,8 +67,7 @@ def dbscan_filter(obj:bpy.types.Object) -> int:
     # Get label of biggest cluster
     biggest_cluster = get_biggest_cluster(cluster_label)
     # If no cluster found, return -1 to indicate that no cluster found
-    if biggest_cluster == -1:
-        return -1
+    if biggest_cluster == -1: return -1
     # Switch to edit mesh and load bmesh
     utility.make_active(obj)
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
