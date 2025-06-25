@@ -43,13 +43,13 @@ def delete_vertices(mesh: bmesh.types.BMesh,
         mesh.verts.remove(vertex)
 
 # From https://blenderartists.org/t/get-amount-of-connected-geometry-within-a-mesh/1454143/2
-def get_connected_elements(input, cluster_type:str="faces", link_type:str="edges"):
+def get_connected_elements(input_element, cluster_type:str="faces", link_type:str="edges"):
     """Return a set containing the elements connected to the input element"""
     # Map cluster type to corresponding link object
     # eg : faces -> link_faces
     #      edges -> link_edges
     linked_input = f"link_{cluster_type}"
-    return { c for l in getattr(input,link_type) for c in getattr(l, linked_input) if c != input }
+    return { c for l in getattr(input_element,link_type) for c in getattr(l, linked_input) if c != input_element }
 
 # From https://blenderartists.org/t/get-amount-of-connected-geometry-within-a-mesh/1454143/2
 def get_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> BMFaceList:

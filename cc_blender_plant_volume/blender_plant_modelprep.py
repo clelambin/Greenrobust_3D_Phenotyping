@@ -25,6 +25,7 @@ from cc_blender_plant_volume import blender_extract_crosssection as section
 from cc_blender_plant_volume import blender_extract_attributefiltering as attribute
 from cc_blender_plant_volume import blender_point_clustering as cluster
 from cc_blender_plant_volume import blender_utility_functions as utility
+from cc_blender_plant_volume import blender_plant_rendering as render
 
 def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
     """Remove non-relevant object from scene"""
@@ -216,7 +217,7 @@ def save_blend(obj_path:str, output_path:str) -> None:
     plant_file = f"{plant_name}.blend"
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(output_path, plant_file))
 
-def model_prep(pot_size:float=0.13) -> float:
+def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> float:
     """Main function, prepare the geometry and output the prepared volume"""
     plant = bpy.context.active_object
     # If no active object alert the user
@@ -268,6 +269,10 @@ def model_prep(pot_size:float=0.13) -> float:
     plant_volume = calc_volume(plant_green) * error_indicator
     print(f"{plant_volume = }")
 
+    # If ouput_dir specified, save rendered image of prepared model in output directory
+    if model_prep is not None:
+        render.model_rendering(output_dir, plant.name)
+
     # Cleanup unused data
     bpy.ops.outliner.orphans_purge()
 
@@ -275,16 +280,16 @@ def model_prep(pot_size:float=0.13) -> float:
     return plant_volume
 
 def single_model_prep(obj_path:str,
-                      output_path:str="",
+                      output_path:str|None=None,
                       pot_size:float=0.13,
                       file_ext:str="obj") -> float:
     """Single model preparation: import the model, compute the volume and save output blend file"""
     # Import the model
     import_model(obj_path, file_ext)
     # Prepare the model and compute the volume
-    volume = model_prep(pot_size)
+    volume = model_prep(pot_size, output_path)
     # Save blend file in output folder
-    if output_path != "":
+    if output_path is not None:
         save_blend(obj_path, output_path)
     # Return the volume
     return volume
