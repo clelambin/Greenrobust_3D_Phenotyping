@@ -82,9 +82,13 @@ def dbscan_filter(obj:bpy.types.Object) -> int:
     # Return number of deleted vertices
     return len(vertex_toexclude)
 
-def ransac_plane(obj: bpy.types.Object, ransac_dist=0.1) -> np.ndarray:
+def ransac_plane(obj: bpy.types.Object, ransac_dist=0.5) -> np.ndarray:
     """Return coordinate of the plane fitting point cluster (using RANSAC algorythm)"""
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False) # Go to object mode
+    # Apply all transformation on target object
+    utility.select_all(False)
+    obj.select_set(True)
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
     # Read object vertex coordinates and convert to np_array
     vertices_coord = np.array([vertex.co for vertex in obj.data.vertices])
     # Load vertice corrdinate as point cloud

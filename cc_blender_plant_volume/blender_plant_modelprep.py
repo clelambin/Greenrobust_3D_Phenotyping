@@ -98,24 +98,36 @@ def get_rotation_to_z(ref_obj:bpy.types.Object, plane_normal:bool=False) -> math
     # (with numpy library @ act as matrix mulitplication operator)
     return matrix_y @ matrix_x
 
-def skew_sym_cross_product(vec1:np.ndarray, vec2:np.ndarray) -> np.ndarray:
-    """Return the skew symetric cross product matrix of the cross product of vec1 and vec2"""
-    cross = np.cross(vec1, vec2)
-    return np.array([[0, -cross[2], cross[1]],
-                     [cross[2], 0, -cross[0]],
-                     [-cross[1], cross[0], 0]])
-
-# Using https://math.stackexchange.com/questions/180418/calculate-rotation-matrix-to-align-vector-a-to-vector-b-in-3d
+# And https://iquilezles.org/articles/noacos/
 def get_rotation_to_axis(ref_obj: bpy.types.Object,
                          target:np.ndarray=np.array([0., 0., 1.])) -> mathutils.Matrix:
     """Compute rotation matrix from normal of reference object to terget vector"""
     # Fit plane to object and allign z axis to plane normal
-    ref_vector  = cluster.ransac_plane(ref_obj)[0:3]
+    ref_vector = cluster.ransac_plane(ref_obj)[0:3]
+    # Normalise both vectors
+    ref_vector = ref_vector/np.linalg.norm(ref_vector)
+    target     = target/np.linalg.norm(target)
     # Compute skew symetric matrix and cos of angle
-    skew = skew_sym_cross_product(ref_vector, target)
+    cross_vect = np.cross(ref_vector, target)
     cos  = np.dot(ref_vector, target)
+    # Rotation matrix can be decomposed into 2 parts (here named mat_base and mat_comp):
+    #      v*vT       (   c, -v.z,  v.y)
+    # M = -------  +  ( v.z,    c, -v.x)
+    #       1+c       (-v.y,  v.x,    c)
+    mat_base = mathutils.Matrix(cross_vect * np.atleast_2d(cross_vect).T / (1 + cos))
+    mat_comp = mathutils.Matrix(
+        [[cos, -cross_vect[2], cross_vect[1]],
+         [cross_vect[2], cos, -cross_vect[0]],
+         [-cross_vect[1], cross_vect[0], cos]]
+    )
+    mat_rot = mat_base + mat_comp
+    # Print info about alignment status
+    print(f"Initial plan vector: {ref_vector}")
+    print("Rotation matrix:")
+    print(mat_rot)
+    print(f"Resulting plane vector (Mv): {np.array((mat_rot)) @ ref_vector}")
     # Return rotation matrix
-    return mathutils.Matrix(np.identity(3) + skew + skew**2 / (1+cos))
+    return mat_rot
 
 def apply_rotation(obj:bpy.types.Object, rotation_matrix:mathutils.Matrix) -> None:
     """Apply input Euler rotation vector to object"""
@@ -144,8 +156,10 @@ def allign_to_z(ref_obj:bpy.types.Object, plane_normal=True) ->  int:
         # Apply all previous transformation
         utility.select_all(select=True)
         bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
-        rotation_matrix = get_rotation_to_axis(ref_obj)
         utility.select_all(select=False)
+        # Update vertices location of reference object by recapturing it
+        ref_obj = bpy.data.objects[ref_obj.name]
+        rotation_matrix = get_rotation_to_axis(ref_obj)
     else:
         # Set pivot point to center of grid
         bpy.context.scene.cursor.location = mathutils.Vector((0, 0, 0))
@@ -232,17 +246,11 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> float:
 #    Skeleton.keep_biggest_cluster()
     (pot, cup) = attribute.copy_pot()
 
-    # Allign Object based on pot and cup center
+    # Align Object based on pot and cup center
     translate_to_center(ref_obj = pot)
-    # Object rotation needs to be aplpied twice, otherwise, allignment not correct (why? to check)
-    # Each time call the alignment, record the allignment status
-    alignment_status = []
-    alignment_status.append(allign_to_z(ref_obj=cup))
-    alignment_status.append(allign_to_z(ref_obj=cup))
-
-    # If any of the alignment status returned -1, save error indicator as -1,
-    # otherwise, initialise it as 1
-    error_indicator = -1 if -1 in alignment_status else 1
+    # Align cup normal to Z axis, if error encounter, return -1
+    # (used as multiplicator on volume to indicate something wrong in the process)
+    error_indicator = allign_to_z(ref_obj=cup)
 
     # Compute Cross-section
     cross_section = section.main(plant)
@@ -270,7 +278,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> float:
     print(f"{plant_volume = }")
 
     # If ouput_dir specified, save rendered image of prepared model in output directory
-    if model_prep is not None:
+    if output_dir is not None:
         render.model_rendering(output_dir, plant.name)
 
     # Cleanup unused data
