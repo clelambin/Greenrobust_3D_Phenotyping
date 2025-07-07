@@ -158,7 +158,7 @@ def model_rendering(output_dir:str, scene_name:str) -> None:
     loop_through_plants(call_function=hide_object,
                         contain_string="Metashape",
                         target_type="MESH",
-                        hide_bool=True)
+                        hide_bool=False)
 
 if __name__ == "__main__":
     # Stating script
