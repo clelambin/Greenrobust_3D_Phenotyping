@@ -2,6 +2,7 @@
 
 # Import libraries
 from collections.abc import Callable
+import colorsys          # Color convertion
 import bpy               # Blender python
 import bmesh             # Blender mesh module
 import mathutils         # Blender object type
@@ -9,15 +10,28 @@ import mathutils         # Blender object type
 # Import user modules
 from cc_blender_plant_volume import blender_utility_functions as utility
 
-def rgba_to_grey(RGBA:mathutils.Vector) -> float:
-    """Convert color from RGBA (values from 0 to 1 for each channel) to greyscale"""
+def rgb_to_hsv(rgb:mathutils.Vector) -> mathutils.Vector:
+    """Convert color vector from RGB (value from 0 to 1 for each channel) to HSV"""
+    return mathutils.Vector(colorsys.rgb_to_hsv(rgb[0], rgb[1], rgb[2]))
+
+def rgb_to_grey(rgb:mathutils.Vector) -> float:
+    """Convert color from RGB (values from 0 to 1 for each channel) to greyscale"""
     # Convertion from RGB to greyscale using the Colorimetric conversion to grayscale
     # source: https://en.wikipedia.org/wiki/Grayscale
-    return 0.2125*RGBA[0] + 0.7154*RGBA[1] + 0.0721*RGBA[2]
+    return 0.2125*rgb[0] + 0.7154*rgb[1] + 0.0721*rgb[2]
 
-def filter_pure_red(RGBA:mathutils.Vector) -> float:
-    """Convert color from RGBA (values from 0 to 1 for each channel) to filter out high red and low green and blue"""
-    return -2*RGBA[0] + 4*RGBA[1] + 4*RGBA[2]
+def filter_pure_red(rgb:mathutils.Vector) -> float:
+    """Indicate quantity of red in color in perspective to blue and green
+    Convert color from RGB (values from 0 to 1 for each channel)
+    to filter out high red and low green and blue
+    """
+    return -2*rgb[0] + 4*rgb[1] + 4*rgb[2]
+
+def filter_hue(rgb:mathutils.Vector) -> float:
+    """Return hue value of rgb color"""
+    # Convert rgb to hsv
+    hsv = rgb_to_hsv(rgb)
+    return(hsv[0])
 
 def is_in_range(value:float, min_:float, max_:float, transf:(None|Callable)=None) -> bool:
     """Return true if value is within [min_, max_]"""
@@ -26,7 +40,7 @@ def is_in_range(value:float, min_:float, max_:float, transf:(None|Callable)=None
     if transf is not None:
         value = transf(value)
     # Return true if value within [min_, max_]
-    return value <= max_ and value >= min_
+    return min_ <= value <= max_
 
 def vertex_by_attribute(mesh:bmesh.types.BMesh,
                         attribute:str="confidence",
@@ -56,7 +70,7 @@ def remesh_block_modifier(obj:bpy.types.Object, octree_depth:int=8) -> None:
     bpy.ops.object.modifier_apply(modifier="Remesh")
 
 def extract_component(name:str="Pot",
-                      color_selection:Callable=rgba_to_grey,
+                      color_selection:Callable=rgb_to_grey,
                       delete_min:float=0,
                       delete_max:float=float("Inf"),
                       filtering_mth:str|None=None,
@@ -92,13 +106,14 @@ def extract_component(name:str="Pot",
     # Return the extracted object
     return obj
 
-def copy_pot(pot_thresh:float=0.05, cup_thresh:float=-0.05) -> tuple[bpy.types.Object, bpy.types.Object]:
+def copy_pot(pot_thresh:float=0.05,
+             cup_thresh:float=0.03) -> tuple[bpy.types.Object, bpy.types.Object]:
     """Extract pot and cup from active object (selected by color range)"""
     # Keep active object in memory (for second duplication)
     source_obj = bpy.context.active_object
     # Extract pot
     pot = extract_component(name="Pot",
-                            color_selection=rgba_to_grey,
+                            color_selection=rgb_to_grey,
                             delete_min=pot_thresh,
                             filtering_mth="cluster")
     # Marke original active object as active and perform second copy
@@ -106,14 +121,15 @@ def copy_pot(pot_thresh:float=0.05, cup_thresh:float=-0.05) -> tuple[bpy.types.O
     bpy.context.view_layer.objects.active = source_obj
     source_obj.select_set(True)
     cup = extract_component(name="Cup",
-                            color_selection=filter_pure_red,
+                            color_selection=filter_hue,
                             delete_min=cup_thresh,
                             filtering_mth="remesh",
                             remesh_octree=8)
     # Return list of generated object
     return (pot, cup)
 
-def copy_green_plant(source_obj:bpy.types.Object, color_thresh:float=0.05) -> bpy.types.Object:
+def copy_green_plant(source_obj:bpy.types.Object,
+                     color_thresh:float=0.05) -> bpy.types.Object:
     """Extract non-black part of the source model to get green parts"""
     # Mark plant as active and selected
     utility.select_all(select=False)
@@ -121,7 +137,7 @@ def copy_green_plant(source_obj:bpy.types.Object, color_thresh:float=0.05) -> bp
     source_obj.select_set(True)
     # Create copy of plant excluding pot
     plant_green = extract_component(name="Plant_green",
-                                    color_selection=rgba_to_grey,
+                                    color_selection=rgb_to_grey,
                                     delete_max=color_thresh)
     return plant_green
 
