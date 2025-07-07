@@ -3,12 +3,14 @@
 # Import libraries
 from collections.abc import Callable
 import colorsys          # Color convertion
+import numpy as np       # Array and matrix operations
 import bpy               # Blender python
 import bmesh             # Blender mesh module
 import mathutils         # Blender object type
 
 # Import user modules
 from cc_blender_plant_volume import blender_utility_functions as utility
+from cc_blender_plant_volume import blender_point_clustering as cluster
 
 def rgb_to_hsv(rgb:mathutils.Vector) -> mathutils.Vector:
     """Convert color vector from RGB (value from 0 to 1 for each channel) to HSV"""
@@ -69,6 +71,27 @@ def remesh_block_modifier(obj:bpy.types.Object, octree_depth:int=8) -> None:
     # Apply modifier
     bpy.ops.object.modifier_apply(modifier="Remesh")
 
+# Using https://stackoverflow.com/questions/15688232/check-which-side-of-a-plane-points-are-on
+def filter_from_plane_normal(obj:bpy.types.Object,
+                             plane_equation:np.ndarray) -> bpy.types.Object:
+    """Delte points from input object if not in oriented toward the plane normal
+    Check point orientation by computing dot product between plane equation and point
+    """
+    # Initialise new bmesh entry based on input object
+    obj_mesh = bmesh.new()
+    obj_mesh.from_mesh(obj.data)
+    # Loop through vetices and check on which side of the plane it stand
+    for vertex in obj_mesh.verts:
+        # Use to.4d to add 1 as extra dimension(to match with plane equation)
+        vertex_coord = np.array(vertex.co.to_4d())
+        # Delete points which are not alligned with plane normal
+        if plane_equation.dot(vertex_coord) < 0:
+            obj_mesh.verts.remove(vertex)
+    # Update object mesh and free bmesh data
+    obj_mesh.to_mesh(obj.data)
+    obj_mesh.free()
+    return obj
+
 def extract_component(name:str="Pot",
                       color_selection:Callable=rgb_to_grey,
                       delete_min:float=0,
@@ -107,7 +130,8 @@ def extract_component(name:str="Pot",
     return obj
 
 def copy_pot(pot_thresh:float=0.05,
-             cup_thresh:float=0.03) -> tuple[bpy.types.Object, bpy.types.Object]:
+             cup_thresh:float=0.03,
+             clip_pot:bool=True) -> tuple[bpy.types.Object, bpy.types.Object]:
     """Extract pot and cup from active object (selected by color range)"""
     # Keep active object in memory (for second duplication)
     source_obj = bpy.context.active_object
@@ -125,6 +149,11 @@ def copy_pot(pot_thresh:float=0.05,
                             delete_min=cup_thresh,
                             filtering_mth="remesh",
                             remesh_octree=8)
+    # If clip_pot, intersect pot object with plane fitted on cup
+    # (Used to remove unnecessary feature under the cup, leading to uncontrolled pot center)
+    if clip_pot:
+        ref_plane = cluster.ransac_plane(cup)
+        pot = filter_from_plane_normal(pot, ref_plane)
     # Return list of generated object
     return (pot, cup)
 
