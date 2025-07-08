@@ -138,7 +138,7 @@ class metashape_proc:
             self.chunk.exportModel(path=os.path.join(self.output_dir, model_file_obj),
                                    save_confidence=True, save_colors=True)
         if save_project:
-            # Save project both as archive (psz) for transfering to another machine and open (psx) for editing
+            # Save project both as archive (psz) for data transfer and open (psx) for editing
             project_file_psx = f"{self.output_tag}.psx"
             project_file_psz = f"{self.output_tag}.psz"
             self.doc.save(os.path.join(self.output_dir, project_file_psx))
@@ -154,15 +154,19 @@ if __name__ == "__main__":
 
     # Processing all folder within working directory
     file_list = os.listdir(".")
+    output_list = os.listdir(output_dir)
     for file_name in file_list:
         if os.path.isdir(file_name) and file_name.startswith(("BR", "HS", "HV", "NB", "SD", "SL", "TA")):
             print(f"Working on {file_name}")
             # Extract plant code from file name
-            try:
-                plant_code = re.match("[A-Z]{2}[0-9]{3}_[A-Z][0-9]{2}", file_name)[0]
-            except TypeError:
-                # No match found, use full folder name instead
-                plant_code = file_name
+            plant_find = re.match("[A-Z]{2}[0-9]{3}_[A-Z][0-9]{2}", file_name)
+            # If no match found, use full folder name, otherwise, use first match
+            plant_code = file_name if plant_find is None else plant_find[0]
+            # Check if plant code already process, if so, skip it
+            plant_check = re.compile(f"Metashape_{plant_code}.*")
+            if len(list(filter(plant_check.match, output_list))) > 0:
+                print(f"Plant {plant_code} already processed, skipping")
+                continue
             current_process = metashape_proc(working_dir=file_name,
                                              output_dir=output_dir,
                                              output_tag=f"Metashape_{plant_code}")
