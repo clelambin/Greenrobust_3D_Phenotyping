@@ -26,7 +26,8 @@ def geonode_init(name:str = "Geometry node") -> bpy.types.GeometryNodeTree:
     # Return initialised geometry node
     return geonode
 
-def cross_section_node(name:str="Geometry node") -> bpy.types.GeometryNodeTree:
+def cross_section_node(name:str="Geometry node",
+                       boolean_intersect:bool=True) -> bpy.types.GeometryNodeTree:
     """Create geometry node on plane object and use it to generate cross-section modifier"""
     # Initialise cross-section geometry node
     geonode = geonode_init(name=name)
@@ -40,20 +41,24 @@ def cross_section_node(name:str="Geometry node") -> bpy.types.GeometryNodeTree:
     object_info.transform_space = 'RELATIVE'
     # Add boolean geometry node (to create the cross-section)
     mesh_boolean = geonode.nodes.new("GeometryNodeMeshBoolean")
-    mesh_boolean.name = "Mesh Boolean"
-    mesh_boolean.operation = 'DIFFERENCE'
+    mesh_boolean.name = "Mesh Boolean" 
+    mesh_boolean.operation = 'INTERSECT' if boolean_intersect else 'DIFFERENCE'
     mesh_boolean.solver = 'EXACT'
-    # Add separate geometry node (to isolate the cross-section)
-    separate_geometry = geonode.nodes.new("GeometryNodeSeparateGeometry")
-    separate_geometry.name = "Separate Geometry"
-    separate_geometry.domain = 'POINT'
     # Create links between nodes
     geonode.links.new(group_input.outputs["Object"], object_info.inputs["Object"])
     geonode.links.new(group_input.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
     geonode.links.new(object_info.outputs["Geometry"], mesh_boolean.inputs["Mesh 2"])
-    geonode.links.new(mesh_boolean.outputs["Mesh"], separate_geometry.inputs["Geometry"])
-    geonode.links.new(mesh_boolean.outputs["Intersecting Edges"], separate_geometry.inputs["Selection"])
-    geonode.links.new(separate_geometry.outputs["Selection"], group_output.inputs["Geometry"])
+    if boolean_intersect:
+        geonode.links.new(mesh_boolean.outputs["Mesh"], group_output.inputs["Geometry"])
+    else:
+        # If use difference boolean, add separate geometry node (to isolate the cross-section)
+        # and link it to the other nodes
+        separate_geometry = geonode.nodes.new("GeometryNodeSeparateGeometry")
+        separate_geometry.name = "Separate Geometry"
+        separate_geometry.domain = 'POINT'
+        geonode.links.new(mesh_boolean.outputs["Mesh"], separate_geometry.inputs["Geometry"])
+        geonode.links.new(mesh_boolean.outputs["Intersecting Edges"], separate_geometry.inputs["Selection"])
+        geonode.links.new(separate_geometry.outputs["Selection"], group_output.inputs["Geometry"])
     # Return geometry node
     return geonode
 
