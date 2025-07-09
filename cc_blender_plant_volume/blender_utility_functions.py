@@ -42,6 +42,14 @@ def delete_vertices(mesh: bmesh.types.BMesh,
     for vertex in vertex_list:
         mesh.verts.remove(vertex)
 
+def delete_selected(mesh: bmesh.types.BMesh,
+                    selected_status:bool=True) -> bmesh.types.BMesh:
+    """Delete selected or unselected vertices from input bmesh file, return updated bmesh"""
+    for vertex in mesh.verts:
+        if vertex.select == selected_status:
+            mesh.verts.remove(vertex)
+    return mesh
+
 # From https://blenderartists.org/t/get-amount-of-connected-geometry-within-a-mesh/1454143/2
 def get_connected_elements(input_element, cluster_type:str="faces", link_type:str="edges"):
     """Return a set containing the elements connected to the input element"""

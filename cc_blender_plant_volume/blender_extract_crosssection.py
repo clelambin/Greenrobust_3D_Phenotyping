@@ -80,6 +80,20 @@ def cross_section_modifier(plane:bpy.types.Object, intersect:bpy.types.Object, n
     # Apply modifier
     bpy.ops.object.modifier_apply(modifier=modifier.name)
 
+def keep_intersection(obj: bpy.types.Object) -> None:
+    """Keep only intersection plane after cross-section modifier
+    After cross-section modifier, only the vertices in the intersection are selected
+    Use bmesh to delete non-selected vertices
+    """
+    # Extract bmesh from obj
+    obj_mesh = bmesh.new()
+    obj_mesh.from_mesh(obj.data)
+    # Delete unselected vertices
+    obj_mesh = utility.delete_selected(obj_mesh, selected_status=False)
+    # Update object mesh
+    obj_mesh.to_mesh(obj.data)
+    obj_mesh.free()
+
 def main(intersect:bpy.types.Object) -> bpy.types.Object:
     """Main script, use geometry node to create cross section of intersect object"""
     # Create plane at given location
@@ -89,6 +103,7 @@ def main(intersect:bpy.types.Object) -> bpy.types.Object:
 #    cross_section_node(name="Cross-section")
     # Apply modifier on intersect object
     cross_section_modifier(plane, intersect, name="Cross-section")
+    keep_intersection(plane)
     # Return generated plane
     return plane
 
