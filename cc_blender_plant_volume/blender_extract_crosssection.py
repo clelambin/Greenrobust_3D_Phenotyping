@@ -46,13 +46,15 @@ def cross_section_node(name:str="Geometry node",
     mesh_boolean.solver = 'EXACT'
     # Create links between nodes
     geonode.links.new(group_input.outputs["Object"], object_info.inputs["Object"])
-    geonode.links.new(group_input.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
-    geonode.links.new(object_info.outputs["Geometry"], mesh_boolean.inputs["Mesh 2"])
     if boolean_intersect:
+        geonode.links.new(group_input.outputs["Geometry"], mesh_boolean.inputs["Mesh"])
+        geonode.links.new(object_info.outputs["Geometry"], mesh_boolean.inputs["Mesh"])
         geonode.links.new(mesh_boolean.outputs["Mesh"], group_output.inputs["Geometry"])
     else:
         # If use difference boolean, add separate geometry node (to isolate the cross-section)
         # and link it to the other nodes
+        geonode.links.new(group_input.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
+        geonode.links.new(object_info.outputs["Geometry"], mesh_boolean.inputs["Mesh 2"])
         separate_geometry = geonode.nodes.new("GeometryNodeSeparateGeometry")
         separate_geometry.name = "Separate Geometry"
         separate_geometry.domain = 'POINT'
@@ -221,7 +223,7 @@ def get_section_dimension(obj:bpy.types.Object) -> np.ndarray:
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)
     # Siplify geometry to reduce computing time and exclude leaves clusters
-    bpy.ops.mesh.remove_doubles(threshold=0.25)
+#    bpy.ops.mesh.remove_doubles(threshold=0.25)
     cleanup_section(max_edge_length=0.25, method="cluster")
     # Update object data
     obj = bpy.context.active_object
