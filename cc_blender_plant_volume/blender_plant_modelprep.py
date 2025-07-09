@@ -195,9 +195,21 @@ def scale_to_ref(ratio) -> None:
 #                                     center_override=(0.0, 0.0, 0.0))
 #            obj.select_set(False)
 
+def calc_area(mesh:bmesh.types.BMesh) -> float:
+    """Return sum of all faces area"""
+    return sum([face.calc_area() for face in mesh.faces])
+
+def calc_dimension(mesh: bmesh.types.BMesh) -> np.ndarray:
+    """Return X, Y and Z dimension of the bounding box of input mesh"""
+    # Compute min and max for all 3 dimenions of the vertices coordinate
+    vertex_coord = np.array([vertex.co for vertex in mesh.verts])
+    return np.max(vertex_coord, axis=0) - np.min(vertex_coord, axis=0)
+
 # Warning: if switch scaling to bmesh, would need to update
-def calc_volume(obj:bpy.types.Object) -> float:
-    """Return volume from bmesh after application of transformation"""
+def calc_metrics(obj:bpy.types.Object) -> dict:
+    """Return metrics (volume, area, dimension) from bmesh after application of transformation
+    Return metrics are saved within a dictionary
+    """
     # Mark object as active and switch to Edit mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     utility.select_all(select=False)
@@ -208,14 +220,20 @@ def calc_volume(obj:bpy.types.Object) -> float:
     temp_mesh = orig_mesh.copy()
     # Apply mesh transformation
     temp_mesh.transform(obj.matrix_world)
-    # Calculate volume
+    # Calculate metrics
     volume = temp_mesh.calc_volume()
+    surface = calc_area(temp_mesh)
+    dimension = calc_dimension(temp_mesh)
     # Free up bmesh and switch back to Object mode
     orig_mesh.free()
     temp_mesh.free()
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    # Return volume
-    return volume
+    # Return all computed metrix
+    return {"Volume"  : volume,
+            "Surface" : surface,
+            "Dim_X"   : dimension[0],
+            "Dim_Y"   : dimension[1],
+            "Dim_Z"   : dimension[2],}
 
 def import_model(obj_path:str, file_ext:str="obj") -> None:
     """Prepare the working environment and load the 3D model"""
@@ -231,7 +249,7 @@ def save_blend(obj_path:str, output_path:str) -> None:
     plant_file = f"{plant_name}.blend"
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(output_path, plant_file))
 
-def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> float:
+def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     """Main function, prepare the geometry and output the prepared volume"""
     plant = bpy.context.active_object
     # If no active object alert the user
@@ -273,9 +291,11 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> float:
     if deleted_vertices == -1:
         error_indicator = -1
 
-    # Compute volume
-    plant_volume = calc_volume(plant_green) * error_indicator
-    print(f"{plant_volume = }")
+    # Compute plant metrics (volume, surface and dimensions)
+    plant_metrics = calc_metrics(plant_green)
+    print(f"{plant_metrics = }")
+    # Add error indicator to metrics
+    plant_metrics["Error"] = error_indicator
 
     # If ouput_dir specified, save rendered image of prepared model in output directory
     if output_dir is not None:
@@ -284,39 +304,43 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> float:
     # Cleanup unused data
     bpy.ops.outliner.orphans_purge()
 
-    # Return the volume
-    return plant_volume
+    # Return computed metrics
+    return plant_metrics
 
 def single_model_prep(obj_path:str,
                       output_path:str|None=None,
                       pot_size:float=0.13,
-                      file_ext:str="obj") -> float:
+                      file_ext:str="obj") -> dict:
     """Single model preparation: import the model, compute the volume and save output blend file"""
     # Import the model
     import_model(obj_path, file_ext)
-    # Prepare the model and compute the volume
-    volume = model_prep(pot_size, output_path)
+    # Prepare the model and compute all plant metrics
+    metrics = model_prep(pot_size, output_path)
     # Save blend file in output folder
     if output_path is not None:
         save_blend(obj_path, output_path)
-    # Return the volume
-    return volume
+    # Return plant metrics
+    return metrics
 
 def process_model_folder(file_list:list[str],
                          working_path:str,
                          volume_path:str,
                          output_path:str="",
-                         file_ext:str="obj") -> None:
+                         file_ext:str="obj",
+                         metrics_keys:list[str]=["Volume"]) -> None:
     """Loop through file list and process all model files"""
     for name in file_list:
         if not name.lower().endswith(file_ext) or "ptscloud" in name.lower():
             continue
         # Process plant model
         model_path = os.path.join(working_path, name)
-        volume = single_model_prep(model_path, output_path=output_path, file_ext=file_ext)
-        # Save volume to csv file
+        plant_metrics = single_model_prep(model_path, output_path=output_path, file_ext=file_ext)
+        # Save all plant metrics to csv file
+        plant_info = [working_path, name]
+        for key in metrics_keys:
+            plant_info.append(str(plant_metrics.get(key, 0)))
         with open(volume_path, "a", encoding="utf-8") as volume_file:
-            volume_file.write(f"{working_path},{name},{volume}\n")
+            volume_file.write(f"{','.join(plant_info)}\n")
 
 def loop_through_folders(working_path:str,
                          model_folder:str,
@@ -326,18 +350,24 @@ def loop_through_folders(working_path:str,
     """Loop through the folders and process folders matching input name"""
     # Loop through all files and process plant model
     volume_path = os.path.join(output_path, output_table)
+    plant_header = ["Path", "Plant name"]
+    metrics_keys = ["Volume", "Surface", "Dim_X", "Dim_Y", "Dim_Z", "Error"]
     with open(volume_path, "w", encoding="utf-8") as volume_file:
-        volume_file.write("Path,Plant name,Volume\n")
+        volume_file.write(f"{','.join(plant_header)},{','.join(metrics_keys)}\n")
     for root, _, files in os.walk(working_path):
         # Check if last folder in root matches with specified model folder
         last_folder = root.split(os.sep)[-1]
         if model_folder == last_folder:
             print(f"Processing {root}")
-            process_model_folder(files, root, volume_path, output_path, model_file_ext)
+            process_model_folder(files, root,
+                                 volume_path,
+                                 output_path,
+                                 model_file_ext,
+                                 metrics_keys=metrics_keys)
 
 if __name__ == "__main__":
     # Test model preparation on active file
     obj = bpy.context.active_object
     assert obj is not None, "No active object"
-    volume = model_prep()
-    print(f"{volume=}")
+    metrics = model_prep()
+    print(f"{metrics=}")

@@ -23,7 +23,7 @@ from cc_blender_plant_volume import blender_plant_modelprep as modelprep
 # User variables
 WORKING_PATH   = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
 OUTPUT_PATH    = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\04_Output_BlenderScript"
-OUTPUT_TABLE   = "Plant_volume.csv"
+OUTPUT_TABLE   = "Plant_data.csv"
 MODEL_FOLDER   = "02_Metashape_BatchProc_Conf"
 MODEL_FILE_EXT = "ply"
 MODEL_FILE     = None
