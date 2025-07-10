@@ -26,6 +26,7 @@ from cc_blender_plant_volume import blender_extract_attributefiltering as attrib
 from cc_blender_plant_volume import blender_point_clustering as cluster
 from cc_blender_plant_volume import blender_utility_functions as utility
 from cc_blender_plant_volume import blender_plant_rendering as render
+from cc_blender_plant_volume import blender_plant_metrics as metrics
 
 def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
     """Remove non-relevant object from scene"""
@@ -260,7 +261,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
         code_error += 4
 
     # Compute plant metrics (volume, surface and dimensions)
-    plant_metrics = calc_metrics(plant_green)
+    plant_metrics = metrics.calc_metrics(plant_green)
     print(f"{plant_metrics = }")
     # Add code error to metrics
     plant_metrics["Code_error"] = code_error
