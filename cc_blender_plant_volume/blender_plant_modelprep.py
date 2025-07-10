@@ -141,13 +141,13 @@ def apply_rotation(obj:bpy.types.Object, rotation_matrix:mathutils.Matrix) -> No
 
 def allign_to_z(ref_obj:bpy.types.Object, plane_normal=True) ->  int:
     """Rotate object around 2 axis to allign center of ref object to Z axis
-    Return -1 if an error happen (otherwise, return 1)
+    Return 1 if an error happen during allignment (otherwise, return 0)
     """
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    # If reference object does not contain any vertices, return -1 and alert the user
+    # If reference object does not contain any vertices, return 1 and alert the user
     if len(ref_obj.data.vertices) == 0:
         print(f"Warning {ref_obj.name} is empty, cannot be used to for allignment")
-        return -1
+        return 1
     # Mark reference object as active
     utility.select_all(select=False)
     bpy.context.view_layer.objects.active = ref_obj
@@ -169,7 +169,7 @@ def allign_to_z(ref_obj:bpy.types.Object, plane_normal=True) ->  int:
     for obj in bpy.data.objects:
         if obj.type == 'MESH':
             apply_rotation(obj, rotation_matrix)
-    return 1
+    return 0
 
 def calc_scale_ratio(measure:np.ndarray, expected:float, method:str) -> float:
     """Return scale ratio to scale to the expected value"""
@@ -255,6 +255,15 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     # If no active object alert the user
     assert plant is not None, "No active object"
 
+    # Initialise code error
+    # If no error, code error remain at 0, otherwise, each error adds up to it
+    # (similar to chmod ownership code)
+    # code error and corresponding function
+    # +1 : allign_to_z
+    # +2 : section.get_section_dimension
+    # +4 : cluster.dbscan_filter
+    code_error = 0
+
     # Clean up obj
 #    attribute.delete_low_confidence()
     rmnoise.main()
@@ -268,7 +277,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     translate_to_center(ref_obj = pot)
     # Align cup normal to Z axis, if error encounter, return -1
     # (used as multiplicator on volume to indicate something wrong in the process)
-    error_indicator = allign_to_z(ref_obj=cup)
+    code_error += allign_to_z(ref_obj=cup)
 
     # Compute Cross-section
     cross_section = section.main(plant)
@@ -279,23 +288,22 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
         ratio = calc_scale_ratio(section_dim, pot_size, method="min")
         scale_to_ref(ratio)
     else:
-        # section returned -1, skip the scaling and multiply the volume by -1 to alert the user
-        error_indicator = -1
+        # Section error, skip scaling and add 2 to code error to alert the user
+        code_error += 2
 
     # Create copy of plant excluding pot
     plant_green = attribute.copy_green_plant(plant)
     # Use clusting to only keep biggest cluster
     deleted_vertices = cluster.dbscan_filter(plant_green)
-    # If -1 returned as number of deleted vertices, no cluster detected,
-    # set error to -1 to indicate error
+    # If -1 returned as number of deleted vertices, no cluster detected, add 4 to code error
     if deleted_vertices == -1:
-        error_indicator = -1
+        code_error += 4
 
     # Compute plant metrics (volume, surface and dimensions)
     plant_metrics = calc_metrics(plant_green)
     print(f"{plant_metrics = }")
-    # Add error indicator to metrics
-    plant_metrics["Error"] = error_indicator
+    # Add code error to metrics
+    plant_metrics["Code_error"] = code_error
 
     # If ouput_dir specified, save rendered image of prepared model in output directory
     if output_dir is not None:
@@ -351,7 +359,7 @@ def loop_through_folders(working_path:str,
     # Loop through all files and process plant model
     volume_path = os.path.join(output_path, output_table)
     plant_header = ["Path", "Plant name"]
-    metrics_keys = ["Volume", "Surface", "Dim_X", "Dim_Y", "Dim_Z", "Error"]
+    metrics_keys = ["Volume", "Surface", "Dim_X", "Dim_Y", "Dim_Z", "Code_error"]
     with open(volume_path, "w", encoding="utf-8") as volume_file:
         volume_file.write(f"{','.join(plant_header)},{','.join(metrics_keys)}\n")
     for root, _, files in os.walk(working_path):
