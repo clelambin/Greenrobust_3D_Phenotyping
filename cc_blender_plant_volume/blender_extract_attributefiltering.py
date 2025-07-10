@@ -152,10 +152,11 @@ def copy_pot(pot_thresh:float=0.05,
     # If clip_pot, intersect pot object with plane fitted on cup
     # (Used to remove unnecessary feature under the cup, leading to uncontrolled pot center)
     if clip_pot:
-        # Reset pot location to origin so cup and pot have the same reference
+        # Reset pot location and rotoation to origin so cup and pot have the same reference
         utility.make_active(pot)
         bpy.context.scene.cursor.location = mathutils.Vector((0, 0, 0))
         bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
+        bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
         # Fit plane to cup and use to remove vertices from pot behind the plane
         ref_plane = cluster.ransac_plane(cup)
         pot = filter_from_plane_normal(pot, ref_plane)
