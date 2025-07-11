@@ -119,3 +119,11 @@ def select_all(select:bool= True, target_type:str="MESH") -> None:
     for obj in bpy.data.objects:
         if obj.type == target_type:
             obj.select_set(select)
+
+def get_view3d() -> bpy.types.Area | None:
+    """Return first 3d view in Blender environment"""
+    for area in bpy.context.screen.areas:
+        if area.type == "VIEW_3D":
+            return area
+    # If no area of the VIEW_3D type found, return None
+    return None

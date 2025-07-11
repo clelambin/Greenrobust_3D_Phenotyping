@@ -261,7 +261,9 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
         code_error += 4
 
     # Compute plant metrics (volume, surface and dimensions)
-    plant_metrics = metrics.calc_metrics(plant_green)
+    # (If output dir specified, add temp image in output dir for area project)
+    tmp_img = os.path.join(output_dir, "ObjectProject.png") if output_dir is not None else None
+    plant_metrics = metrics.calc_metrics(plant_green, tmp_img)
     print(f"{plant_metrics = }")
     # Add code error to metrics
     plant_metrics["Code_error"] = code_error
@@ -284,12 +286,12 @@ def single_model_prep(obj_path:str,
     # Import the model
     import_model(obj_path, file_ext)
     # Prepare the model and compute all plant metrics
-    metrics = model_prep(pot_size, output_path)
+    model_metrics = model_prep(pot_size, output_path)
     # Save blend file in output folder
     if output_path is not None:
         save_blend(obj_path, output_path)
     # Return plant metrics
-    return metrics
+    return model_metrics
 
 def process_model_folder(file_list:list[str],
                          working_path:str,
@@ -320,7 +322,7 @@ def loop_through_folders(working_path:str,
     # Loop through all files and process plant model
     volume_path = os.path.join(output_path, output_table)
     plant_header = ["Path", "Plant name"]
-    metrics_keys = ["Volume", "Surface", "Dim_X", "Dim_Y", "Dim_Z", "Code_error"]
+    metrics_keys = list(metrics.calc_metrics().keys())
     with open(volume_path, "w", encoding="utf-8") as volume_file:
         volume_file.write(f"{','.join(plant_header)},{','.join(metrics_keys)}\n")
     for root, _, files in os.walk(working_path):
@@ -336,7 +338,6 @@ def loop_through_folders(working_path:str,
 
 if __name__ == "__main__":
     # Test model preparation on active file
-    obj = bpy.context.active_object
-    assert obj is not None, "No active object"
-    metrics = model_prep()
-    print(f"{metrics=}")
+    test_obj = bpy.context.active_object
+    assert test_obj is not None, "No active object"
+    print(f"{model_prep()=}")
