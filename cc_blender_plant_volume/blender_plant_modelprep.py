@@ -14,7 +14,6 @@ Workflow:
 # Import libraries
 import os             # File manager
 import bpy            # Blender python
-import bmesh          # Blender mesh module
 import mathutils      # Blender object type
 import numpy as np    # Array and matrix operations
 
@@ -221,8 +220,9 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     # (similar to chmod ownership code)
     # code error and corresponding function
     # +1 : allign_to_z
-    # +2 : section.get_section_dimension
-    # +4 : cluster.dbscan_filter
+    # +2 : section.get_section_dimension (section not computed)
+    # +4 : section.get_section_dimension (section missplaced)
+    # +8 : cluster.dbscan_filter
     code_error = 0
 
     # Clean up obj
@@ -236,29 +236,34 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
 
     # Align Object based on pot and cup center
     translate_to_center(ref_obj = pot)
-    # Align cup normal to Z axis, if error encounter, return -1
+    # Align cup normal to Z axis, if error encounter, return 1
     # (used as multiplicator on volume to indicate something wrong in the process)
     code_error += allign_to_z(ref_obj=cup)
 
     # Compute Cross-section
     cross_section = section.main(plant)
-    section_dim = section.get_section_dimension(cross_section)
+    section_dim, section_center = section.get_section_dimension(cross_section)
 
     # Perform scaling based on measured ratio if the cross-section returned proper values
     if len(section_dim) != 1:
         ratio = calc_scale_ratio(section_dim, pot_size, method="min")
         scale_to_ref(ratio)
+        # if section_center not closed to center, add to code error
+        # to alert that cross-section might be missplaced
+        ratio_to_center = np.linalg.norm(section_center) / np.linalg.norm(section_dim)
+        if ratio_to_center > 0.1:
+            code_error += 4
     else:
-        # Section error, skip scaling and add 2 to code error to alert the user
+        # Section error, skip scaling and add to code error to alert the user
         code_error += 2
 
     # Create copy of plant excluding pot
     plant_green = attribute.copy_green_plant(plant)
     # Use clusting to only keep biggest cluster
     deleted_vertices = cluster.dbscan_filter(plant_green)
-    # If -1 returned as number of deleted vertices, no cluster detected, add 4 to code error
+    # If -1 returned as number of deleted vertices, no cluster detected, add to code error
     if deleted_vertices == -1:
-        code_error += 4
+        code_error += 8
 
     # Compute plant metrics (volume, surface and dimensions)
     # (If output dir specified, add temp image in output dir for area project)

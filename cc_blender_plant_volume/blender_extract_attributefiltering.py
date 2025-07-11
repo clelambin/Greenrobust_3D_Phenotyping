@@ -151,7 +151,7 @@ def copy_pot(pot_thresh:float=0.05,
                             remesh_octree=8)
     # If clip_pot, intersect pot object with plane fitted on cup
     # (Used to remove unnecessary feature under the cup, leading to uncontrolled pot center)
-    if clip_pot:
+    if clip_pot and len(cup.data.vertices) > 3:
         # Reset pot location and rotoation to origin so cup and pot have the same reference
         utility.make_active(pot)
         bpy.context.scene.cursor.location = mathutils.Vector((0, 0, 0))

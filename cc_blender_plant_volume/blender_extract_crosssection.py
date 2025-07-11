@@ -231,7 +231,7 @@ def cleanup_section(max_edge_length:float=0.1, method:str="center") -> None:
         bmesh.update_edit_mesh(obj.data)
         mesh.free()
 
-def get_section_dimension(obj:bpy.types.Object) -> np.ndarray:
+def get_section_dimension(obj:bpy.types.Object) -> tuple[np.ndarray, np.ndarray]:
     """Fit a rotating bounding box on set of point and return the dimension of the bounding box"""
     # Set plane as active and switch to Edit mode
     utility.select_all(select=False)
@@ -250,23 +250,24 @@ def get_section_dimension(obj:bpy.types.Object) -> np.ndarray:
     print(f"{len(vertex_coord) = }")
     # If only 1 or 0 vertex, cannot fit bounding rectangle, output -1 to indicate error
     if len(vertex_coord) <= 1:
-        return np.array((-1.0,))
+        return tuple(np.array((-1.0,))) * 2
     bbox = minimum_bounding_rectangle(vertex_coord)
     # Add bounding box to active mesh
     draw_polygon_2d(bbox)
-    # Measure dimension from bounding box coordinates
+    # Measure dimension and center from bounding box coordinates
     try:
         bbox_dim = [np.linalg.norm(bbox[i]-bbox[i+1]) for i in range(2)]
+        center = np.average(bbox, axis=0)
     except ValueError:
         # Wrong cross-section, output -1 to indicate error in the cross-section computation
-        return np.array((-1.0,))
+        return tuple(np.array((-1.0,))) * 2
     # Switch back to object mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    return np.array(bbox_dim)
+    return (np.array(bbox_dim), np.array(center))
 
 if __name__ == "__main__":
     # Apply cross-section on active object
-    obj = bpy.context.active_object
-    plane = main(obj)
-    section_dim = get_section_dimension(plane)
-    print(f"{section_dim = }")
+    test_obj = bpy.context.active_object
+    assert test_obj is not None, "No active object"
+    test_plane = main(test_obj)
+    print(f"{get_section_dimension(test_plane)=}")
