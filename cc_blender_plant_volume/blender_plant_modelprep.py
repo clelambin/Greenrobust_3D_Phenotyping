@@ -271,7 +271,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     plant_metrics = metrics.calc_metrics(plant_green, tmp_img)
     print(f"{plant_metrics = }")
     # Add code error to metrics
-    plant_metrics["Code_error"] = code_error
+    plant_metrics["Code_Error"] = code_error
 
     # If ouput_dir specified, save rendered image of prepared model in output directory
     if output_dir is not None:

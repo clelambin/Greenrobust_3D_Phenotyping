@@ -93,6 +93,7 @@ def calc_metrics(obj:bpy.types.Object|None=None,
         "Font_Area_Ratio": 0.,
         "Left_Area_Ratio": 0.,
         "Top_Area_Ratio" : 0.,
+        "Code_Error"     : 0,
     }
     # If no object, return empty dictionary (for the keys)
     if obj is None:
