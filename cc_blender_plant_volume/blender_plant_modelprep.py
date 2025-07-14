@@ -235,7 +235,6 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
 #    Skeleton.delete_isolated()
 #    Skeleton.keep_biggest_cluster()
     (pot, cup) = attribute.copy_pot()
-    stopIt
 
     # Align Object based on pot and cup center
     translate_to_center(ref_obj = pot)
