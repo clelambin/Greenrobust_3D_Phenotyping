@@ -51,6 +51,8 @@ def import_file(filepath:str, file_ext:str="obj"):
     getattr(bpy.ops.wm, import_command[file_ext])(filepath=filepath,
                                                   forward_axis='NEGATIVE_Z',
                                                   up_axis='Y')
+    # Apply rotation to consider for the imported axis transformation
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
 
 def get_location(obj:(bpy.types.Object|None)=None, center_ref:str="surface") -> mathutils.Vector:
     """Reset center and get location of active object or sepified object"""
@@ -233,6 +235,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
 #    Skeleton.delete_isolated()
 #    Skeleton.keep_biggest_cluster()
     (pot, cup) = attribute.copy_pot()
+    stopIt
 
     # Align Object based on pot and cup center
     translate_to_center(ref_obj = pot)
@@ -245,16 +248,18 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     section_dim, section_center = section.get_section_dimension(cross_section)
 
     # Perform scaling based on measured ratio if the cross-section returned proper values
-    if len(section_dim) != 1:
+    if section_dim.size > 1:
         ratio = calc_scale_ratio(section_dim, pot_size, method="min")
         scale_to_ref(ratio)
         # if section_center not closed to center, add to code error
         # to alert that cross-section might be missplaced
         ratio_to_center = np.linalg.norm(section_center) / np.linalg.norm(section_dim)
         if ratio_to_center > 0.1:
+            print("Cross-section not center, add 4 to code error")
             code_error += 4
     else:
         # Section error, skip scaling and add to code error to alert the user
+        print("Cross-section error, skip scaling and add 2 to code error")
         code_error += 2
 
     # Create copy of plant excluding pot
@@ -263,15 +268,18 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     deleted_vertices = cluster.dbscan_filter(plant_green)
     # If -1 returned as number of deleted vertices, no cluster detected, add to code error
     if deleted_vertices == -1:
+        print("No cluster of green plant found, add 8 to code error")
         code_error += 8
 
     # Compute plant metrics (volume, surface and dimensions)
     # (If output dir specified, add temp image in output dir for area project)
     tmp_img = os.path.join(output_dir, "ObjectProject.png") if output_dir is not None else None
     plant_metrics = metrics.calc_metrics(plant_green, tmp_img)
-    print(f"{plant_metrics = }")
     # Add code error to metrics
     plant_metrics["Code_Error"] = code_error
+
+    # Return computed metrics
+    print(f"{plant_metrics = }")
 
     # If ouput_dir specified, save rendered image of prepared model in output directory
     if output_dir is not None:
