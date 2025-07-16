@@ -6,17 +6,19 @@
 
 #setting working directory & clean up environment
 rm(list=ls())
-setwd("C:/Users/cleme/Documents/Hohenheim/00_Courses/320_Landscape_and_Plant_Ecology/MSc_3D_Plant_Characterisation/Analysis")
-# Save initial par
+# Reset display and save initial par
+if(length(dev.list()!=0)){dev.off()}
 par_init <- par()
 
 # Script variables
-input_from3d  <- "Plant_data_20250717_All_Pot13cm.csv"
-input_biomass <- "20250623_biomass_data.csv"
+input_from3d  <- "data//Plant_data_20250717_All_Pot13cm.csv"
+input_biomass <- "data//20250623_biomass_data.csv"
 output_label  <- "20250717"
+output_folder <- "output"
 save_plot     <- FALSE
-plot_height   <- 480
-plot_width    <- 640
+# Set default arguments for plot display (par) and image export (jpeg)
+jpeg_args     <- list(height=4, width=6, units="in", res=300)
+par_args      <- list(cex = 1, cex.axis=0.7)
 
 # Libraries
 library(stringr)      # Regular expression
@@ -33,7 +35,8 @@ plot_predict <- function(dataframe, img_name="", main="", print_model=FALSE, pre
   predictor_level = levels(dataframe[,predictor])
   number_of_level = length(predictor_level)
   # Plot biomass in function of volume
-  if(img_name != ""){jpeg(img_name, height=plot_height, width=plot_width)}
+  if(img_name != ""){do.call(jpeg, c(filename=img_name, jpeg_args))}
+  do.call(par, par_args)
   color_palette = colorRampPalette(c("blue", "yellow", "red"))
   color_predictor = color_palette(number_of_level)
   plot(biomass~Volume,
@@ -41,7 +44,7 @@ plot_predict <- function(dataframe, img_name="", main="", print_model=FALSE, pre
        col=color_predictor[dataframe[,predictor]],
        xlab="Volume (m3)", ylab="Biomass(g)",
        main=main,
-       cex.lab=1.2,
+       cex.lab=1,
        pch=16,
        log="xy")
   
@@ -74,7 +77,7 @@ plot_predict <- function(dataframe, img_name="", main="", print_model=FALSE, pre
 plot_predict_multivar <- function(dataframe, display_var, linear_model,
                                   static_vars= c("Volume", "Dim_Z", "Top_Area"),
                                   predictor="Species", plot_legend=FALSE,
-                                  legend_x=0.2, legend_y=20)
+                                  legend_x=0.2, legend_y=35)
 {
   # Description: plot biomass in function of display var and fit linear model (keeping constant non input variable)
   
@@ -107,11 +110,11 @@ plot_predict_multivar <- function(dataframe, display_var, linear_model,
                                       length.out=20)
     # Compute predictor and overlay plot with prediction line
     pred_biomass$biomass = exp(predict(linear_model, newdata = pred_biomass))
-    lines(pred_biomass[,display_var], pred_biomass$biomass, col=color_predictor[i], lty=2)
+    lines(pred_biomass[,display_var], pred_biomass$biomass, col=color_predictor[i], lty=2, lwd=2)
   }
   if(plot_legend)
   {
-    legend(legend_x, legend_y, legend=species_level, col=species_color, pch=16, bty="n", horiz=TRUE, xjust=0.5)
+    legend(legend_x, legend_y, legend=species_level, col=species_color, pch=16, bty="n", horiz=TRUE, xjust=0.5, cex=0.8)
   }
 }
 
@@ -232,24 +235,24 @@ str(plant_correlation)
 
 # ---- Data analysis ----
 ## ==== Biomass ~ Volume + Temperature ====
-img_name = ifelse(save_plot, paste0("Biomass_Volume_Temperature_", output_label, "_AllPoints.jpg"), "")
+img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Temperature_", output_label, "_AllPoints.jpg"), "")
 plot_predict(plant_correlation, img_name=img_name, print_model=TRUE,
              main="Temperature treatment - All datapoints")
-img_name = ifelse(save_plot, paste0("Biomass_Volume_Temperature_", output_label, "_NoBadIssue.jpg"), "")
+img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Temperature_", output_label, "_NoBadIssue.jpg"), "")
 plot_predict(plant_correlation_no_bad, img_name=img_name, print_model=TRUE,
              main="Temperature treatment - No bad datapoints")
-img_name = ifelse(save_plot, paste0("Biomass_Volume_Temperature_", output_label, "_NoBadIssue.jpg"), "")
+img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Temperature_", output_label, "_NoBadIssue.jpg"), "")
 plot_predict(plant_correlation_no_issue, img_name=img_name, print_model=TRUE,
              main="Temperature treatment - No issue datapoint")
 
 ## ==== Biomass ~ Volume + Species ====
-img_name = ifelse(save_plot, paste0("Biomass_Volume_Species_", output_label, "_AllPoints.jpg"), "")
+img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Species_", output_label, "_AllPoints.jpg"), "")
 plot_predict(plant_correlation, predictor="Species", img_name=img_name, print_model=TRUE,
              main="Species treatment - All datapoints")
-img_name = ifelse(save_plot, paste0("Biomass_Volume_Species_", output_label, "_NoBadIssue.jpg"), "")
+img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Species_", output_label, "_NoBadIssue.jpg"), "")
 plot_predict(plant_correlation_no_bad, predictor="Species", img_name=img_name, print_model=TRUE,
              main="Species treatment - No bad datapoints")
-img_name = ifelse(save_plot, paste0("Biomass_Volume_Species_", output_label, "_NoModelIssue.jpg"), "")
+img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Species_", output_label, "_NoModelIssue.jpg"), "")
 plot_predict(plant_correlation_no_issue, predictor="Species", img_name=img_name, print_model=TRUE,
              main="Species treatment - No issue datapoint")
 
@@ -264,7 +267,8 @@ correlation_mat <- rcorr(correlation_data, type="pearson")
 # (Set diagonal of significance to 0, not computed during correlation)
 diag(correlation_mat$P) <- 0
 # Plot correlation table
-if(save_plot){jpeg(paste0("Correlation_matrix_", output_label, ".jpg"), height=plot_height, width=plot_width)}
+img_name <- paste0(output_folder, "//Correlation_matrix_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
 corrplot(correlation_mat$r, type = "upper", order = "hclust", 
          p.mat = correlation_mat$P, sig.level = 0.01, insig = "blank",
          tl.col = "Black")
@@ -272,6 +276,8 @@ if(save_plot){dev.off()}
 
 ## ==== Biomass ~ Volume + Dim_Z + Top_Area + Species ====
 lm_biomass_volume_top <- lm(log(biomass) ~ log(Volume) + log(Dim_Z) + log(Top_Area) + Species, data=plant_correlation)
+# Reset graphic before simulate residuals
+par(par_init)
 simulateResiduals(lm_biomass_volume_top, plot=TRUE)
 summary(lm_biomass_volume_top)
 drop1(lm_biomass_volume_top, test="F")
@@ -282,45 +288,50 @@ species_level <- levels(plant_correlation$Species)
 species_color <- color_palette(length(species_level))
 
 # Plot Volume, Dim_Z and Top_Area in function of each other
-if(save_plot){jpeg(paste0("DependantVar_Plot_", output_label, ".jpg"), height=plot_height, width=plot_width)}
-par(mfrow=c(2, 2), mar=c(1.5, 1.5, 1, 1), oma=c(2.5, 2.5, 0, 0))
-plot(Volume~Dim_Z, data=plant_correlation, log="xy", pch=16, col=species_color)
-plot(Volume~Top_Area, data=plant_correlation, log="xy", pch=16, col=species_color)
+img_name <- paste0(output_folder, "//DependantVar_Plot_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+do.call(par, c(list(mfrow=c(2, 2), mar=c(1.5, 1.5, 1, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA), par_args))
+plot(Volume~Dim_Z, data=plant_correlation, log="xy", pch=16, col=species_color, xlab="", ylab="")
+plot(Volume~Top_Area, data=plant_correlation, log="xy", pch=16, col=species_color, xlab="", ylab="")
 plot.new()
-legend("bottom", legend=species_level, col=species_color, pch=16, bty="n", horiz=TRUE)
-plot(Dim_Z~Top_Area, data=plant_correlation, log="xy", pch=16, col=species_color)
-mtext("Volume (m3)", side=2, adj=0.8, line=1, cex=1.2, col="black", outer=TRUE)
-mtext("Plant height (m)", side=2, adj=0.2, line=1, cex=1.2, col="black", outer=TRUE)
-mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1.2, col="black", outer=TRUE)
-mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1.2, col="black", outer=TRUE)
+legend("right", legend=species_level, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
+plot(Dim_Z~Top_Area, data=plant_correlation, log="xy", pch=16, col=species_color, xlab="", ylab="")
+mtext("Volume (m3)", side=2, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
+mtext("Plant height (m)", side=2, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
+mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
+mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
 
 ## ==== Biomass ~ Dim_Z + Top_Area + Species ====
 lm_biomass_top <- lm(log(biomass) ~ log(Dim_Z) + log(Top_Area) + Species, data=plant_correlation)
+# Reset graphic before simulate residuals
+par(par_init)
 simulateResiduals(lm_biomass_top, plot=TRUE)
 summary(lm_biomass_top)
 drop1(lm_biomass_top, test="F")
 
 # Plot Biomass in function of Volume, Dim_Z and Top_Area
-if(save_plot){jpeg(paste0("Biomass_Volume_DimZ_TopArea_", output_label, ".jpg"), height=plot_height, width=plot_width)}
-par(mfrow=c(1, 3), mar=c(1.5, 1.5, 2.5, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA)
+img_name <- paste0(output_folder, "//Biomass_Volume_DimZ_TopArea_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+do.call(par, c(list(mfrow=c(1, 3), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA), par_args))
 plot_predict_multivar(plant_correlation, "Volume", lm_biomass_volume_top)
-plot_predict_multivar(plant_correlation, "Dim_Z", lm_biomass_volume_top, plot_legend=TRUE, legend_y=25)
+plot_predict_multivar(plant_correlation, "Dim_Z", lm_biomass_volume_top, plot_legend=TRUE)
 plot_predict_multivar(plant_correlation, "Top_Area", lm_biomass_volume_top)
-mtext("Biomas (g)", side=2, agj=0.5, line=1, cex=1.2, col="black", outer=TRUE)
-mtext("Volume (m3)", side=1, adj=0.1, line=1, cex=1.2, col="black", outer=TRUE)
-mtext("Plant height (m)", side=1, adj=0.5, line=1, cex=1.2, col="black", outer=TRUE)
-mtext("Top area (m2)", side=1, adj=0.9, line=1, cex=1.2, col="black", outer=TRUE)
+mtext("Biomas (g)", side=2, agj=0.5, line=1, cex=1, col="black", outer=TRUE)
+mtext("Volume (m3)", side=1, adj=0.1, line=1, cex=1, col="black", outer=TRUE)
+mtext("Plant height (m)", side=1, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
+mtext("Top area (m2)", side=1, adj=0.9, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
 
 # Plot Biomass in function of Dim_Z and Top_Area only
-if(save_plot){jpeg(paste0("Biomass_DimZ_TopArea_", output_label, ".jpg"), height=plot_height, width=plot_width)}
-par(mfrow=c(1, 2), mar=c(1.5, 1.5, 2.5, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA)
-plot_predict_multivar(plant_correlation, "Dim_Z", lm_biomass_top, plot_legend=TRUE, legend_x = 1, legend_y=28)
+img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA), par_args))
+plot_predict_multivar(plant_correlation, "Dim_Z", lm_biomass_top, plot_legend=TRUE, legend_x = 1)
 plot_predict_multivar(plant_correlation, "Top_Area", lm_biomass_top)
-mtext("Biomas (g)", side=2, agj=0.5, line=1, cex=1.2, col="black", outer=TRUE)
-mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1.2, col="black", outer=TRUE)
-mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1.2, col="black", outer=TRUE)
+mtext("Biomas (g)", side=2, agj=0.5, line=1, cex=1, col="black", outer=TRUE)
+mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
+mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
 
 # ---- Reset ----
