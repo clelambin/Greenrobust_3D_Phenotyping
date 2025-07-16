@@ -129,6 +129,19 @@ plant_volume  <- read.csv(input_from3d)
 plant_volume$label <- str_extract(plant_volume$Plant.name, "[A-Z]{2}[0-9]{3}_*[A-Z][0-9]{2}")
 plant_volume$label <- str_remove_all(plant_volume$label, "_")
 
+# Add species as variable
+species_label <- str_extract(plant_volume$label, "^[A-Z]{2}")
+species_corresp <- c(BR= "Brassica rapa",
+                     HS="Hordeum spontaneum",
+                     HV="Hordeum vulgare",
+                     NB="Nicotiana benthamiana",
+                     SD="Solanum dulcamara",
+                     SL="Solanum lycopersicum",
+                     TA="Thlaspi arvense")
+#plant_correlation$Species <- species_corresp[species_label]
+plant_volume$Species <- species_label
+plant_volume$Species <- as.factor(plant_volume$Species)
+
 # Look for matching label
 plant_correlation <- plant_volume
 #plant_correlation$biomass <- plant_biomass[plant_biomass$pot_id == plant_correlation$label,"Biomass_g"]
@@ -144,19 +157,6 @@ for(i in 1:nrow(plant_correlation))
     plant_correlation[i, "biomass"] <- single_biomass
   }
 }
-
-# Add species as variable
-species_label <- str_extract(plant_correlation$label, "^[A-Z]{2}")
-species_corresp <- c(BR= "Brassica rapa",
-                     HS="Hordeum spontaneum",
-                     HV="Hordeum vulgare",
-                     NB="Nicotiana benthamiana",
-                     SD="Solanum dulcamara",
-                     SL="Solanum lycopersicum",
-                     TA="Thlaspi arvense")
-#plant_correlation$Species <- species_corresp[species_label]
-plant_correlation$Species <- species_label
-plant_correlation$Species <- as.factor(plant_correlation$Species)
 
 # Save temperature as separate treatment
 plant_correlation$temperature <- substr(str_extract(plant_correlation$label, "[0-9]S[0-9]{2}"), 2,4)
@@ -224,11 +224,20 @@ plant_correlation_no_issue = plant_correlation[plant_confidence$confidence==1,]
 plant_correlation_no_bad   = plant_correlation[plant_confidence$confidence <3,]
 
 ## ==== Overview ====
-# Initial data
-print(paste0("Initial prepared model  = ", nrow(plant_volume)))
-print(paste0("No error prepared model = ", nrow(plant_correlation)))
-print(paste0("No bad prepared model   = ", nrow(plant_correlation_no_bad)))
-print(paste0("No issue prepared model = ", nrow(plant_correlation_no_issue)))
+# Processed plant overview (per species)
+table_init <- table(plant_volume$Species)
+table_corr <- table(plant_correlation$Species)
+table_nobad   <- table(plant_correlation_no_bad$Species)
+table_noissue <- table(plant_correlation_no_issue$Species)
+
+table_combine <- rbind(c(table_init, sum(table_init)),
+                       c(table_corr, sum(table_corr)),
+                       c(table_noerror, sum(table_noerror)),
+                       c(table_noissue, sum(table_noissue)))
+colnames(table_combine)[ncol(table_combine)] <- "sum"
+rownames(table_combine) <- c("Processed data", "No reported error", "No extra bad error", "No extra error")
+table_combine
+
 # Check final prepared data
 summary(plant_correlation)
 str(plant_correlation)
