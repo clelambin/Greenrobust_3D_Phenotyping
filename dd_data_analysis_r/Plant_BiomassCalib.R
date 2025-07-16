@@ -76,21 +76,20 @@ plot_predict <- function(dataframe, img_name="", main="", print_model=FALSE, pre
 
 plot_predict_multivar <- function(dataframe, display_var, linear_model,
                                   static_vars= c("Volume", "Dim_Z", "Top_Area"),
-                                  predictor="Species", plot_legend=FALSE,
+                                  predictor="Species", plot_legend=FALSE, plot_conf=FALSE,
                                   legend_x=0.2, legend_y=35)
 {
   # Description: plot biomass in function of display var and fit linear model (keeping constant non input variable)
   
   # Color point based on species
   color_palette <- colorRampPalette(c("blue", "yellow", "red"))
-  predictor_level = levels(dataframe[,predictor])
-  number_of_level = length(predictor_level)
-  color_predictor = color_palette(number_of_level)
+  predictor_level <- levels(dataframe[,predictor])
+  number_of_level <-  length(predictor_level)
+  color_predictor <- color_palette(number_of_level)
   
   # Plot base points
-  plot(biomass~ dataframe[,display_var],
-       data=dataframe, log="xy", pch=16,
-       col=species_color, xlab="", ylab="")
+  plot(biomass~ dataframe[,display_var], data=dataframe, log="xy", pch=16,
+       col=color_predictor[dataframe[,predictor]], xlab="", ylab="")
   
   # Compute prediction for input linear model for each predictor levels
   for(i in 1:number_of_level)
@@ -109,12 +108,21 @@ plot_predict_multivar <- function(dataframe, display_var, linear_model,
                                       to=max(var_for_predict),
                                       length.out=20)
     # Compute predictor and overlay plot with prediction line
-    pred_biomass$biomass = exp(predict(linear_model, newdata = pred_biomass))
-    lines(pred_biomass[,display_var], pred_biomass$biomass, col=color_predictor[i], lty=2, lwd=2)
+    lm_predict <- predict(linear_model, newdata = pred_biomass, se.fit=TRUE, interval="confidence", level=0.95)
+    lm_predict <- exp(lm_predict$fit)
+    # If plot_conf, plot both sup and inf confidence interval line, otherwise, only the prediction line
+    nb_line <- ifelse(plot_conf, ncol(lm_predict), 1)
+    for(j in 1:nb_line)
+    {
+      # Set different line type and width for prediction line and confidence interval
+      line_type  <- ifelse(j==1, 1, 2)
+      line_width <- ifelse(j==1, 2, 1)
+      lines(pred_biomass[,display_var], lm_predict[,j], col=color_predictor[i], lty=line_type, lwd=line_width)
+    }
   }
   if(plot_legend)
   {
-    legend(legend_x, legend_y, legend=species_level, col=species_color, pch=16, bty="n", horiz=TRUE, xjust=0.5, cex=0.8)
+    legend(legend_x, legend_y, legend=species_level, col=color_predictor, pch=16, bty="n", horiz=TRUE, xjust=0.5, cex=0.8)
   }
 }
 
@@ -232,7 +240,7 @@ table_noissue <- table(plant_correlation_no_issue$Species)
 
 table_combine <- rbind(c(table_init, sum(table_init)),
                        c(table_corr, sum(table_corr)),
-                       c(table_noerror, sum(table_noerror)),
+                       c(table_nobad, sum(table_nobad)),
                        c(table_noissue, sum(table_noissue)))
 colnames(table_combine)[ncol(table_combine)] <- "sum"
 rownames(table_combine) <- c("Processed data", "No reported error", "No extra bad error", "No extra error")
