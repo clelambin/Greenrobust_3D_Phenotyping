@@ -508,6 +508,27 @@ mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRU
 mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
 
+# Repeat by removing outlier
+plant_correlation_filt_out <- plant_correlation_no_issue[plant_correlation_no_issue$biomass < 15,]
+lm_biomass_top_sqrt <- lm(sqrt(biomass) ~ sqrt(Dim_Z) + sqrt(Top_Area) + Species, data=plant_correlation_filt_out)
+# Reset graphic before simulate residuals
+par(par_init)
+simulateResiduals(lm_biomass_top_sqrt, plot=TRUE)
+summary(lm_biomass_top_sqrt)
+drop1(lm_biomass_top_sqrt, test="F")
+
+# Plot Biomass in function of Dim_Z and Top_Area only
+img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_Sqrt_", output_label, "_RmOutlier.jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA), par_args))
+plot_predict_multivar(plant_correlation_filt_out, "Dim_Z", lm_biomass_top_sqrt, plot_legend=TRUE,
+                      legend_x=0.9, legend_y=11.5, transf="sqrt")
+plot_predict_multivar(plant_correlation_filt_out, "Top_Area", lm_biomass_top_sqrt, transf="sqrt")
+mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
+mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
+mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
+if(save_plot){dev.off()}
+
 # ---- Reset ----
 # Reset graphic display
 par(par_init)
