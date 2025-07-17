@@ -8,7 +8,7 @@
 rm(list=ls())
 # Reset display and save initial par
 if(length(dev.list()!=0)){dev.off()}
-par_init <- par()
+par_init <- par(no.readonly = TRUE)
 
 # Script variables
 input_from3d  <- "data//Plant_data_20250717_All_Pot13cm.csv"
@@ -48,7 +48,7 @@ transformation_mapping <- function(transf)
   }
   else
   {
-    print("Transformation unknown, use no transformation")
+    warning("Transformation unknown, use no transformation")
     log_axis    <- ""
     back_transf <- function(x) x
   }
@@ -409,7 +409,7 @@ do.call(par, c(list(mfrow=c(1, 3), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0
 plot_predict_multivar(plant_correlation, "Volume", lm_biomass_volume_top)
 plot_predict_multivar(plant_correlation, "Dim_Z", lm_biomass_volume_top, plot_legend=TRUE)
 plot_predict_multivar(plant_correlation, "Top_Area", lm_biomass_volume_top)
-mtext("Biomas (g)", side=2, agj=0.5, line=1, cex=1, col="black", outer=TRUE)
+mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
 mtext("Volume (m3)", side=1, adj=0.1, line=1, cex=1, col="black", outer=TRUE)
 mtext("Plant height (m)", side=1, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
 mtext("Top area (m2)", side=1, adj=0.9, line=1, cex=1, col="black", outer=TRUE)
@@ -429,7 +429,7 @@ if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
 do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA), par_args))
 plot_predict_multivar(plant_correlation, "Dim_Z", lm_biomass_top, plot_legend=TRUE, legend_x = 1)
 plot_predict_multivar(plant_correlation, "Top_Area", lm_biomass_top)
-mtext("Biomas (g)", side=2, agj=0.5, line=1, cex=1, col="black", outer=TRUE)
+mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
 mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
 mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
@@ -463,7 +463,7 @@ do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0
 plot_predict_multivar(plant_correlation, "Dim_Z", lm_biomass_top_sqrt, plot_legend=TRUE,
                       legend_x=1.5, legend_y=18, transf="sqrt")
 plot_predict_multivar(plant_correlation, "Top_Area", lm_biomass_top_sqrt, transf="sqrt")
-mtext("Biomas (g)", side=2, agj=0.5, line=1, cex=1, col="black", outer=TRUE)
+mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
 mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
 mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
@@ -483,7 +483,7 @@ do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0
 plot_predict_multivar(plant_correlation_no_bad, "Dim_Z", lm_biomass_top_sqrt, plot_legend=TRUE,
                       legend_x=1.5, legend_y=18, transf="sqrt")
 plot_predict_multivar(plant_correlation_no_bad, "Top_Area", lm_biomass_top_sqrt, transf="sqrt")
-mtext("Biomas (g)", side=2, agj=0.5, line=1, cex=1, col="black", outer=TRUE)
+mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
 mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
 mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
@@ -503,7 +503,7 @@ do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0
 plot_predict_multivar(plant_correlation_no_issue, "Dim_Z", lm_biomass_top_sqrt, plot_legend=TRUE,
                       legend_x=1.5, legend_y=18, transf="sqrt")
 plot_predict_multivar(plant_correlation_no_issue, "Top_Area", lm_biomass_top_sqrt, transf="sqrt")
-mtext("Biomas (g)", side=2, agj=0.5, line=1, cex=1, col="black", outer=TRUE)
+mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
 mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
 mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
