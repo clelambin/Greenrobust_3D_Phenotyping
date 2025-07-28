@@ -292,6 +292,10 @@ summary(plant_correlation)
 str(plant_correlation)
 
 # ---- Data analysis ----
+## ==== Data overwrite ====
+# (Optional, used to compare model with filtered data)
+# plant_correlation <- plant_correlation_no_issue
+
 ## ==== Cross-correlation ====
 # From: https://www.sthda.com/english/wiki/correlation-matrix-a-quick-start-guide-to-analyze-format-and-visualize-a-correlation-matrix-using-r-software
 # Note: Pearson vs Spearman (https://www.reddit.com/r/statistics/comments/76iw0w/how_do_you_decide_which_correlation_coefficient/)
@@ -370,7 +374,7 @@ plot_predict(plant_correlation_no_issue, img_name=img_name, print_model=TRUE,
 ## ==== (log) Biomass ~ Volume + Species ====
 # Create prediction for the different filter level to see impact of outliers
 img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Species_LogAxis_", output_label, "_AllPoints.jpg"), "")
-plot_predict(plant_correlation, predictor="Species", img_name=img_name, print_model=TRUE,
+lm_biomass_volume <- plot_predict(plant_correlation, predictor="Species", img_name=img_name, print_model=TRUE,
              main="Species treatment - All datapoints")
 img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Species_LogAxis_", output_label, "_NoBadIssue.jpg"), "")
 plot_predict(plant_correlation_no_bad, predictor="Species", img_name=img_name, print_model=TRUE,
@@ -486,8 +490,14 @@ plot(log(plant_correlation$biomass) ~ predict(lm_biomass_top_with_interact))
 par(par_init)
 # Create prediction for the different filter level to see impact of outliers
 img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Species_Sqrt_", output_label, "_AllPoints.jpg"), "")
-plot_predict(plant_correlation, predictor="Species", img_name=img_name, print_model=TRUE,
-             main="Species treatment - All datapoints", transf="sqrt")
+plot_predict(
+  plant_correlation,
+  predictor = "Species",
+  img_name = img_name,
+  print_model = TRUE,
+  main = "Species treatment - All datapoints",
+  transf = "sqrt"
+)
 img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Species_Sqrt_", output_label, "_NoBadIssue.jpg"), "")
 plot_predict(plant_correlation_no_bad, predictor="Species", img_name=img_name, print_model=TRUE,
              main="Species treatment - No bad datapoints", transf="sqrt")
@@ -515,6 +525,25 @@ mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
 mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
 mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
+
+# Observed vs predicted plot (all species)
+# Reset graphic before simulate residuals
+par(par_init)
+img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_LinearModel_Sqrt_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+do.call(par, c(list(mar=c(4, 4, 1, 1)), par_args))
+plot(sqrt(plant_correlation$biomass) ~ predict(lm_biomass_top_sqrt), pch=20, col="darkgrey",
+     xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+lines(c(0, 4), c(0, 4), lty=3)
+text(0.3, 3.8, "R²=0.88", cex=0.8)
+if(save_plot){dev.off()}
+
+## ==== Model comparison ====
+model_to_compare <- list(lm_biomass_volume, lm_biomass_volume_top, lm_biomass_top, lm_biomass_top_sqrt, lm_biomass_top_with_interact)
+model_names <- c("Biomass~volume", "Biomass~volume+height+area", "Biomass~height+area", "Biomass~height+area (sqrt)", "Biomass~height+area (with interact)")
+model_AIC <- sapply(model_to_compare, FUN=AIC)
+names(model_AIC) <- model_names
+model_AIC
 
 # ---- Reset ----
 # Reset graphic display
