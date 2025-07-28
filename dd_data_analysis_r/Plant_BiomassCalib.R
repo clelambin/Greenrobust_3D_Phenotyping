@@ -15,7 +15,7 @@ input_from3d  <- "data//Plant_data_20250717_All_Pot13cm.csv"
 input_biomass <- "data//20250623_biomass_data.csv"
 output_label  <- "20250717"
 output_folder <- "output"
-save_plot     <- FALSE
+save_plot     <- TRUE
 # Set default arguments for plot display (par) and image export (jpeg)
 jpeg_args     <- list(height=4, width=6, units="in", res=300)
 # mgp=c(title, labels, line) set the distance for the axis (default is (3, 2, 0))
@@ -423,6 +423,32 @@ simulateResiduals(lm_biomass_top, plot=TRUE)
 summary(lm_biomass_top)
 drop1(lm_biomass_top, test="F")
 
+# Observed vs predicted plot
+# Reset graphic before simulate residuals
+par(par_init)
+img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_LinearModel_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+do.call(par, c(list(mar=c(4, 4, 1, 1)), par_args))
+plot(log(plant_correlation$biomass) ~ predict(lm_biomass_top),
+     col=species_color[plant_correlation$Species], pch=16,
+     xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+legend("bottomright", legend=species_level, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
+lines(c(-2, 3), c(-2, 3), lty=3)
+text(-1.8, 2.5, "R²=0.89", cex=0.8)
+if(save_plot){dev.off()}
+
+# Observed vs predicted plot (all species)
+# Reset graphic before simulate residuals
+par(par_init)
+img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_LinearModel_AllSpecies_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+do.call(par, c(list(mar=c(4, 4, 1, 1)), par_args))
+plot(log(plant_correlation$biomass) ~ predict(lm_biomass_top), pch=20, col="darkgrey",
+     xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+lines(c(-2, 3), c(-2, 3), lty=3)
+text(-1.8, 2.5, "R²=0.89", cex=0.8)
+if(save_plot){dev.off()}
+
 # Plot Biomass in function of Dim_Z and Top_Area only
 img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_LogAxis_", output_label, ".jpg")
 if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
@@ -433,6 +459,19 @@ mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
 mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
 mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
+
+## ==== (log with interact) Biomass ~ Dim_Z + Top_Area + Species ====
+# Test with interaction
+lm_biomass_top_with_interact <- lm(log(biomass) ~ (log(Dim_Z) + log(Top_Area)) * Species, data=plant_correlation)
+# Reset graphic before simulate residuals
+par(par_init)
+simulateResiduals(lm_biomass_top_with_interact, plot=TRUE)
+summary(lm_biomass_top_with_interact)
+drop1(lm_biomass_top_with_interact, test="F")
+plot(log(plant_correlation$biomass) ~ predict(lm_biomass_top_with_interact))
+
+# To check: visreg
+# Partial residual plot
 
 ## ==== (sqrt) Biomass ~ Volume + Species ====
 # Reset graphic before simulate residuals
