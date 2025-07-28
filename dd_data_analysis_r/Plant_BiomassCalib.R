@@ -15,7 +15,7 @@ input_from3d  <- "data//Plant_data_20250717_All_Pot13cm.csv"
 input_biomass <- "data//20250623_biomass_data.csv"
 output_label  <- "20250717"
 output_folder <- "output"
-save_plot     <- TRUE
+save_plot     <- FALSE
 # Set default arguments for plot display (par) and image export (jpeg)
 jpeg_args     <- list(height=4, width=6, units="in", res=300)
 # mgp=c(title, labels, line) set the distance for the axis (default is (3, 2, 0))
@@ -26,6 +26,7 @@ library(stringr)      # Regular expression
 library(DHARMa)       # Check model assumption
 library(Hmisc)        # Cross-correlation with significance test
 library(corrplot)     # Correlation plot
+library(stats)        # For AIC
 
 # ---- User function ----
 transformation_mapping <- function(transf)
@@ -86,6 +87,7 @@ plot_predict <- function(dataframe, img_name="", main="", print_model=FALSE, pre
   {
     print(summary(lm_biomass))
     print(drop1(lm_biomass, test="F"))
+    print(paste("AIC :", AIC(lm_biomass)))
   }
   
   # Compute prediction for each predictor level
@@ -103,6 +105,9 @@ plot_predict <- function(dataframe, img_name="", main="", print_model=FALSE, pre
   # Add legend and save image
   legend(x="bottomright", legend=levels(dataframe[,predictor]), col=color_predictor, cex=0.8, pch=16, title=predictor)
   if(img_name != ""){dev.off()}
+  
+  # Return linear model
+  return(lm_biomass)
 }
 
 plot_predict_multivar <- function(dataframe, display_var, linear_model,
@@ -354,7 +359,7 @@ par(par_init)
 # Create prediction for the different filter level to see impact of outliers
 img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Temperature_LogAxis_", output_label, "_AllPoints.jpg"), "")
 plot_predict(plant_correlation, img_name=img_name, print_model=TRUE,
-             main="Temperature treatment - All datapoints")
+                                  main="Temperature treatment - All datapoints")
 img_name = ifelse(save_plot, paste0(output_folder, "//Biomass_Volume_Temperature_LogAxis_", output_label, "_NoBadIssue.jpg"), "")
 plot_predict(plant_correlation_no_bad, img_name=img_name, print_model=TRUE,
              main="Temperature treatment - No bad datapoints")
@@ -380,6 +385,7 @@ lm_biomass_volume_top <- lm(log(biomass) ~ log(Volume) + log(Dim_Z) + log(Top_Ar
 par(par_init)
 simulateResiduals(lm_biomass_volume_top, plot=TRUE)
 summary(lm_biomass_volume_top)
+AIC(lm_biomass_volume_top)
 drop1(lm_biomass_volume_top, test="F")
 
 # Set Species color
@@ -421,6 +427,7 @@ lm_biomass_top <- lm(log(biomass) ~ log(Dim_Z) + log(Top_Area) + Species, data=p
 par(par_init)
 simulateResiduals(lm_biomass_top, plot=TRUE)
 summary(lm_biomass_top)
+AIC(lm_biomass_top)
 drop1(lm_biomass_top, test="F")
 
 # Observed vs predicted plot
@@ -467,6 +474,7 @@ lm_biomass_top_with_interact <- lm(log(biomass) ~ (log(Dim_Z) + log(Top_Area)) *
 par(par_init)
 simulateResiduals(lm_biomass_top_with_interact, plot=TRUE)
 summary(lm_biomass_top_with_interact)
+AIC(lm_biomass_top_with_interact)
 drop1(lm_biomass_top_with_interact, test="F")
 plot(log(plant_correlation$biomass) ~ predict(lm_biomass_top_with_interact))
 
@@ -493,6 +501,7 @@ lm_biomass_top_sqrt <- lm(sqrt(biomass) ~ sqrt(Dim_Z) + sqrt(Top_Area) + Species
 par(par_init)
 simulateResiduals(lm_biomass_top_sqrt, plot=TRUE)
 summary(lm_biomass_top_sqrt)
+AIC(lm_biomass_top_sqrt)
 drop1(lm_biomass_top_sqrt, test="F")
 
 # Plot Biomass in function of Dim_Z and Top_Area only
@@ -502,67 +511,6 @@ do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0
 plot_predict_multivar(plant_correlation, "Dim_Z", lm_biomass_top_sqrt, plot_legend=TRUE,
                       legend_x=1.5, legend_y=18, transf="sqrt")
 plot_predict_multivar(plant_correlation, "Top_Area", lm_biomass_top_sqrt, transf="sqrt")
-mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
-mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
-mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
-if(save_plot){dev.off()}
-
-# Prediction excluding bad undetected errors
-lm_biomass_top_sqrt <- lm(sqrt(biomass) ~ sqrt(Dim_Z) + sqrt(Top_Area) + Species, data=plant_correlation_no_bad)
-# Reset graphic before simulate residuals
-par(par_init)
-simulateResiduals(lm_biomass_top_sqrt, plot=TRUE)
-summary(lm_biomass_top_sqrt)
-drop1(lm_biomass_top_sqrt, test="F")
-
-# Plot Biomass in function of Dim_Z and Top_Area only
-img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_Sqrt_", output_label, "_NoBadIssue.jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA), par_args))
-plot_predict_multivar(plant_correlation_no_bad, "Dim_Z", lm_biomass_top_sqrt, plot_legend=TRUE,
-                      legend_x=1.5, legend_y=18, transf="sqrt")
-plot_predict_multivar(plant_correlation_no_bad, "Top_Area", lm_biomass_top_sqrt, transf="sqrt")
-mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
-mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
-mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
-if(save_plot){dev.off()}
-
-# Prediction excluding all undetected errors
-lm_biomass_top_sqrt <- lm(sqrt(biomass) ~ sqrt(Dim_Z) + sqrt(Top_Area) + Species, data=plant_correlation_no_issue)
-# Reset graphic before simulate residuals
-par(par_init)
-simulateResiduals(lm_biomass_top_sqrt, plot=TRUE)
-summary(lm_biomass_top_sqrt)
-drop1(lm_biomass_top_sqrt, test="F")
-
-# Plot Biomass in function of Dim_Z and Top_Area only
-img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_Sqrt_", output_label, "_NoModelIssue.jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA), par_args))
-plot_predict_multivar(plant_correlation_no_issue, "Dim_Z", lm_biomass_top_sqrt, plot_legend=TRUE,
-                      legend_x=1.5, legend_y=18, transf="sqrt")
-plot_predict_multivar(plant_correlation_no_issue, "Top_Area", lm_biomass_top_sqrt, transf="sqrt")
-mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
-mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
-mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
-if(save_plot){dev.off()}
-
-# Repeat by removing outlier
-plant_correlation_filt_out <- plant_correlation_no_issue[plant_correlation_no_issue$biomass < 15,]
-lm_biomass_top_sqrt <- lm(sqrt(biomass) ~ sqrt(Dim_Z) + sqrt(Top_Area) + Species, data=plant_correlation_filt_out)
-# Reset graphic before simulate residuals
-par(par_init)
-simulateResiduals(lm_biomass_top_sqrt, plot=TRUE)
-summary(lm_biomass_top_sqrt)
-drop1(lm_biomass_top_sqrt, test="F")
-
-# Plot Biomass in function of Dim_Z and Top_Area only
-img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_Sqrt_", output_label, "_RmOutlier.jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-do.call(par, c(list(mfrow=c(1, 2), mar=c(1.5, 1.5, 1.5, 1), oma=c(2.5, 2.5, 0, 0), xpd=NA), par_args))
-plot_predict_multivar(plant_correlation_filt_out, "Dim_Z", lm_biomass_top_sqrt, plot_legend=TRUE,
-                      legend_x=0.9, legend_y=11.5, transf="sqrt")
-plot_predict_multivar(plant_correlation_filt_out, "Top_Area", lm_biomass_top_sqrt, transf="sqrt")
 mtext("Biomas (g)", side=2, adj=0.5, line=1, cex=1, col="black", outer=TRUE)
 mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
 mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
