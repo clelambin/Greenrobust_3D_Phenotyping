@@ -22,18 +22,17 @@ def rgb_to_grey(rgb:mathutils.Vector) -> float:
     # source: https://en.wikipedia.org/wiki/Grayscale
     return 0.2125*rgb[0] + 0.7154*rgb[1] + 0.0721*rgb[2]
 
-def filter_pure_red(rgb:mathutils.Vector) -> float:
-    """Indicate quantity of red in color in perspective to blue and green
-    Convert color from RGB (values from 0 to 1 for each channel)
-    to filter out high red and low green and blue
-    """
-    return -2*rgb[0] + 4*rgb[1] + 4*rgb[2]
-
 def filter_hue(rgb:mathutils.Vector) -> float:
     """Return hue value of rgb color"""
     # Convert rgb to hsv
     hsv = rgb_to_hsv(rgb)
-    return(hsv[0])
+    return hsv[0]
+
+def filter_saturated_hue(rgb:mathutils.Vector) -> float:
+    """Return sum of hue and inverse of saturation from rgb color"""
+    # Convert rgb to hsv
+    hsv = rgb_to_hsv(rgb)
+    return hsv[0] + (1-hsv[1])
 
 def is_in_range(value:float, min_:float, max_:float, transf:(None|Callable)=None) -> bool:
     """Return true if value is within [min_, max_]"""
@@ -130,7 +129,7 @@ def extract_component(name:str="Pot",
     return obj
 
 def copy_pot(pot_thresh:float=0.05,
-             cup_thresh:float=0.03,
+             cup_thresh:float=0.3,
              clip_pot:bool=True) -> tuple[bpy.types.Object, bpy.types.Object]:
     """Extract pot and cup from active object (selected by color range)"""
     # Keep active object in memory (for second duplication)
@@ -145,7 +144,7 @@ def copy_pot(pot_thresh:float=0.05,
     bpy.context.view_layer.objects.active = source_obj
     source_obj.select_set(True)
     cup = extract_component(name="Cup",
-                            color_selection=filter_hue,
+                            color_selection=filter_saturated_hue,
                             delete_min=cup_thresh,
                             filtering_mth="remesh",
                             remesh_octree=8)
@@ -196,9 +195,3 @@ if __name__ == "__main__":
     copy_pot()
 #    obj = bpy.context.active_object
 #    copy_green_plant(obj)
-
-#    # Test cup extraction without filtering method
-#    cup = extract_component(name="Cup",
-#                            color_selection=filter_pure_red,
-#                            delete_min=-0.1,
-#                            remesh_octree=8)
