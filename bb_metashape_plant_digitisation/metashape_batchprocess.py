@@ -5,6 +5,7 @@
 #working_dir = r"D:\Clement\3D_Digitalisation\2025-05-28_Harvest_Solanum_dulcamara"
 working_dir = r"."
 output_dir  = r"02_Metashape_BatchProc_withConfidence"
+background_dir = r"../"     # Path of background image (relative to -c1 plant folder)
 
 # Libraries
 import Metashape
@@ -24,7 +25,7 @@ class metashape_proc:
     # Setting variables
     img_format = ("jpg")
     # List of possible folder to process: the last folder in the list has precedence
-    img_possible_folder  = ("jpg", "jpg_filtered")
+    img_possible_folder  = ("jpg", "jpg_filtered", "Camera_high", "Camera_mid", "Camera_low")
     mask_possible_folder = ("jpg_mask", "jpg_mask_erode")
     
     def __init__(self, working_dir=".", output_dir=".", output_tag="Metashape_Output", new_env=True):
@@ -34,11 +35,13 @@ class metashape_proc:
         self.doc = Metashape.app.document
         if new_env:
             self.doc.clear()
-            # Create new chunk
-            self.chunk = self.doc.addChunk()
-        else:
-            # Work on existing chunk
-            self.chunk = self.doc.chunk
+#            # Create new chunk
+#            self.chunk = self.doc.addChunk()
+#        else:
+#            # Work on existing chunk
+#            self.chunk = self.doc.chunk
+        # Initialise import chunk
+        self.import_chunk = []
         # Set directories
         self.active_dir  = os.getcwd()
         self.working_dir = working_dir
@@ -55,30 +58,53 @@ class metashape_proc:
         img_possible_path  = [os.path.join(self.working_dir, folder_name) for folder_name in self.img_possible_folder]
         mask_possible_path = [os.path.join(self.working_dir, folder_name) for folder_name in self.mask_possible_folder]
         # Look for existing folder to process
-        self.img_folder = ""
-        self.mask_folder = ""
+        self.img_folders = []
+        self.mask_folders = []
         for folder in img_possible_path:
             if os.path.isdir(folder):
-                self.img_folder = folder
+                self.img_folders.append(folder)
         for folder in mask_possible_path:
             if os.path.isdir(folder):
-                self.mask_folder = folder
-        # If no image list found, raise an error, if no mask found, alert the user
-        if self.img_folder == "":
+                self.mask_folders.append(folder)
+        # If no image list found, raise an error, if no mask found, attempt to generate a mask based on image background
+        if len(self.img_folders) == 0:
             raise NameError(f"No image folder found matching one of the following: {self.img_possible_folder}")
-        if self.mask_folder == "":
+        if len(self.mask_folders) == 0:
             print(f"No mask folder found matching one of the following: {self.mask_possible_folder}")
 
     def import_photos(self):
         """Import list of images to chunk and corresponding mask"""
-        file_list = os.listdir(self.img_folder)
-        img_list = [file_name for file_name in file_list if file_name.lower().endswith(self.img_format)]
-        img_path = [os.path.join(self.img_folder, img_name) for img_name in img_list]
-        self.chunk.addPhotos(img_path)
-        if os.path.isdir(self.mask_folder):
+        for img_folder in self.img_folders:
+            # Create chunk for each import folder
+            self.import_chunk.append(self.doc.add_chunk())
+            file_list = os.listdir(img_folder)
+            img_list = [file_name for file_name in file_list if file_name.lower().endswith(self.img_format)]
+            img_path = [os.path.join(img_folder, img_name) for img_name in img_list]
+            self.import_chunk[-1].addPhotos(img_path)
+
+            # Look for corresponding background image and generate diff mask
+            img_background = os.path.join(background_path, f"{img_folder}_background.JPG")
+            if os.path.isfile(img_background):
+                self.import_chunk[-1].generateMasks(path=img_background,
+                                                    masking_mode=Metashape.MaskingMode.MaskingModeBackground,
+                                                    tolerance=10)
+
+        # Merge all import chunks
+        self.chunk = self.doc.mergeChunks(chunks=self.import_chunk, copy_masks=True, merge_assets=True)
+
+        # Apply masks from mask folder on remaining images without mask
+        # - look for images without mask in merged chunk
+        camera_set = set(self.chunk.cameras)
+        mask_set = set(self.chunk.masks.keys())
+        camera_nomask = list(camera_set.difference(mask_set))
+        
+        # - apply mask (if any) on given images
+        for mask_folder in self.mask_folders:
             # move to mask folder temporarily to import the mask
-            os.chdir(self.mask_folder)
-            self.chunk.generateMasks(path="{filename}.JPG", masking_mode=Metashape.MaskingMode.MaskingModeFile)
+            os.chdir(mask_folder)
+            self.chunk.generateMasks(path="{filename}.JPG",
+                                     masking_mode=Metashape.MaskingMode.MaskingModeFile,
+                                     cameras=camera_nomask)
             os.chdir(self.active_dir)
 
     def align_photos(self):
