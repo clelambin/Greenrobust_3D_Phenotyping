@@ -5,7 +5,6 @@
 #working_dir = r"D:\Clement\3D_Digitalisation\2025-05-28_Harvest_Solanum_dulcamara"
 working_dir = r"."
 output_dir  = r"02_Metashape_BatchProc_withConfidence"
-background_dir = r"../"     # Path of background image (relative to -c1 plant folder)
 
 # Libraries
 import Metashape
@@ -74,23 +73,28 @@ class metashape_proc:
 
     def import_photos(self):
         """Import list of images to chunk and corresponding mask"""
+        print(self.img_folders)
         for img_folder in self.img_folders:
             # Create chunk for each import folder
-            self.import_chunk.append(self.doc.add_chunk())
+            self.import_chunk.append(self.doc.addChunk())
             file_list = os.listdir(img_folder)
             img_list = [file_name for file_name in file_list if file_name.lower().endswith(self.img_format)]
             img_path = [os.path.join(img_folder, img_name) for img_name in img_list]
             self.import_chunk[-1].addPhotos(img_path)
 
             # Look for corresponding background image and generate diff mask
-            img_background = os.path.join(background_path, f"{img_folder}_background.JPG")
+            img_background = os.path.basename(f"{img_folder}_background.JPG")
             if os.path.isfile(img_background):
                 self.import_chunk[-1].generateMasks(path=img_background,
                                                     masking_mode=Metashape.MaskingMode.MaskingModeBackground,
                                                     tolerance=10)
+            else:
+                print(f"No background found at path: {img_background}")
 
-        # Merge all import chunks
-        self.chunk = self.doc.mergeChunks(chunks=self.import_chunk, copy_masks=True, merge_assets=True)
+        # Merge all import chunks and set merged chunk as active
+        self.doc.mergeChunks(chunks=self.import_chunk, copy_masks=True, merge_assets=True)
+        self.doc.chunk = self.doc.chunks[-1]
+        self.chunk = self.doc.chunk
 
         # Apply masks from mask folder on remaining images without mask
         # - look for images without mask in merged chunk
@@ -182,7 +186,7 @@ if __name__ == "__main__":
     file_list = os.listdir(".")
     output_list = os.listdir(output_dir)
     for file_name in file_list:
-        if os.path.isdir(file_name) and file_name.startswith(("BR", "HS", "HV", "NB", "SD", "SL", "TA")):
+        if os.path.isdir(file_name) and file_name.startswith(("AT", "BR", "HS", "HV", "NB", "SD", "SL", "TA")):
             print(f"Working on {file_name}")
             # Extract plant code from file name
             plant_find = re.match("[A-Z]{2}[0-9]{3}_[A-Z][0-9]{2}", file_name)
