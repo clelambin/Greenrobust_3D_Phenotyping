@@ -532,8 +532,10 @@ par(par_init)
 img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_LinearModel_Sqrt_", output_label, ".jpg")
 if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
 do.call(par, c(list(mar=c(4, 4, 1, 1)), par_args))
-plot(sqrt(plant_correlation$biomass) ~ predict(lm_biomass_top_sqrt), pch=20, col="darkgrey",
+plot(sqrt(plant_correlation$biomass) ~ predict(lm_biomass_top_sqrt),
+     col=species_color[plant_correlation$Species], pch=16,
      xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+legend("bottomright", legend=species_level, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
 lines(c(0, 4), c(0, 4), lty=3)
 text(0.3, 3.8, "R²=0.88", cex=0.8)
 if(save_plot){dev.off()}
