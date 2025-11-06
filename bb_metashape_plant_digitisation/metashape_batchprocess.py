@@ -4,12 +4,13 @@
 # User variables
 #working_dir = r"D:\Clement\3D_Digitalisation\2025-05-28_Harvest_Solanum_dulcamara"
 working_dir = r"."
-output_dir  = r"02_Metashape_BatchProc_withConfidence"
+output_dir  = r"03_Metashape_BatchProc_withMarkers"
 
 # Libraries
 import Metashape
 import os
 import re
+import math
 from datetime import datetime
 
 # Script function
@@ -17,6 +18,18 @@ def create_folder(path):
     """Create given folder if it does not already exists"""
     if not os.path.isdir(path):
         os.makedirs(path)
+
+def cart2cyl(x:float, y:float, z:float=0):
+    """Convert cartesian coordinate to cylindrical coordinate"""
+    rho = math.sqrt(x**2 + y**2)
+    phi = math.atan2(y, x)
+    return(rho, phi, z)
+
+def cyl2cart(rho:float, phi:float, z:float=0):
+    """Convert cylindrical coordinate to cartesian coordinate"""
+    x = rho * math.cos(phi)
+    y = rho * math.sin(phi)
+    return(x, y, z)
 
 ## Metashape processing class
 class metashape_proc:
@@ -27,7 +40,7 @@ class metashape_proc:
     img_possible_folder  = ("jpg", "jpg_filtered", "Camera_high", "Camera_mid", "Camera_low")
     mask_possible_folder = ("jpg_mask", "jpg_mask_erode")
     
-    def __init__(self, working_dir=".", output_dir=".", output_tag="Metashape_Output", new_env=True):
+    def __init__(self, working_dir=".", output_dir=".", output_tag="Metashape_BatchProc", new_env=True):
         """Initialise the Metashape document"""
 
         # Access current document and clear it (equivalent to File>New)
@@ -48,6 +61,9 @@ class metashape_proc:
         # Set output tag
         date_tag = datetime.today().strftime('%Y%m%d_%H%M')
         self.output_tag = f"{output_tag}_{date_tag}"
+        # Save log into working folder
+        Metashape.app.settings.log_enable = True
+        Metashape.app.settings.log_path = os.path.join(output_dir, f"{output_tag}_Log_{date_tag}.txt")
         # Check which folder to use as input
         self.init_input_folder()
 
@@ -97,10 +113,14 @@ class metashape_proc:
         self.chunk = self.doc.chunk
 
         # Apply masks from mask folder on remaining images without mask
-        # - look for images without mask in merged chunk
         camera_set = set(self.chunk.cameras)
-        mask_set = set(self.chunk.masks.keys())
-        camera_nomask = list(camera_set.difference(mask_set))
+        if self.chunk.masks is None:
+            # - if no masks found, set the list of camera without mask to the whole list of camera
+            camera_nomask = list(camera_set)
+        else:
+            # - look for images without mask in merged chunk
+            mask_set = set(self.chunk.masks.keys())
+            camera_nomask = list(camera_set.difference(mask_set))
         
         # - apply mask (if any) on given images
         for mask_folder in self.mask_folders:
@@ -110,6 +130,35 @@ class metashape_proc:
                                      masking_mode=Metashape.MaskingMode.MaskingModeFile,
                                      cameras=camera_nomask)
             os.chdir(self.active_dir)
+
+    def marker_ref_circular(self, radius:float, angle:float, start_index:int=0, start_angle:float=0.0) -> int:
+        """Update marker reference location to fit in a circle with polar coordinate (radius, angle)"""
+        # Initialise marker angle
+        marker_angle:float = start_angle
+        marker_index:int   = start_index
+        while marker_angle-start_angle < 2*math.pi:
+            # Compute marker location in cartesian coordinate
+            marker_polar = (radius, marker_angle)
+            marker_coord = Metashape.Vector(cyl2cart(*marker_polar))
+            # Update marker location
+            self.chunk.markers[marker_index].reference.location = marker_coord
+            self.chunk.markers[marker_index].reference.enabled = True
+            # Increment marker angle
+            marker_angle += angle
+            marker_index += 1
+        # Return next (non-updated) marker
+        return marker_index
+
+    def detect_markers(self, target_type:str="CircularTarget12bit"):
+        """Detect markers and assign coordinates"""
+        # Detect marker
+        marker_target = getattr(Metashape.TargetType, target_type)
+        self.chunk.detectMarkers(target_type=marker_target, tolerance=50)
+        # Update marker reference location
+        # - The 12 first markers are equi distance in a circule of radius 0.18m separated by an angle of pi/6 rad
+        next_marker = self.marker_ref_circular(radius=0.18, angle=math.pi/6)
+#        # - The next 4 markers are spaced in a square of diagonal 0.2m
+#        self.marker_ref_circular(radius=0.1, angle=math.pi/2, start_index=next_marker, start_angle=math.pi/2)
 
     def align_photos(self):
         """Allign photo operation"""
@@ -149,8 +198,9 @@ class metashape_proc:
                                texture_type = Metashape.Model.TextureType.DiffuseMap,
                                transfer_texture = False)
 
-    def model_from_pictures(self):
+    def model_from_pictures(self, markers=True):
         """Full model preparation on the loaded pictures"""
+        if markers: self.detect_markers()
         self.align_photos()
         self.build_model()
         self.build_texture()
