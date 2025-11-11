@@ -44,7 +44,7 @@ def is_in_range(value:float, min_:float, max_:float, transf:(None|Callable)=None
     return min_ <= value <= max_
 
 def vertex_by_attribute(mesh:bmesh.types.BMesh,
-                        attribute:str="confidence",
+                        attribute:str|int="confidence",
                         min_:float=0.0,
                         max_:float=float("Inf"),
                         layer:str="float",
@@ -96,7 +96,7 @@ def extract_component(name:str="Pot",
                       delete_min:float=0,
                       delete_max:float=float("Inf"),
                       filtering_mth:str|None=None,
-                      remesh_octree:float=0.8) -> bpy.types.Object:
+                      remesh_octree:int=8) -> bpy.types.Object:
     """Duplicate active object and keep only selected component (selected by color range)"""
     # Duplicate active object
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
@@ -104,7 +104,7 @@ def extract_component(name:str="Pot",
     # Rename duplicated object and switch to edit mode
     (obj, obj_mesh) = utility.edit_active_object(name=name)
     # Get list of non-pot vertices (with non-dark color)
-    vertices_nonpot = vertex_by_attribute(obj_mesh, "Col",
+    vertices_nonpot = vertex_by_attribute(obj_mesh, 0,
                                           min_=delete_min,
                                           max_=delete_max,
                                           layer="float_color",
