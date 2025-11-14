@@ -12,3 +12,5 @@ ipython_config.py
 */output/*.jpg
 .Rproj.user
 .Rhistory
+# Python virtual environment
+.venv

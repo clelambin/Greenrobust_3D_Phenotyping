@@ -53,7 +53,7 @@ def exclude_label(mesh:bmesh.types.BMesh,
     # Return vertex whose attribute does not match the target
     return [vertex for vertex in vertex_list if vertex[attribute] != target_label]
 
-def dbscan_filter(obj:bpy.types.Object) -> int:
+def dbscan_filter(obj:bpy.types.Object, dbscan_eps=0.1) -> int:
     """Apply dbscan clustering on input object and keep biggest cluster.
     Return number of deleted vertices
     """
@@ -63,7 +63,7 @@ def dbscan_filter(obj:bpy.types.Object) -> int:
     # If no vertices found, empty object, return -1 to indicate that no cluster found
     if len(vertices_coord) == 0: return -1
     # Run dbscan clustering
-    cluster_label = dbscan_clustering(vertices_coord)
+    cluster_label = dbscan_clustering(vertices_coord, dbscan_eps)
     print(f"{len(cluster_label)=}")
     assign_attribute(obj, cluster_label)
     # Get label of biggest cluster
