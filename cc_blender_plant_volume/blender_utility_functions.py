@@ -127,3 +127,16 @@ def get_view3d() -> bpy.types.Area | None:
             return area
     # If no area of the VIEW_3D type found, return None
     return None
+
+def get_active_obj() -> bpy.types.Object:
+    """Return active object, raise an error of no object is selected"""
+    obj = bpy.context.active_object
+    assert obj is not None, "No active object"
+    return obj
+
+def hide_object(obj:bpy.types.Object, hide_bool:bool=True):
+    """Set viewport and render visibility (if boolean set to True, hide, otherwide, show)"""
+    obj.hide_set(hide_bool)
+    obj.hide_render = hide_bool
+    # hide_viewport hide in all viewport, not only in the current one
+#    obj.hide_viewport = False
