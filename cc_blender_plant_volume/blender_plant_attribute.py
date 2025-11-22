@@ -38,7 +38,7 @@ def projected_dist(pt1:mathutils.Vector,
     # Set projected axis coordinate to 0
     if axis is not None:
         setattr(pt1, axis.lower(), 0.0)
-        setattr(pt1, axis.lower(), 0.0)
+        setattr(pt2, axis.lower(), 0.0)
     # Compute distance between both points
     return float(np.linalg.norm(np.array(pt1)-np.array(pt2)))
 
@@ -53,11 +53,15 @@ class FaceInfo:
     """Geometric characteristic of the current face"""
     area: float
     perimeter: float
+    section_z: float
     center: mathutils.Vector
+    # Field computed in __post_init__
     roundness: float = field(init=False)
 
     def __post_init__(self) -> None:
-        """Use the Polsby–Popper to measure the roundness (or compactness) of a plannar face"""
+        """Compute face roundness
+        Roundess computed using the Polsby–Popper applied to a plannar face
+        """
         self.roundness = (4 * np.pi * self.area) / (self.perimeter**2)
 
 class FaceNode:
@@ -67,11 +71,11 @@ class FaceNode:
                  section_z:float|None = None,
                  name:str|None=None) -> None:
         self.name = name
-        self.section_z = section_z
         self.info = FaceInfo(
             area = face.calc_area(),
             perimeter=face.calc_perimeter(),
             center=face.calc_center_median(),
+            section_z=section_z
         )
         # At first, parent and children of face node are unknown
         self.parent     = None
@@ -83,7 +87,7 @@ class FaceNode:
         return f"Face {self.name}"
 
     def get_closest_face(self,
-                         face_list:list["FaceNode"],
+                         face_list:Iterable["FaceNode"],
                          area_ratio:float = 0.9,
                          roundness_ratio:float = 0.9) -> "FaceNode|None":
         """Return the face whose center is closest to current face and with similar roundness"""
@@ -107,9 +111,6 @@ class FaceNode:
     def add_child(self, face:"FaceNode"):
         """Add child to current node if not already in children list"""
         self.children.add(face)
-        # TODO: debug
-        print(f"\tAdding {face} as children to {self}")
-        print(f"\tNew children set: {self.children}")
 
     def add_parent(self, face:"FaceNode"):
         """Add parent to current face and set current face as child of input face"""
@@ -125,43 +126,112 @@ class FaceNode:
 
 
 class TreeStructure:
-    """Create tree data structure of face accross multiple section"""
+    """Create tree data structure of face accross multiple sections.
+
+    Using modified vocabulary for the tree data structure:
+    - heads : current node without parents
+              (once a parent is added to a head, it is removed from this list)
+    - leafs : nodes without childres (extremity of tree datastructure)
+    - roots : nodes without parents (once all sections have been processed)
+
+    Additionaly, save characteristics for each branches (path from a leaf to a root)
+    - branches_xy_dist : sum of horizontal distance between each node of the branch
+    """
+
     def __init__(self, faces:list[FaceNode]) -> None:
-        """Initialise the tree by defining input node as heads"""
-        self.heads = list(faces)
-        self.roots = None
+        """Initialise the tree by defining input nodes as heads and leafs"""
+        self.heads:list[FaceNode] = faces
+        self.leafs:list[FaceNode] = faces
+
+        # Roots are defined after the full tree structure is set
+        self.roots:list[FaceNode]|None = None
+
+        # Branch characteristics
+        self.branches_xy_dist:list[float] = []
 
     def __iter__(self):
         """Initialise iterator by setting head to root"""
         if self.roots is None:
             self.set_roots()
-        return walk_through(self.roots)
+        return self.walk_through(self.roots)
 
-    # TODO: convert head to set?
-    def add_section(self, faces:list[FaceNode]) -> None:
+    @classmethod
+    def walk_through(cls, heads:Iterable[FaceNode]|None):
+        """Generator which walk through elements of the tree, from parents to its children"""
+        if heads is None:
+            return
+        for head in heads:
+            yield head
+            yield from cls.walk_through(head.children)
+
+    @classmethod
+    def walk_back(cls, head:FaceNode|None):
+        """Generator which walk through elements of the tree, from a child to its parent"""
+        if head is None:
+            return
+        yield head
+        yield from cls.walk_back(head.parent)
+
+    def add_section(self, faces:Iterable[FaceNode]) -> None:
         """Look at next section and add faces closest to branches heads"""
-        new_head:set["FaceNode"] = set()
-        # TODO: debug
-        print(f"Current heads: {self.heads}")
+        # Initialise the loop
+        new_faces:set[FaceNode] = set(faces)
+        new_heads:set[FaceNode] = set()
+        new_parents:set[FaceNode] = set()
         for head in self.heads:
             closest_face = head.get_closest_face(faces)
+            # If no closed faces found for the current head, keep it for the next iteration
             if closest_face is None:
-                # TODO: debug
-                print(f"\tNo closest face found for {head}, keeping in head")
-                new_head.add(head)
+                new_heads.add(head)
                 continue
             # If closest face found, set as parent of current face and replace head
-            # TODO: debug
-            print(f"\tClosest face to {head}, replace by {closest_face}")
             head.add_parent(closest_face)
+            new_parents.add(closest_face)
+        # Add the faces not added as parents as new leafs
+        self.leafs.extend(new_faces.difference(new_parents))
         # Update heads with new head
-        self.heads = list(new_head)
+        self.heads = list(new_heads)
         # Add all faces from the current section to the head
         self.heads.extend(faces)
 
     def set_roots(self):
         """Set current heads as root"""
         self.roots = self.heads
+
+    def branch_straightness(self, leaf:FaceNode) -> tuple[float, int]:
+        """Return the straightness of the branch defined by the input leaf."""
+        # Initialise branch info
+        nb_nodes  = 0
+        branch_xy_dist:float = 0.0
+        # Walk to the root, increamenting the horizontal distance
+        for node in self.walk_back(leaf):
+            # If node has no parent, means it is a root node, so no need to compute distance
+            try:
+                node_dist = projected_dist(node.info.center, node.parent.info.center)
+                branch_xy_dist += node_dist
+                nb_nodes += 1
+            except AttributeError:
+                pass
+        return branch_xy_dist, nb_nodes
+
+    def get_straight_branch(self, min_nodes:int=3) -> FaceNode:
+        """Walk through the tree structure to compute branch horizontal distance,
+        then output leaf of branch with smallest value
+        """
+        # Initialise loop
+        min_dist_ratio  = float("inf")
+        min_index = 0
+        # Walk through the tree starting from each leaf node to compute branch_xy_dist
+        for (index, leaf) in enumerate(self.leafs):
+            # Save the branch distance to the class instance
+            branch_xy_dist, nb_nodes = self.branch_straightness(leaf)
+            self.branches_xy_dist.append(branch_xy_dist)
+            # Compare with smalled branch
+            if nb_nodes >= min_nodes and branch_xy_dist/nb_nodes < min_dist_ratio:
+                min_dist_ratio  = branch_xy_dist/nb_nodes
+                min_index = index
+        # Get index of branch with minimum horizontal distance
+        return self.leafs[min_index]
 
 
 # Process functions
@@ -279,26 +349,15 @@ def section_skeleton(section_detail: list[list[FaceNode]]) -> TreeStructure:
         section_tree.add_section(section)
     return section_tree
 
-def walk_through(heads:Iterable[FaceNode]|None):
-    """Generator which walk through elements of the tree"""
-    if heads is None:
-        return
-    for head in heads:
-        yield head
-        yield from walk_through(head.children)
-
-def draw_tree(section_tree:TreeStructure, name:str="PlantStructure") -> None:
+def draw_tree(tree_structure:TreeStructure, name:str="PlantStructure") -> None:
     """Draw the tree structure as a bmesh object"""
     # Initialise bmesh object
     mesh = bmesh.new()
     mesh.verts.ensure_lookup_table()
     # Loop through nodes of the tree and creates verts and link to parent node
-    for (index, node) in enumerate(section_tree):
-        # TODO: debug
-        print(f"Drawing node {node}, children: {node.children}")
+    for (index, node) in enumerate(tree_structure):
         node_coordinate = node.info.center
-        if node.section_z is not None:
-            node_coordinate.z = node.section_z
+        node_coordinate.z = node.info.section_z
         mesh.verts.new(node_coordinate)
         mesh.verts.ensure_lookup_table()
         node.vertex_id = index
@@ -314,6 +373,43 @@ def draw_tree(section_tree:TreeStructure, name:str="PlantStructure") -> None:
     # Assign mesh to obj and free mesh
     mesh.to_mesh(obj.data)
     mesh.free()
+
+def draw_stick(tree_structure:TreeStructure, stick_radius:float=0.003) -> bpy.types.Object:
+    """Extract stick from tree structure (straightest branch) and generate a mesh along stick"""
+    # Find straightest branch in tree structure
+    straight_branch = tree_structure.get_straight_branch()
+    # Get coordinates for each node of the branch
+    nodes_coord = []
+    for node in tree_structure.walk_back(straight_branch):
+        # Extract x and y coordinate from the center coordinate and replace z by the section height
+        x, y, _ = node.info.center
+        nodes_coord.append(mathutils.Vector([x, y, node.info.section_z]))
+
+    # Initialise the curve object
+    curve_data = bpy.data.curves.new("Stick", "CURVE")
+    curve_data.dimensions = "3D"
+    # Add polyline to curve with a point at center of each node of straight branch
+    curve_poly = curve_data.splines.new("POLY")
+    curve_poly.points.add(len(nodes_coord) - 1)
+    for (index, coord) in enumerate(nodes_coord):
+        # Polyline coodinate is composed of 4 components: x, y, z (part of coord) and the weight
+        curve_poly.points[index].co = (*coord, 1)
+
+    # Add bevel (thickness) to the curve
+    curve_data.bevel_depth = stick_radius
+    curve_data.bevel_mode  = "ROUND"
+    curve_data.bevel_resolution = 8
+    curve_data.use_fill_caps = True
+
+    # Create object and link to scene
+    curve_obj  = bpy.data.objects.new("Stick", curve_data)
+    curve_mesh = bpy.data.meshes.new_from_object(curve_obj)
+    stick_obj  = bpy.data.objects.new("Stick_meshed", curve_mesh)
+    bpy.context.collection.objects.link(curve_obj)
+    bpy.context.collection.objects.link(stick_obj)
+
+    # Return created object
+    return stick_radius
 
 # TODO: check that obj is updated before getting dimension
 def multi_crosssection(obj:bpy.types.Object, z_delta:float=0.1) -> list:
@@ -348,8 +444,11 @@ def plant_cleanup(obj:bpy.types.Object) -> None:
 
     # Plant section and extract face detail for each section
     section_detail = multi_crosssection(obj, z_delta=0.01)
-    section_tree   = section_skeleton(section_detail)
-    draw_tree(section_tree)
+    tree_structure   = section_skeleton(section_detail)
+    draw_tree(tree_structure)
+
+    # Find stick (straightest branch) and draw cordesponding cylinder
+    draw_stick(tree_structure)
 
 def main() -> None:
     """Main function, cleanup selected object and output attributes"""
