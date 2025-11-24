@@ -64,17 +64,51 @@ class FaceInfo:
         """
         self.roundness = (4 * np.pi * self.area) / (self.perimeter**2)
 
+
+@dataclass
+class FaceCriteria:
+    """Set of criterion which define if a face from a section should be considered"""
+    min_area: float = float("-inf")
+    max_area: float = float("inf")
+    min_roundness: float = float("-inf")
+
+    def is_in_range(self, face:FaceInfo) -> bool:
+        """Input face match the defined criteria"""
+        return (face.area < self.max_area
+                and face.area > self.min_area
+                and face.roundness > self.min_roundness)
+
+
+@dataclass
+class BranchCriteria:
+    """Set of criterion which define if two faces from different section can be connected"""
+    max_area_ratio:float = float("inf")
+    max_roundness_ratio:float = float("inf")
+    max_xy_dist:float = float("inf")
+    max_z_dist:float = float("inf")
+
+    def face_in_range(self, source:FaceInfo, target:FaceInfo) -> bool:
+        """Check if both faces match criteria"""
+        return (calc_ratio(source.roundness, target.roundness) < self.max_roundness_ratio
+                and calc_ratio(source.area, target.area) < self.max_area_ratio)
+
+    def distance_in_range(self, xy_dist:float, z_dist:float) -> float|None:
+        """Check if horizontal and veritical distance (between faces) in range"""
+        return (xy_dist < self.max_xy_dist
+                and z_dist < self.max_z_dist)
+
+
 class FaceNode:
     """Contain information about face"""
     def __init__(self,
                  face:bmesh.types.BMFace,
-                 section_z:float|None = None,
+                 section_z:float,
                  name:str|None=None) -> None:
         self.name = name
         self.info = FaceInfo(
             area = face.calc_area(),
             perimeter=face.calc_perimeter(),
-            center=face.calc_center_median(),
+            center=face.calc_center_median_weighted(),
             section_z=section_z
         )
         # At first, parent and children of face node are unknown
@@ -88,23 +122,21 @@ class FaceNode:
 
     def get_closest_face(self,
                          face_list:Iterable["FaceNode"],
-                         area_ratio:float = 0.9,
-                         roundness_ratio:float = 0.9) -> "FaceNode|None":
+                         branch_criteria:BranchCriteria) -> "FaceNode|None":
         """Return the face whose center is closest to current face and with similar roundness"""
         # Initialise closest face index and distance
         closest_dist  = float("inf")
         closest_face: "FaceNode|None" = None
         # Loop through face list and save the face with the closest projected distance
         for face in face_list:
-            # Skip faces with roundness or area too far from current face
-            if calc_ratio(self.info.roundness, face.info.roundness) > roundness_ratio:
-                continue
-            if calc_ratio(self.info.area, face.info.area) > area_ratio:
+            # Check that faces match ratio criterion
+            if not branch_criteria.face_in_range(self.info, face.info):
                 continue
             # Compute distance between center and save face if closer than current closest
-            dist = projected_dist(self.info.center, face.info.center, axis="Z")
-            if dist < closest_dist:
-                closest_dist = dist
+            xy_dist = projected_dist(self.info.center, face.info.center)
+            z_dist  = abs(self.info.section_z - face.info.section_z)
+            if branch_criteria.distance_in_range(xy_dist, z_dist) and xy_dist < closest_dist:
+                closest_dist = xy_dist
                 closest_face = face
         return closest_face
 
@@ -138,10 +170,13 @@ class TreeStructure:
     - branches_xy_dist : sum of horizontal distance between each node of the branch
     """
 
-    def __init__(self, faces:list[FaceNode]) -> None:
+    def __init__(self,
+                 faces:list[FaceNode],
+                 branch_criteria:BranchCriteria) -> None:
         """Initialise the tree by defining input nodes as heads and leafs"""
         self.heads:list[FaceNode] = faces
         self.leafs:list[FaceNode] = faces
+        self.branch_criteria = branch_criteria
 
         # Roots are defined after the full tree structure is set
         self.roots:list[FaceNode]|None = None
@@ -179,7 +214,7 @@ class TreeStructure:
         new_heads:set[FaceNode] = set()
         new_parents:set[FaceNode] = set()
         for head in self.heads:
-            closest_face = head.get_closest_face(faces)
+            closest_face = head.get_closest_face(faces, self.branch_criteria)
             # If no closed faces found for the current head, keep it for the next iteration
             if closest_face is None:
                 new_heads.add(head)
@@ -300,9 +335,8 @@ def create_plane(normal_axis:Cartesian="Z",
 
 def section_faces(obj:bpy.types.Object,
                   section_z:float,
-                  min_faces:int=2,
-                  min_roundness:float=0.5,
-                  min_area:float=1e-7) -> list[FaceNode]|None:
+                  face_criteria:FaceCriteria,
+                  min_faces:int=1) -> list[FaceNode]|None:
     """Remove vertices not connected to any faces from current object mesh,
     Return a list containing the roundness and center of each face in the section
     """
@@ -313,20 +347,20 @@ def section_faces(obj:bpy.types.Object,
     mesh = bmesh.new()
     mesh.from_mesh(obj.data)
 
-    # If object has less faces than min number of faces, delete it (do not process)
-    if len(mesh.faces) < min_faces:
-        bpy.data.objects.remove(obj, do_unlink=True)
-        return None
-
     # Save all vertices connected to faces as a set
     connected_verts = set()
     for (index, face) in enumerate(mesh.faces):
         connected_verts.update(face.verts)
         # Save roundness and center of current face
         face_node = FaceNode(face, name=f"{obj.name}.{index}", section_z=section_z)
-        # If face roundness and are above threshold, add it to the face description
-        if face_node.info.roundness > min_roundness and face_node.info.area > min_area:
+        # If face roundness and area criterion are respected, add face to the face description
+        if face_criteria.is_in_range(face_node.info):
             face_descr.append(face_node)
+
+    # If object has less faces in range than min number of faces, delete it
+    if len(face_descr) < min_faces:
+        bpy.data.objects.remove(obj, do_unlink=True)
+        return None
 
     # Get vertices not parts of connected vertices and delete them
     all_verts = set(mesh.verts)
@@ -340,10 +374,11 @@ def section_faces(obj:bpy.types.Object,
     # Return the face description list, sorted by roundness
     return sorted(face_descr, key=lambda face: face.info.roundness, reverse=True)
 
-def section_skeleton(section_detail: list[list[FaceNode]]) -> TreeStructure:
+def section_skeleton(section_detail: list[list[FaceNode]],
+                     branch_criteria:BranchCriteria) -> TreeStructure:
     """Link face accross sections based on closest projection"""
     # Initialise TreeStructure object containing the link between faces
-    section_tree = TreeStructure(section_detail.pop())
+    section_tree = TreeStructure(section_detail.pop(), branch_criteria)
     # Start from last section, create architecture of linked faces
     for section in reversed(section_detail):
         section_tree.add_section(section)
@@ -405,14 +440,19 @@ def draw_stick(tree_structure:TreeStructure, stick_radius:float=0.003) -> bpy.ty
     curve_obj  = bpy.data.objects.new("Stick", curve_data)
     curve_mesh = bpy.data.meshes.new_from_object(curve_obj)
     stick_obj  = bpy.data.objects.new("Stick_meshed", curve_mesh)
-    bpy.context.collection.objects.link(curve_obj)
     bpy.context.collection.objects.link(stick_obj)
 
+    # Cleanup intermediate data
+    bpy.data.objects.remove(curve_obj)
+    bpy.data.curves.remove(curve_data)
+
     # Return created object
-    return stick_radius
+    return stick_obj
 
 # TODO: check that obj is updated before getting dimension
-def multi_crosssection(obj:bpy.types.Object, z_delta:float=0.1) -> list:
+def multi_crosssection(obj:bpy.types.Object,
+                       face_criteria:FaceCriteria,
+                       z_delta:float=0.1) -> list:
     """Create crosssection of input object spaced by z_delta"""
     # Initialise list which will contain the face information for each section
     section_detail = []
@@ -426,7 +466,7 @@ def multi_crosssection(obj:bpy.types.Object, z_delta:float=0.1) -> list:
         # Apply section modifier to plane
         boolean_modifier(source_obj=plane, target_obj=obj)
         # Cleanup cross-section and save list of all faces within section
-        face = section_faces(plane, section_z)
+        face = section_faces(plane, section_z, face_criteria)
         if face is not None:
             section_detail.append(face)
     # Output face detail for all sections
@@ -436,6 +476,23 @@ def plant_cleanup(obj:bpy.types.Object) -> None:
     """Extract green plant from 3D model, remove support and ouput model attribute
     Model attribute: plant volume, plant height, area projection
     """
+    # Set criterion requirement for face and branch
+#    plant_criteria = FaceCriteria(
+#        min_area = 1e-6,
+#        max_area = 1e-3,
+#        min_roundness = 0.5
+#    )
+    stick_criteria = FaceCriteria(
+        min_area = 5e-6,
+        max_area = 3e-5,
+        min_roundness = 0.5
+    )
+    branch_criteria = BranchCriteria(
+        max_area_ratio = 1.0,
+        max_roundness_ratio = 1.0,
+        max_xy_dist = 0.005,
+        max_z_dist = 0.1
+    )
     # Check if any vertices below ground
     min_z = min(obj_bbox[2] for obj_bbox in obj.bound_box)
     if min_z < 0:
@@ -443,8 +500,8 @@ def plant_cleanup(obj:bpy.types.Object) -> None:
         remove_ground(obj)
 
     # Plant section and extract face detail for each section
-    section_detail = multi_crosssection(obj, z_delta=0.01)
-    tree_structure   = section_skeleton(section_detail)
+    section_detail = multi_crosssection(obj, stick_criteria, z_delta=0.01)
+    tree_structure = section_skeleton(section_detail, branch_criteria)
     draw_tree(tree_structure)
 
     # Find stick (straightest branch) and draw cordesponding cylinder
