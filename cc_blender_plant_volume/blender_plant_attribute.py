@@ -12,25 +12,22 @@ Workflow:
 """
 
 # Import libraries
-from typing import Literal
-from collections.abc import Iterable
+from collections.abc import Iterable, Callable
 from dataclasses import dataclass, field
 import numpy as np
-import bpy            # Blender python
-import bmesh          # Blender mesh module
-import mathutils      # Blender object type
+from pybind11_rdp import rdp    # Ramer-Douglas-Peucker Algorithm, for shape simplification
+import bpy                      # Blender python
+import bmesh                    # Blender mesh module
+from mathutils import Vector    # Blender object type
 
 # Import user modules
 from cc_blender_plant_volume import blender_utility_functions as utility
-
-# User type
-Cartesian = Literal["X", "Y", "Z"]
-BooleanOperator = Literal["DIFFERENCE", "INTERSECT"]
+from cc_blender_plant_volume.blender_user_types import Cartesian, BooleanOperator
 
 
 # Utility functions
-def projected_dist(pt1:mathutils.Vector,
-                   pt2:mathutils.Vector,
+def projected_dist(pt1:Vector,
+                   pt2:Vector,
                    axis:Cartesian|None="Z") -> float:
     """Compute the distance between 2 points projected on the input axis
     The projection is done by ignoring the given coordinate when computing the distance
@@ -53,8 +50,8 @@ class FaceInfo:
     """Geometric characteristic of the current face"""
     area: float
     perimeter: float
-    section_z: float
-    center: mathutils.Vector
+    axis_position: float
+    center: Vector
     # Field computed in __post_init__
     roundness: float = field(init=False)
 
@@ -102,15 +99,20 @@ class FaceNode:
     """Contain information about face"""
     def __init__(self,
                  face:bmesh.types.BMFace,
-                 section_z:float,
-                 name:str|None=None) -> None:
+                 axis_position:float,
+                 name:str,
+                 save_coords:bool=False) -> None:
         self.name = name
         self.info = FaceInfo(
             area = face.calc_area(),
             perimeter=face.calc_perimeter(),
             center=face.calc_center_median_weighted(),
-            section_z=section_z
+            axis_position=axis_position
         )
+        # If ask to save the cooridnate from the face, extract them from the BMFace
+        # Because point coordinate is from a plane initialy normal to Z, the Z coordinate is 0
+        # extract only x and y coordinate
+        self.coords_2d = [vert.co.xy for vert in face.verts] if save_coords else None
         # At first, parent and children of face node are unknown
         self.parent     = None
         self.children   = set()
@@ -134,7 +136,7 @@ class FaceNode:
                 continue
             # Compute distance between center and save face if closer than current closest
             xy_dist = projected_dist(self.info.center, face.info.center)
-            z_dist  = abs(self.info.section_z - face.info.section_z)
+            z_dist  = abs(self.info.axis_position - face.info.axis_position)
             if branch_criteria.distance_in_range(xy_dist, z_dist) and xy_dist < closest_dist:
                 closest_dist = xy_dist
                 closest_face = face
@@ -241,12 +243,11 @@ class TreeStructure:
         # Walk to the root, increamenting the horizontal distance
         for node in self.walk_back(leaf):
             # If node has no parent, means it is a root node, so no need to compute distance
-            try:
-                node_dist = projected_dist(node.info.center, node.parent.info.center)
-                branch_xy_dist += node_dist
-                nb_nodes += 1
-            except AttributeError:
-                pass
+            if node.parent is None:
+                continue
+            node_dist = projected_dist(node.info.center, node.parent.info.center)
+            branch_xy_dist += node_dist
+            nb_nodes += 1
         return branch_xy_dist, nb_nodes
 
     def get_straight_branch(self, min_nodes:int=3) -> FaceNode:
@@ -273,7 +274,7 @@ class TreeStructure:
 def remove_ground(obj:bpy.types.Object, ground_height:float=0.002) -> None:
     """Remove all points from mesh below ground height"""
     # Add cube object, shift it toward the ground
-    cube_location = mathutils.Vector([0, 0, ground_height-1])
+    cube_location = Vector([0, 0, ground_height-1])
     bpy.ops.mesh.primitive_cube_add(size=2, location=cube_location)
     ground = utility.get_active_obj()
     ground.name = "Ground"
@@ -303,43 +304,17 @@ def boolean_modifier(source_obj:bpy.types.Object,
     if apply:
         bpy.ops.object.modifier_apply(modifier=modifier.name)
 
-def create_plane(normal_axis:Cartesian="Z",
-                 axis_position:float=0,
-                 name_digits:int=3) -> bpy.types.Object:
-    """Create a plane normal to given axis and passing by normal axis as input position"""
-    # Define unit vetor used to define position for each axis
-    unit_vect = {
-        "X": mathutils.Vector([1,0,0]),
-        "Y": mathutils.Vector([0,1,0]),
-        "Z": mathutils.Vector([0,0,1]),
-    }
-    # Define rotation matrix for each axis
-    rotation_mat = {
-        "X": mathutils.Matrix([[0,0,1],[0,1,0],[-1,0,0]]),
-        "Y": mathutils.Matrix([[1,0,0],[0,0,-1],[0,1,0]]),
-        "Z": mathutils.Matrix([[1,0,0],[0,1,0],[0,0,1]]),
-    }
-    # Create plane at given location
-    # (by default the plane is alligned with z)
-    location = axis_position*unit_vect[normal_axis]
-    bpy.ops.mesh.primitive_plane_add(size=10, align='WORLD', location=location)
-    plane = utility.get_active_obj()
-    # .{name_digit}f add digit to the number to improve object order
-    plane.name = f"Plane_{normal_axis}_{axis_position:.{name_digits}f}"
-    # Return error if plane could not be created
-    assert plane is not None, "Error, section plane not created"
-    # Rotate plane to be normal to specified axis
-    plane.rotation_euler.rotate(rotation_mat[normal_axis])
-    # Return plane object
-    return plane
-
 def section_faces(obj:bpy.types.Object,
-                  section_z:float,
+                  axis_position:float,
                   face_criteria:FaceCriteria,
-                  min_faces:int=1) -> list[FaceNode]|None:
+                  min_faces:int=1,
+                  save_coords:bool=False) -> list[FaceNode]|None:
     """Remove vertices not connected to any faces from current object mesh,
     Return a list containing the roundness and center of each face in the section
     """
+    # Check that input object contain a mesh
+    assert isinstance(obj.data, bpy.types.Mesh), f"Object {obj.name} does not contain a mesh"
+
     # initialise face description list
     face_descr = []
 
@@ -352,7 +327,10 @@ def section_faces(obj:bpy.types.Object,
     for (index, face) in enumerate(mesh.faces):
         connected_verts.update(face.verts)
         # Save roundness and center of current face
-        face_node = FaceNode(face, name=f"{obj.name}.{index}", section_z=section_z)
+        face_node = FaceNode(face,
+                             name = f"{obj.name}-{index}",
+                             axis_position = axis_position,
+                             save_coords = save_coords)
         # If face roundness and area criterion are respected, add face to the face description
         if face_criteria.is_in_range(face_node.info):
             face_descr.append(face_node)
@@ -372,7 +350,7 @@ def section_faces(obj:bpy.types.Object,
     mesh.free()
 
     # Return the face description list, sorted by roundness
-    return sorted(face_descr, key=lambda face: face.info.roundness, reverse=True)
+    return face_descr
 
 def section_skeleton(section_detail: list[list[FaceNode]],
                      branch_criteria:BranchCriteria) -> TreeStructure:
@@ -392,7 +370,7 @@ def draw_tree(tree_structure:TreeStructure, name:str="PlantStructure") -> None:
     # Loop through nodes of the tree and creates verts and link to parent node
     for (index, node) in enumerate(tree_structure):
         node_coordinate = node.info.center
-        node_coordinate.z = node.info.section_z
+        node_coordinate.z = node.info.axis_position
         mesh.verts.new(node_coordinate)
         mesh.verts.ensure_lookup_table()
         node.vertex_id = index
@@ -406,7 +384,7 @@ def draw_tree(tree_structure:TreeStructure, name:str="PlantStructure") -> None:
     obj      = bpy.data.objects.new(name=name, object_data=obj_mesh)
     bpy.context.collection.objects.link(obj)
     # Assign mesh to obj and free mesh
-    mesh.to_mesh(obj.data)
+    mesh.to_mesh(obj_mesh)
     mesh.free()
 
 def draw_stick(tree_structure:TreeStructure, stick_radius:float=0.003) -> bpy.types.Object:
@@ -418,17 +396,10 @@ def draw_stick(tree_structure:TreeStructure, stick_radius:float=0.003) -> bpy.ty
     for node in tree_structure.walk_back(straight_branch):
         # Extract x and y coordinate from the center coordinate and replace z by the section height
         x, y, _ = node.info.center
-        nodes_coord.append(mathutils.Vector([x, y, node.info.section_z]))
+        nodes_coord.append(Vector([x, y, node.info.axis_position]))
 
-    # Initialise the curve object
-    curve_data = bpy.data.curves.new("Stick", "CURVE")
-    curve_data.dimensions = "3D"
-    # Add polyline to curve with a point at center of each node of straight branch
-    curve_poly = curve_data.splines.new("POLY")
-    curve_poly.points.add(len(nodes_coord) - 1)
-    for (index, coord) in enumerate(nodes_coord):
-        # Polyline coodinate is composed of 4 components: x, y, z (part of coord) and the weight
-        curve_poly.points[index].co = (*coord, 1)
+    # Create curve based on nodes_coords
+    curve_data = utility.create_curve(nodes_coord, name="Stick")
 
     # Add bevel (thickness) to the curve
     curve_data.bevel_depth = stick_radius
@@ -437,22 +408,50 @@ def draw_stick(tree_structure:TreeStructure, stick_radius:float=0.003) -> bpy.ty
     curve_data.use_fill_caps = True
 
     # Create object and link to scene
-    curve_obj  = bpy.data.objects.new("Stick", curve_data)
-    curve_mesh = bpy.data.meshes.new_from_object(curve_obj)
-    stick_obj  = bpy.data.objects.new("Stick_meshed", curve_mesh)
-    bpy.context.collection.objects.link(stick_obj)
-
-    # Cleanup intermediate data
-    bpy.data.objects.remove(curve_obj)
-    bpy.data.curves.remove(curve_data)
+    stick_obj = utility.curve_to_mesh(curve_data)
 
     # Return created object
     return stick_obj
 
+# TODO: issue if section intersect the stick
+# TODO: not finished: extruded curves not converted to volume
+def draw_pot(sections:dict[Cartesian, FaceNode],
+             epsilon:float=0.001,
+             default_extrude:float=0.1) -> None:
+    """Create a simplified version of the pot, based on the input X and Y sections"""
+    # Compute cross distance for each section
+    cross_dist:dict[Cartesian, float] = {}
+    for (axis, section) in sections.items():
+        assert section.coords_2d is not None, f"Coordinate list not provided for {section.name}"
+        cross_min = min(getattr(point, axis.lower()) for point in section.coords_2d)
+        cross_max = max(getattr(point, axis.lower()) for point in section.coords_2d)
+        # Compute section cross distance (max - min)
+        cross_dist[axis] = cross_max - cross_min
+
+    # For each section, create curve based on coordinate list and
+    # extrude based on section cross distance for normal axis
+    normal_axis:dict[Cartesian, Cartesian] = {"X":"Y", "Y":"X"}
+    for (axis, section) in sections.items():
+        point_coords = section.coords_2d
+        # Use RDP algorithm to simplify the section
+        point_simplify = rdp(np.array(point_coords), epsilon=epsilon)
+        # Convert points back to Vector
+        vector_list = [Vector(pt) for pt in point_simplify]
+        # Draw simplified curve
+        curve_data = utility.create_curve(vector_list, name=f"Section_{axis}")
+        # Extrude curve based on normal axis
+        try:
+            curve_data.extrude = cross_dist[normal_axis[axis]] / 2
+        except KeyError:
+            curve_data.extrude = default_extrude
+        # Convert curve to mesh and rotate back to expected axis
+        curve_obj = utility.curve_to_mesh(curve_data)
+        utility.from_z_to_axis(curve_obj, axis)
+
 # TODO: check that obj is updated before getting dimension
 def multi_crosssection(obj:bpy.types.Object,
                        face_criteria:FaceCriteria,
-                       z_delta:float=0.1) -> list:
+                       z_delta:float=0.1) -> list[list[FaceNode]]:
     """Create crosssection of input object spaced by z_delta"""
     # Initialise list which will contain the face information for each section
     section_detail = []
@@ -460,17 +459,42 @@ def multi_crosssection(obj:bpy.types.Object,
     obj_dim    = obj.dimensions
     nb_section = int(obj_dim[2] / z_delta) + 1
     for section_index in range(1, nb_section):
-        section_z = section_index * z_delta
-        # Create plane at given section_z height
-        plane = create_plane("Z", section_z)
+        axis_position = section_index * z_delta
+        # Create plane at given axis_position height
+        plane = utility.create_plane("Z", axis_position)
         # Apply section modifier to plane
         boolean_modifier(source_obj=plane, target_obj=obj)
         # Cleanup cross-section and save list of all faces within section
-        face = section_faces(plane, section_z, face_criteria)
+        face = section_faces(plane, axis_position, face_criteria)
         if face is not None:
             section_detail.append(face)
     # Output face detail for all sections
     return section_detail
+
+def vert_crosssection(obj:bpy.types.Object,
+                      face_criteria:FaceCriteria,
+                      select:Callable=lambda face:face.info.area) -> dict[Cartesian, FaceNode]:
+    """Create vertical crosssection of input object for X and Y direction"""
+    # Create a section normal to X and normal to Y
+    direction_list:list[Cartesian] = ["X", "Y"]
+    face_list = {}
+    for direction in direction_list:
+        faces = None
+        section_dist = 0
+        # If the stem intersect with the cross-section, the section fail, retry with offset
+        while faces is None and section_dist < 0.02:
+            plane = utility.create_plane(direction, section_dist, name_digits=0)
+            # Apply section modifier to plane
+            boolean_modifier(source_obj=plane, target_obj=obj)
+            # Cleanup cross-section and save list of all faces within section
+            faces = section_faces(plane, 0, face_criteria, save_coords=True)
+            section_dist += 0.001
+        # Add face matching the input select function to the dictionary
+        if faces is not None:
+            face_list[direction] = sorted(faces, key=select)[-1]
+    # Output face detail
+    return face_list
+
 
 def plant_cleanup(obj:bpy.types.Object) -> None:
     """Extract green plant from 3D model, remove support and ouput model attribute
@@ -478,26 +502,35 @@ def plant_cleanup(obj:bpy.types.Object) -> None:
     """
     # Set criterion requirement for face and branch
 #    plant_criteria = FaceCriteria(
-#        min_area = 1e-6,
-#        max_area = 1e-3,
-#        min_roundness = 0.5
+#           min_area = 1e-6,
+#           max_area = 1e-3,
+#           min_roundness = 0.5
 #    )
+    pot_criteria = FaceCriteria(
+            min_area = 1e-4,
+            max_area = 1e-2
+    )
     stick_criteria = FaceCriteria(
-        min_area = 5e-6,
-        max_area = 3e-5,
-        min_roundness = 0.5
+            min_area = 5e-6,
+            max_area = 3e-5,
+            min_roundness = 0.5
     )
     branch_criteria = BranchCriteria(
-        max_area_ratio = 1.0,
-        max_roundness_ratio = 1.0,
-        max_xy_dist = 0.005,
-        max_z_dist = 0.1
+            max_area_ratio = 1.0,
+            max_roundness_ratio = 1.0,
+            max_xy_dist = 0.005,
+            max_z_dist = 0.1
     )
     # Check if any vertices below ground
     min_z = min(obj_bbox[2] for obj_bbox in obj.bound_box)
     if min_z < 0:
         # Remove vertices below ground
         remove_ground(obj)
+
+    # Create vertical section, used to extract the pot
+    pot_section = vert_crosssection(obj, pot_criteria)
+    print(f"{pot_section=}")
+    draw_pot(pot_section)
 
     # Plant section and extract face detail for each section
     section_detail = multi_crosssection(obj, stick_criteria, z_delta=0.01)
@@ -506,6 +539,7 @@ def plant_cleanup(obj:bpy.types.Object) -> None:
 
     # Find stick (straightest branch) and draw cordesponding cylinder
     draw_stick(tree_structure)
+
 
 def main() -> None:
     """Main function, cleanup selected object and output attributes"""
