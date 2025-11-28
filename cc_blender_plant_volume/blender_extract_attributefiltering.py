@@ -162,7 +162,7 @@ def copy_pot(pot_thresh:float=0.05,
     # Return list of generated object
     return (pot, cup)
 
-def copy_green_plant(source_obj:bpy.types.Object,
+def exclude_pot(source_obj:bpy.types.Object,
                      color_thresh:float=0.05) -> bpy.types.Object:
     """Extract non-black part of the source model to get green parts"""
     # Mark plant as active and selected
@@ -194,4 +194,4 @@ if __name__ == "__main__":
     # Test pot detection
     copy_pot()
 #    obj = bpy.context.active_object
-#    copy_green_plant(obj)
+#    exclude_pot(obj)

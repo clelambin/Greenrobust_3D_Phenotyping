@@ -145,7 +145,7 @@ def from_z_to_axis(obj:bpy.types.Object, axis:Cartesian) -> None:
     """Rotate object to allign to given axis (starting from Z axis)"""
     # Define rotation matrix for each axis
     rotation_mat = {
-        "X": Matrix([[0,0,1],[0,1,0],[-1,0,0]]),
+        "X": Matrix([[0,0,-1],[0,1,0],[1,0,0]]),
         "Y": Matrix([[1,0,0],[0,0,-1],[0,1,0]]),
         "Z": Matrix([[1,0,0],[0,1,0],[0,0,1]]),
     }

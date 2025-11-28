@@ -262,7 +262,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
         code_error += 2
 
     # Create copy of plant excluding pot
-    plant_green = attribute.copy_green_plant(plant)
+    plant_green = attribute.exclude_pot(plant)
     # Use clusting to only keep biggest cluster
     deleted_vertices = cluster.dbscan_filter(plant_green)
     # If -1 returned as number of deleted vertices, no cluster detected, add to code error
