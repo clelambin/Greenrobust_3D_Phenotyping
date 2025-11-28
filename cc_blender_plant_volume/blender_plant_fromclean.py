@@ -15,7 +15,6 @@ Workflow:
 from collections.abc import Iterable, Callable
 from dataclasses import dataclass, field
 import numpy as np
-from pybind11_rdp import rdp    # Ramer-Douglas-Peucker Algorithm, for shape simplification
 import bpy                      # Blender python
 import bmesh                    # Blender mesh module
 from mathutils import Vector    # Blender object type
@@ -24,6 +23,7 @@ from mathutils import Vector    # Blender object type
 from cc_blender_plant_volume import blender_utility_functions as utility
 from cc_blender_plant_volume import blender_extract_attributefiltering as attribute
 from cc_blender_plant_volume import blender_point_clustering as cluster
+from cc_blender_plant_volume import blender_utility_ransac as ransac
 from cc_blender_plant_volume.blender_user_types import Cartesian, BooleanOperator
 
 
@@ -420,40 +420,53 @@ def draw_stick(tree_structure:TreeStructure,
     # Return created object
     return stick_obj
 
-# TODO: issue if section intersect the stick
-# TODO: not finished: extruded curves not converted to volume
-def draw_pot(sections:dict[Cartesian, FaceNode],
-             epsilon:float=0.001,
-             default_extrude:float=0.1) -> None:
-    """Create a simplified version of the pot, based on the input X and Y sections"""
-    # Compute cross distance for each section
-    cross_dist:dict[Cartesian, float] = {}
-    for (axis, section) in sections.items():
-        assert section.coords_2d is not None, f"Coordinate list not provided for {section.name}"
-        cross_min = min(getattr(point, axis.lower()) for point in section.coords_2d)
-        cross_max = max(getattr(point, axis.lower()) for point in section.coords_2d)
-        # Compute section cross distance (max - min)
-        cross_dist[axis] = cross_max - cross_min
-
-    # For each section, create curve based on coordinate list and
-    # extrude based on section cross distance for normal axis
-    normal_axis:dict[Cartesian, Cartesian] = {"X":"Y", "Y":"X"}
+def reshape_section(sections:dict[Cartesian, FaceNode]) -> list[Vector]:
+    """Extract point coordinate from section and reshape the points to the XY quadrant
+    Align section to Y and apply symetry to shift points with X<0 to X>0
+    """
+    # Initialise list containing all points from processed section
+    all_points:list[Vector] = []
+    # Loop through sections and reshape points if alligned to X
     for (axis, section) in sections.items():
         point_coords = section.coords_2d
-        # Use RDP algorithm to simplify the section
-        point_simplify = rdp(np.array(point_coords), epsilon=epsilon)
-        # Convert points back to Vector
-        vector_list = [Vector(pt) for pt in point_simplify]
-        # Draw simplified curve
-        curve_data = utility.create_curve(vector_list, name=f"Section_{axis}")
-        # Extrude curve based on normal axis
-        try:
-            curve_data.extrude = cross_dist[normal_axis[axis]] / 2
-        except KeyError:
-            curve_data.extrude = default_extrude
-        # Convert curve to mesh and rotate back to expected axis
-        curve_obj = utility.curve_to_mesh(curve_data)
-        utility.from_z_to_axis(curve_obj, axis)
+        # If coordinate not provided for section, skip it
+        if point_coords is None:
+            continue
+        # If aligned to X, invert the coordinates
+        if axis == "X":
+            point_coords = [Vector((pt.y, pt.x)) for pt in point_coords]
+        # Apply symetry to all points with X<0
+        point_coords =  [Vector((abs(pt.x), pt.y)) for pt in point_coords]
+        # Append processed points to the list of all points
+        all_points.extend(point_coords)
+    return all_points
+
+def draw_pot(sections:dict[Cartesian, FaceNode]) -> None:
+    """Create a simplified version of the pot, based on the input X and Y sections"""
+    # Reshape all sections and collect into a single list of points
+    all_points = reshape_section(sections)
+    # Use RANSAC to fit a simplified pot section
+    ransac_param = ransac.RansacParam(
+            nb_sample=100,
+            min_cluster=5,
+            max_iter=1000,
+            dist_thresh=0.01,
+            max_fit=0.9
+    )
+    pot_model = ransac.PotSection(all_points)
+    fit_perf  = pot_model.ransac_fit(all_points, ransac_param)
+
+    # Print model parameters
+    print(f"{pot_model=}")
+    print(f"Ratio of fitted points: {fit_perf:.3f}")
+
+    # Draw segments
+    pot_segments = pot_model.segments
+    for (index, param) in enumerate(pot_model.params):
+        pot_curve    = utility.create_curve(list(pot_segments[index]), name=param.name)
+        pot_section  = utility.curve_to_mesh(pot_curve)
+        utility.from_z_to_axis(pot_section, "Y")
+
 
 # TODO: check that obj is updated before getting dimension
 def multi_crosssection(obj:bpy.types.Object,
@@ -536,16 +549,16 @@ def plant_cleanup(plant:bpy.types.Object) -> None:
 
     # Create vertical section, used to extract the pot
     pot_section = vert_crosssection(plant, pot_criteria)
-#    print(f"{pot_section=}")
-#    draw_pot(pot_section)
+    print(f"{pot_section=}")
+    draw_pot(pot_section)
 #    # Use attribute filtering to exclude pot and get green plant
 #    plant_green = attribute.exclude_pot(plant)
 #    deleted_vertices = cluster.dbscan_filter(plant_green)
 #    # If -1 returned as number of deleted vertices, no cluster detected, raise an error
 #    assert deleted_vertices != -1, f"No cluster detected for {plant.name}"
-
-    # Find stick (straightest branch) and draw cordesponding cylinder
-    draw_stick(tree_structure)
+#
+#    # Find stick (straightest branch) and draw cordesponding cylinder
+#    draw_stick(tree_structure)
 
 
 def main() -> None:
