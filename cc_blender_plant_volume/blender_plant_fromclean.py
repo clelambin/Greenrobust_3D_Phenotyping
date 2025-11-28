@@ -22,6 +22,8 @@ from mathutils import Vector    # Blender object type
 
 # Import user modules
 from cc_blender_plant_volume import blender_utility_functions as utility
+from cc_blender_plant_volume import blender_extract_attributefiltering as attribute
+from cc_blender_plant_volume import blender_point_clustering as cluster
 from cc_blender_plant_volume.blender_user_types import Cartesian, BooleanOperator
 
 
@@ -387,7 +389,9 @@ def draw_tree(tree_structure:TreeStructure, name:str="PlantStructure") -> None:
     mesh.to_mesh(obj_mesh)
     mesh.free()
 
-def draw_stick(tree_structure:TreeStructure, stick_radius:float=0.003) -> bpy.types.Object:
+def draw_stick(tree_structure:TreeStructure,
+               stick_radius:float=0.003,
+               ground_height:float=0.1) -> bpy.types.Object|None:
     """Extract stick from tree structure (straightest branch) and generate a mesh along stick"""
     # Find straightest branch in tree structure
     straight_branch = tree_structure.get_straight_branch()
@@ -397,6 +401,9 @@ def draw_stick(tree_structure:TreeStructure, stick_radius:float=0.003) -> bpy.ty
         # Extract x and y coordinate from the center coordinate and replace z by the section height
         x, y, _ = node.info.center
         nodes_coord.append(Vector([x, y, node.info.axis_position]))
+    # If last coordinate higher than ground height, add point using last x, y coordinate
+    if node.info.axis_position > ground_height:
+        nodes_coord.append(Vector([x, y, ground_height]))
 
     # Create curve based on nodes_coords
     curve_data = utility.create_curve(nodes_coord, name="Stick")
@@ -496,7 +503,7 @@ def vert_crosssection(obj:bpy.types.Object,
     return face_list
 
 
-def plant_cleanup(obj:bpy.types.Object) -> None:
+def plant_cleanup(plant:bpy.types.Object) -> None:
     """Extract green plant from 3D model, remove support and ouput model attribute
     Model attribute: plant volume, plant height, area projection
     """
@@ -522,20 +529,20 @@ def plant_cleanup(obj:bpy.types.Object) -> None:
             max_z_dist = 0.1
     )
     # Check if any vertices below ground
-    min_z = min(obj_bbox[2] for obj_bbox in obj.bound_box)
+    min_z = min(obj_bbox[2] for obj_bbox in plant.bound_box)
     if min_z < 0:
         # Remove vertices below ground
-        remove_ground(obj)
+        remove_ground(plant)
 
     # Create vertical section, used to extract the pot
-    pot_section = vert_crosssection(obj, pot_criteria)
-    print(f"{pot_section=}")
-    draw_pot(pot_section)
-
-    # Plant section and extract face detail for each section
-    section_detail = multi_crosssection(obj, stick_criteria, z_delta=0.01)
-    tree_structure = section_skeleton(section_detail, branch_criteria)
-    draw_tree(tree_structure)
+    pot_section = vert_crosssection(plant, pot_criteria)
+#    print(f"{pot_section=}")
+#    draw_pot(pot_section)
+#    # Use attribute filtering to exclude pot and get green plant
+#    plant_green = attribute.exclude_pot(plant)
+#    deleted_vertices = cluster.dbscan_filter(plant_green)
+#    # If -1 returned as number of deleted vertices, no cluster detected, raise an error
+#    assert deleted_vertices != -1, f"No cluster detected for {plant.name}"
 
     # Find stick (straightest branch) and draw cordesponding cylinder
     draw_stick(tree_structure)
