@@ -5,6 +5,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 from statistics import fmean
+from copy import deepcopy
 from random import choices
 from mathutils import Vector, geometry
 
@@ -15,12 +16,6 @@ from cc_blender_plant_volume.blender_user_types import Cartesian, Segment
 NORMAL_DIR: dict[Cartesian, Cartesian] = {"X":"Y", "Y":"X"}   # Map normal direction of an axis
 
 # Utility functions
-def calc_span(points:list[Vector], axis:Cartesian) -> float:
-    """Compute how much input points span along a given axis"""
-    axis_min = min(getattr(point, axis.lower()) for point in points)
-    axis_max = max(getattr(point, axis.lower()) for point in points)
-    return axis_max - axis_min
-
 def is_within(point, segment):
     """Return true if the point is between each point of the segment"""
     return (segment[0] <= point <= segment[1]
@@ -39,6 +34,24 @@ def point_to_segment(point:Vector, segment: Segment) -> float:
     # Compute direct distance between either point and return minimum
     return min((point-seg).length for seg in segment)
 
+def max_along_axis(points:list[Vector], axis:Cartesian) -> float:
+    """Return max value along a given axis from input points"""
+    return max(getattr(point, axis.lower()) for point in points)
+
+def min_along_axis(points:list[Vector], axis:Cartesian) -> float:
+    """Return min value along a given axis from input points"""
+    return min(getattr(point, axis.lower()) for point in points)
+
+def lowest_mid_axis(points:list[Vector], axis:Cartesian) -> float:
+    """Return the lowest value along axis for 1st half of points (based on normal axis"""
+    normal_axis = NORMAL_DIR[axis]
+    # Extract the first half of points along normal axis
+    nb_points = len(points)
+    points_sorted = sorted(points, key=lambda point:getattr(point, normal_axis.lower()))
+    half_points   = points_sorted[0:int(nb_points/2)]
+    # Return min value
+    return min(getattr(point, axis.lower()) for point in half_points)
+
 
 # Model
 @dataclass
@@ -55,8 +68,9 @@ class RansacParam:
 class ModelParam:
     """Parameter with attached value, name and supporting segment"""
     name: str
-    value: float
     direction: Cartesian
+    value: float|None = None
+    fit_fct: Callable = max_along_axis
     update_fct: Callable = fmean
     bound_min: "ModelParam|None" = None
     bound_max: "ModelParam|None" = None
@@ -93,6 +107,7 @@ class ModelParam:
         # Return segment
         return (point_min, point_max)
 
+# TODO: Improve model flexibility to allow diagonal segments
 class PotSection:
     """Simplified pot section parameters
 
@@ -102,16 +117,14 @@ class PotSection:
         - Soil : inner rectangle centered in X and with top line overlapping with soil level
     """
 
-    def __init__(self, points:list[Vector]) -> None:
-        """Initialise pot section based on point list"""
+    def __init__(self) -> None:
+        """Initialise pot section with empty parameter"""
 
         # Initialise parameters
-        bbox_width = calc_span(points, "X")
-        bbox_height = calc_span(points, "Y")
-        pot_width = ModelParam("pot_width", bbox_width, "X")
-        pot_height = ModelParam("pot_height", bbox_height, "Y")
-        soil_width = ModelParam("soil_width", 0.8*bbox_width, "X")
-        soil_height = ModelParam("soil_height", 0.8*bbox_height, "Y")
+        pot_width = ModelParam("pot_width", "X", fit_fct=max_along_axis, update_fct=max)
+        pot_height = ModelParam("pot_height", "Y", fit_fct=max_along_axis, update_fct=max)
+        soil_width = ModelParam("soil_width", "X", fit_fct=min_along_axis)
+        soil_height = ModelParam("soil_height", "Y", fit_fct=lowest_mid_axis)
 
         # Set relations between parameters
         # (set_bound is 2 way, so no need to set the corresponding limit on the input parameter)
@@ -123,8 +136,11 @@ class PotSection:
 
         # Initialise supporting segments and corresponding point list
         self.segments:list[Segment] = []
-        for param in self.params:
-            self.segments.append(param.supporting_segment())
+        for _ in self.params:
+            self.segments.append((Vector((0, 0)), Vector((0, 0))))
+
+        # Initialise model performance
+        self.fit_ratio: float = 0
 
     def __repr__(self) -> str:
         """Output model parameters"""
@@ -159,7 +175,18 @@ class PotSection:
             if distance < dist_thresh:
                 # Add point to list corresponding to segment
                 points_cluster[segment_index].append(point)
+        # Update fitted ratio based on sum of all points assigned to cluster
+        self.fit_ratio = sum(len(pts) for pts in points_cluster) / len(points)
         return points_cluster
+
+    def fit_param(self, sampled_points:list[Vector]) -> None:
+        """Fit model based on current sampled points"""
+        # Fit parameters
+        for param in self.params:
+            param.value = param.fit_fct(sampled_points, param.direction)
+        # Update supporting segment for all parameters
+        for (index, param) in enumerate(self.params):
+            self.segments[index] = param.supporting_segment()
 
     def update_param(self, points_cluster:list[list[Vector]], min_points:int) -> None:
         """Update the parameters based on point cluster for each parameter"""
@@ -176,35 +203,40 @@ class PotSection:
         for (index, param) in enumerate(self.params):
             self.segments[index] = param.supporting_segment()
 
-    def ransac_fit(self, points:list[Vector],
-                   ransac_param:RansacParam) -> float:
-        """RANSAC loop, select points from point list, update parameter"""
-        # Count number of points, used to evaluate fitting performance
-        nb_points = len(points)
-        best_fit = 0
+# RANSAC process to fit model parameters
+# TODO: remove deepcopy and dissociate parameters from model
+def ransac_fit(model:PotSection,
+               points:list[Vector],
+               ransac_param:RansacParam) -> PotSection:
+    """RANSAC loop, select points from point list, update parameter"""
+    # Initialise best model
+    best_fit = 0
+    best_model = deepcopy(model)
 
-        # Iteratively fit the model to a random sample of points
-        for iteration in range(ransac_param.max_iter):
-            # Sample points at random
-            points_sample = choices(points, k=ransac_param.nb_sample)
-            # Cluster points based on current value of parameters
-            points_cluster = self.cluster_points(points_sample, ransac_param.dist_thresh)
+    # Iteratively fit the model to a random sample of points
+    for iteration in range(ransac_param.max_iter):
+        # Sample points at random
+        sampled_points = choices(points, k=ransac_param.nb_sample)
+        # Fit new model based on sample points
+        model.fit_param(sampled_points)
+        # Cluster points based on current value of parameters
+        points_cluster = model.cluster_points(sampled_points, ransac_param.dist_thresh)
 
-            # Evaluate fitting performance
-            model_fit = sum(len(pts) for pts in points_cluster) / nb_points
-            # If less outliers than best model, do not update the parameters
-            if model_fit < best_fit:
-                continue
+        # Evaluate fitting performance
+        # If less outliers than best model, do not update the parameters
+        if model.fit_ratio < best_fit:
+            continue
 
-            # Update parameter based on points cluster
-            self.update_param(points_cluster, ransac_param.min_cluster)
-            best_fit = model_fit
+        # Update parameter based on points cluster
+        model.update_param(points_cluster, ransac_param.min_cluster)
+        best_fit = model.fit_ratio
+        best_model = deepcopy(model)
 
-            # Evaluate fitting performance
-            if best_fit > ransac_param.max_fit:
-                print(f"Model fitted in {iteration} iterations")
-                return best_fit
+        # Evaluate fitting performance
+        if best_fit > ransac_param.max_fit:
+            print(f"Model fitted in {iteration} iterations")
+            return best_model
 
-        # Reach max number of iteration
-        print(f"Reaching max {ransac_param.max_iter} iterations")
-        return best_fit
+    # Reach max number of iteration
+    print(f"Reaching max {ransac_param.max_iter} iterations")
+    return best_model

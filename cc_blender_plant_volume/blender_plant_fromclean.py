@@ -447,22 +447,22 @@ def draw_pot(sections:dict[Cartesian, FaceNode]) -> None:
     all_points = reshape_section(sections)
     # Use RANSAC to fit a simplified pot section
     ransac_param = ransac.RansacParam(
-            nb_sample=100,
-            min_cluster=5,
+            nb_sample=5,
+            min_cluster=3,
             max_iter=1000,
-            dist_thresh=0.01,
+            dist_thresh=0.0001,
             max_fit=0.9
     )
-    pot_model = ransac.PotSection(all_points)
-    fit_perf  = pot_model.ransac_fit(all_points, ransac_param)
+    init_model = ransac.PotSection()
+    fitted_model  = ransac.ransac_fit(init_model, all_points, ransac_param)
 
     # Print model parameters
-    print(f"{pot_model=}")
-    print(f"Ratio of fitted points: {fit_perf:.3f}")
+    print(f"{fitted_model=}")
+    print(f"Ratio of fitted points: {fitted_model.fit_ratio:.3f}")
 
     # Draw segments
-    pot_segments = pot_model.segments
-    for (index, param) in enumerate(pot_model.params):
+    pot_segments = fitted_model.segments
+    for (index, param) in enumerate(fitted_model.params):
         pot_curve    = utility.create_curve(list(pot_segments[index]), name=param.name)
         pot_section  = utility.curve_to_mesh(pot_curve)
         utility.from_z_to_axis(pot_section, "Y")
