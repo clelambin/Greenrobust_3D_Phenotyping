@@ -12,7 +12,7 @@ from mathutils import Vector, geometry
 from cc_blender_plant_volume.blender_user_types import Cartesian, Segment
 
 # Script variable used within module
-NORMAL_DIRECTION: dict[Cartesian, Cartesian] = {"X":"Y", "Y":"X"}   # Map normal direction of an axis
+NORMAL_DIR: dict[Cartesian, Cartesian] = {"X":"Y", "Y":"X"}   # Map normal direction of an axis
 
 # Utility functions
 def calc_span(points:list[Vector], axis:Cartesian) -> float:
@@ -84,7 +84,7 @@ class ModelParam:
         point_max = Vector((0, 0))
 
         # Set coordinate along direction to value and normal direction to limit
-        normal_axis = NORMAL_DIRECTION[self.direction]
+        normal_axis = NORMAL_DIR[self.direction]
         setattr(point_min, self.direction.lower(), self.value)
         setattr(point_max, self.direction.lower(), self.value)
         setattr(point_min, normal_axis.lower(), limit_min)
@@ -184,7 +184,7 @@ class PotSection:
         best_fit = 0
 
         # Iteratively fit the model to a random sample of points
-        for iter in range(ransac_param.max_iter):
+        for iteration in range(ransac_param.max_iter):
             # Sample points at random
             points_sample = choices(points, k=ransac_param.nb_sample)
             # Cluster points based on current value of parameters
@@ -202,7 +202,7 @@ class PotSection:
 
             # Evaluate fitting performance
             if best_fit > ransac_param.max_fit:
-                print(f"Model fitted in {iter} iterations")
+                print(f"Model fitted in {iteration} iterations")
                 return best_fit
 
         # Reach max number of iteration
