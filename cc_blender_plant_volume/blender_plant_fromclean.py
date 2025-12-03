@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import bpy                      # Blender python
 import bmesh                    # Blender mesh module
-from mathutils import Vector    # Blender object type
+from mathutils import Matrix, Vector    # Blender object type
 
 # Import user modules
 from cc_blender_plant_volume import blender_utility_functions as utility
@@ -273,7 +273,7 @@ class TreeStructure:
 
 
 # Process functions
-def remove_ground(obj:bpy.types.Object, ground_height:float=0.002) -> None:
+def remove_ground(obj:bpy.types.Object, ground_height:float=0.005) -> None:
     """Remove all points from mesh below ground height"""
     # Add cube object, shift it toward the ground
     cube_location = Vector([0, 0, ground_height-1])
@@ -289,7 +289,8 @@ def boolean_modifier(source_obj:bpy.types.Object,
                      target_obj:bpy.types.Object,
                      thresh:float=0.00001,
                      operation:BooleanOperator="INTERSECT",
-                     apply:bool=True)-> None:
+                     apply:bool=True,
+                     exact:bool=False)-> None:
     """Create intersection between object to intersect and plane
     Using boolean mesh operator
     """
@@ -297,7 +298,9 @@ def boolean_modifier(source_obj:bpy.types.Object,
     utility.make_active(source_obj)
     # Boolean modifier using fast intersection mode
     modifier = source_obj.modifiers.new(name="Section", type="BOOLEAN")
-    modifier.solver = "FAST"
+    modifier.solver = "EXACT" if exact else "FAST"
+    # if use EXACT solver, allow self intersection
+    modifier.use_self = exact
     modifier.operation = operation
     modifier.double_threshold = thresh
     # Set object to intersect
@@ -306,6 +309,7 @@ def boolean_modifier(source_obj:bpy.types.Object,
     if apply:
         bpy.ops.object.modifier_apply(modifier=modifier.name)
 
+# TODO: replace edge_face_add by non low level function
 def section_faces(obj:bpy.types.Object,
                   axis_position:float,
                   face_criteria:FaceCriteria,
@@ -441,17 +445,65 @@ def reshape_section(sections:dict[Cartesian, FaceNode]) -> list[Vector]:
         all_points.extend(point_coords)
     return all_points
 
-def draw_pot(sections:dict[Cartesian, FaceNode]) -> None:
-    """Create a simplified version of the pot, based on the input X and Y sections"""
+# TODO: not very clean way to extract parameter from PotSection
+def create_pot(pot_section:ransac.PotSection,
+               offset:float=0.005,
+               name:str="Simplified_pot") -> bpy.types.Object:
+    """Create simplified pot model based on fitted pot section"""
+    # Extract all parameters from fitted model and convert to dictionary
+    param_dict = {}
+    for param in pot_section.params:
+        param_dict[param.name] = param.values
+    # Extract relevant parameters as variables
+    pot_width_base = param_dict["pot_width"][0]
+    pot_width_top = param_dict["pot_width"][1]
+    pot_height = param_dict["pot_height"][0]
+    soil_width = param_dict["soil_width"][1]
+    soil_height = param_dict["soil_height"][0]
+
+    # Start from a primitive cube
+    bpy.ops.mesh.primitive_cube_add()
+    # Save primitive cube as object
+    cube = bpy.context.active_object
+    assert cube is not None, "Could not create primitive cube"
+    cube.name = name
+
+    # Edit the primitive to fit parameters
+    cube_mesh = bmesh.new()
+    cube_mesh.from_mesh(cube.data)
+
+    # Select lower face and rescale to fit pot_width_width
+    base_verts = [vert for vert in cube_mesh.verts if vert.co.z == -1]
+    top_verts = [vert for vert in cube_mesh.verts if vert.co.z == 1]
+    bmesh.ops.transform(cube_mesh, matrix=Matrix.Scale(pot_width_base, 3), verts=base_verts)
+    bmesh.ops.transform(cube_mesh, matrix=Matrix.Scale(pot_width_top, 3), verts=top_verts)
+    for verts in base_verts:
+        verts.co.z = 0
+    for verts in top_verts:
+        verts.co.z = pot_height
+    top_face = utility.extract_face_from_verts(top_verts)
+    assert top_face is not None, "No faces connected to input vertices"
+    bmesh.ops.inset_individual(cube_mesh, faces=[top_face], thickness=pot_width_top-soil_width)
+    bmesh.ops.translate(cube_mesh, vec=Vector((0, 0, soil_height-pot_height)), verts=list(top_face.verts))
+
+    # Offset all faces
+    utility.offset_faces(cube_mesh, dist=offset)
+
+    # Update cube object
+    cube_mesh.to_mesh(cube.data)
+    return cube
+
+def fit_pot(sections:dict[Cartesian, FaceNode], hide_pot:bool=True) -> bpy.types.Object:
+    """Fit simplified pot, based on the input X and Y sections"""
     # Reshape all sections and collect into a single list of points
     all_points = reshape_section(sections)
     # Use RANSAC to fit a simplified pot section
     ransac_param = ransac.RansacParam(
             nb_sample=5,
-            max_iter=500,
+            max_iter=1000,
             min_pts_per_line=0,
             dist_thresh=0.001,
-            max_fit=0.8
+            max_fit=0.6
     )
     init_model = ransac.PotSection()
     fitted_model  = ransac.ransac_fit(init_model, all_points, ransac_param)
@@ -460,19 +512,23 @@ def draw_pot(sections:dict[Cartesian, FaceNode]) -> None:
     print(f"{fitted_model=}")
     print(f"Ratio of fitted points: {fitted_model.fit_ratio:.3f}")
 
-    # Draw segments
-    pot_segments = fitted_model.segments
-    for (index, param) in enumerate(fitted_model.params):
-        pot_curve    = utility.create_curve(list(pot_segments[index]), name=param.name)
-        pot_section  = utility.curve_to_mesh(pot_curve)
-        utility.from_z_to_axis(pot_section, "Y")
+#    # Draw segments
+#    pot_segments = fitted_model.segments
+#    for (index, param) in enumerate(fitted_model.params):
+#        pot_curve    = utility.create_curve(list(pot_segments[index]), name=param.name)
+#        pot_section  = utility.curve_to_mesh(pot_curve)
+#        utility.from_z_to_axis(pot_section, "Y")
+#
+#    point_cluster = fitted_model.cluster_points(all_points, ransac_param.dist_thresh)
+#    print(f"Points per segments: {[len(cluster) for cluster in point_cluster]}")
+#    print(f"Segments: {pot_segments}")
 
-    # TODO: debug
-    point_cluster = fitted_model.cluster_points(all_points, ransac_param.dist_thresh)
-    print(f"Points per segments: {[len(cluster) for cluster in point_cluster]}")
-    print(f"Segments: {pot_segments}")
+    # Draw create pot object based on fitted pot section
+    pot = create_pot(fitted_model)
 
-
+    if hide_pot:
+        utility.hide_object(pot)
+    return pot
 
 # TODO: check that obj is updated before getting dimension
 def multi_crosssection(obj:bpy.types.Object,
@@ -499,7 +555,8 @@ def multi_crosssection(obj:bpy.types.Object,
 
 def vert_crosssection(obj:bpy.types.Object,
                       face_criteria:FaceCriteria,
-                      select:Callable=lambda face:face.info.area) -> dict[Cartesian, FaceNode]:
+                      select:Callable=lambda face:face.info.area, 
+                      hide_plane:bool=True) -> dict[Cartesian, FaceNode]:
     """Create vertical crosssection of input object for X and Y direction"""
     # Create a section normal to X and normal to Y
     direction_list:list[Cartesian] = ["X", "Y"]
@@ -510,8 +567,10 @@ def vert_crosssection(obj:bpy.types.Object,
         # If the stem intersect with the cross-section, the section fail, retry with offset
         while faces is None and section_dist < 0.02:
             plane = utility.create_plane(direction, section_dist, name_digits=0)
+            if hide_plane:
+                utility.hide_object(plane)
             # Apply section modifier to plane
-            boolean_modifier(source_obj=plane, target_obj=obj)
+            boolean_modifier(source_obj=plane, target_obj=obj, thresh=0)
             # Cleanup cross-section and save list of all faces within section
             faces = section_faces(plane, 0, face_criteria, save_coords=True)
             section_dist += 0.001
@@ -555,12 +614,15 @@ def plant_cleanup(plant:bpy.types.Object) -> None:
 
     # Create vertical section, used to extract the pot
     pot_section = vert_crosssection(plant, pot_criteria)
-    print(f"{pot_section=}")
-    for (axis, section) in pot_section.items():
-        section_curve = utility.create_curve(section.coords_2d, name=f"Section_{str(axis)}")
-        section_mesh  = utility.curve_to_mesh(section_curve)
-        utility.from_z_to_axis(section_mesh, axis)
-    draw_pot(pot_section)
+#    print(f"{pot_section=}")
+#    for (axis, section) in pot_section.items():
+#        section_curve = utility.create_curve(section.coords_2d, name=f"Section_{str(axis)}")
+#        section_mesh  = utility.curve_to_mesh(section_curve)
+#        utility.from_z_to_axis(section_mesh, axis)
+    pot = fit_pot(pot_section)
+
+    # Remove pot from plant
+    boolean_modifier(plant, pot, operation="DIFFERENCE", exact=True)
 #    # Use attribute filtering to exclude pot and get green plant
 #    plant_green = attribute.exclude_pot(plant)
 #    deleted_vertices = cluster.dbscan_filter(plant_green)

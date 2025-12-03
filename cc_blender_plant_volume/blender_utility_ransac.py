@@ -9,10 +9,6 @@ from copy import deepcopy
 from random import choices
 from mathutils import Vector, geometry
 
-# Libraries used for test function only
-import bpy
-import bmesh
-
 # Import user modules
 from cc_blender_plant_volume.blender_user_types import Cartesian, Segment
 
@@ -40,13 +36,13 @@ def min_along_axis(points:list[Vector], axis:Cartesian) -> float:
     """Return min value along a given axis from input points"""
     return min(getattr(point, axis.lower()) for point in points)
 
-def lowest_mid_axis(points:list[Vector], axis:Cartesian) -> float:
+def lowest_mid_axis(points:list[Vector], axis:Cartesian, ratio:float=0.5) -> float:
     """Return the lowest value along axis for 1st half of points (based on normal axis"""
     normal_axis = NORMAL_DIR[axis]
     # Extract the first half of points along normal axis
     nb_points = len(points)
     points_sorted = sorted(points, key=lambda point:getattr(point, normal_axis.lower()))
-    half_points   = points_sorted[0:int(nb_points/2)]
+    half_points   = points_sorted[0:int(nb_points*ratio)]
     # Return min value
     return min(getattr(point, axis.lower()) for point in half_points)
 
@@ -134,7 +130,7 @@ class PotSection:
         # Initialise parameters
         pot_width = ModelParam("pot_width", "X", fit_fct=(lowest_mid_axis, max_along_axis))
         pot_height = ModelParam("pot_height", "Y", fit_fct=(max_along_axis, max_along_axis))
-        soil_width = ModelParam("soil_width", "X", fit_fct=(max_normal_axis, lowest_mid_axis))
+        soil_width = ModelParam("soil_width", "X", fit_fct=(max_along_axis, lowest_mid_axis))
         soil_height = ModelParam("soil_height", "Y", fit_fct=(lowest_mid_axis, lowest_mid_axis))
 
         # Set relations between parameters

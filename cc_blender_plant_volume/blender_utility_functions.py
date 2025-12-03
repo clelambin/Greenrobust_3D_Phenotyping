@@ -203,3 +203,21 @@ def curve_to_mesh(curve:bpy.types.Curve, del_curve:bool=True) -> bpy.types.Objec
 
     # Output converted object
     return mesh_obj
+
+def extract_face_from_verts(verts:list[bmesh.types.BMVert]) -> bmesh.types.BMFace | None:
+    """Extract face shared by input vertex"""
+    vertices_set = set(verts)
+    # Loop through faces connected to first vertex
+    for face in verts[0].link_faces:
+        # If set of vertices in current face equal to input vertices, return face
+        if set(face.verts) == vertices_set:
+            return face
+    # No face found with same set of vertices, return None
+    return None
+
+def offset_faces(mesh:bmesh.types.BMesh, dist:float=0.001) -> None:
+    """Offset faces of mesh by input distance"""
+    for face in mesh.faces:
+        # Renormalise the face normal
+        offset_dist = face.normal.normalized()*dist
+        bmesh.ops.translate(mesh, vec=offset_dist, verts = list(face.verts))
