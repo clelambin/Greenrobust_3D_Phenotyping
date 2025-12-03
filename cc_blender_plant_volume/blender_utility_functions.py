@@ -166,7 +166,8 @@ def create_curve(point_list:list[Vector], name:str="Curve") -> bpy.types.Curve:
 
 def create_plane(normal_axis:Cartesian="Z",
                  axis_position:float=0,
-                 name_digits:int=3) -> bpy.types.Object:
+                 name_digits:int=3,
+                 hide:bool=False) -> bpy.types.Object:
     """Create a plane normal to given axis and passing by normal axis as input position"""
     # Define unit vetor used to define position for each axis
     unit_vect = {
@@ -185,6 +186,9 @@ def create_plane(normal_axis:Cartesian="Z",
     assert plane is not None, "Error, section plane not created"
     # Rotate plane to be normal to specified axis
     from_z_to_axis(plane, normal_axis)
+    # If requested, hide the created object
+    if hide:
+        hide_object(plane)
     # Return plane object
     return plane
 

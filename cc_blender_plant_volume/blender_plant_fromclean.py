@@ -395,7 +395,8 @@ def draw_tree(tree_structure:TreeStructure, name:str="PlantStructure") -> None:
 
 def draw_stick(tree_structure:TreeStructure,
                stick_radius:float=0.003,
-               ground_height:float=0.1) -> bpy.types.Object|None:
+               ground_height:float=0.1,
+               hide:bool=True) -> bpy.types.Object|None:
     """Extract stick from tree structure (straightest branch) and generate a mesh along stick"""
     # Find straightest branch in tree structure
     straight_branch = tree_structure.get_straight_branch()
@@ -420,6 +421,10 @@ def draw_stick(tree_structure:TreeStructure,
 
     # Create object and link to scene
     stick_obj = utility.curve_to_mesh(curve_data)
+
+    # If requested, hide stick
+    if hide:
+        utility.hide_object(stick_obj)
 
     # Return created object
     return stick_obj
@@ -493,7 +498,9 @@ def create_pot(pot_section:ransac.PotSection,
     cube_mesh.to_mesh(cube.data)
     return cube
 
-def fit_pot(sections:dict[Cartesian, FaceNode], hide_pot:bool=True) -> bpy.types.Object:
+def fit_pot(sections:dict[Cartesian, FaceNode],
+            hide_pot:bool=True,
+            pot_offset:float=0.005) -> bpy.types.Object:
     """Fit simplified pot, based on the input X and Y sections"""
     # Reshape all sections and collect into a single list of points
     all_points = reshape_section(sections)
@@ -524,7 +531,7 @@ def fit_pot(sections:dict[Cartesian, FaceNode], hide_pot:bool=True) -> bpy.types
 #    print(f"Segments: {pot_segments}")
 
     # Draw create pot object based on fitted pot section
-    pot = create_pot(fitted_model)
+    pot = create_pot(fitted_model, offset=pot_offset)
 
     if hide_pot:
         utility.hide_object(pot)
@@ -533,17 +540,18 @@ def fit_pot(sections:dict[Cartesian, FaceNode], hide_pot:bool=True) -> bpy.types
 # TODO: check that obj is updated before getting dimension
 def multi_crosssection(obj:bpy.types.Object,
                        face_criteria:FaceCriteria,
-                       z_delta:float=0.1) -> list[list[FaceNode]]:
+                       z_delta:float=0.1,
+                       hide_plane:bool=True) -> list[list[FaceNode]]:
     """Create crosssection of input object spaced by z_delta"""
     # Initialise list which will contain the face information for each section
     section_detail = []
-    # Get Z dimention to define number of cross-sections
-    obj_dim    = obj.dimensions
-    nb_section = int(obj_dim[2] / z_delta) + 1
+    # Get the highest point in Z to define number of cross-sections
+    max_z = max(vertex.co[2] for vertex in obj.data.vertices)
+    nb_section = int(max_z / z_delta) + 1
     for section_index in range(1, nb_section):
         axis_position = section_index * z_delta
         # Create plane at given axis_position height
-        plane = utility.create_plane("Z", axis_position)
+        plane = utility.create_plane("Z", axis_position, hide=hide_plane)
         # Apply section modifier to plane
         boolean_modifier(source_obj=plane, target_obj=obj)
         # Cleanup cross-section and save list of all faces within section
@@ -566,9 +574,7 @@ def vert_crosssection(obj:bpy.types.Object,
         section_dist = 0
         # If the stem intersect with the cross-section, the section fail, retry with offset
         while faces is None and section_dist < 0.02:
-            plane = utility.create_plane(direction, section_dist, name_digits=0)
-            if hide_plane:
-                utility.hide_object(plane)
+            plane = utility.create_plane(direction, section_dist, name_digits=0, hide=hide_plane)
             # Apply section modifier to plane
             boolean_modifier(source_obj=plane, target_obj=obj, thresh=0)
             # Cleanup cross-section and save list of all faces within section
@@ -581,7 +587,9 @@ def vert_crosssection(obj:bpy.types.Object,
     return face_list
 
 
-def plant_cleanup(plant:bpy.types.Object) -> None:
+def plant_cleanup(plant:bpy.types.Object,
+                  pot_offset:float=0.005,
+                  remove_stick:bool=True) -> None:
     """Extract green plant from 3D model, remove support and ouput model attribute
     Model attribute: plant volume, plant height, area projection
     """
@@ -619,18 +627,30 @@ def plant_cleanup(plant:bpy.types.Object) -> None:
 #        section_curve = utility.create_curve(section.coords_2d, name=f"Section_{str(axis)}")
 #        section_mesh  = utility.curve_to_mesh(section_curve)
 #        utility.from_z_to_axis(section_mesh, axis)
-    pot = fit_pot(pot_section)
+    pot = fit_pot(pot_section, pot_offset=pot_offset)
 
     # Remove pot from plant
     boolean_modifier(plant, pot, operation="DIFFERENCE", exact=True)
 #    # Use attribute filtering to exclude pot and get green plant
 #    plant_green = attribute.exclude_pot(plant)
-#    deleted_vertices = cluster.dbscan_filter(plant_green)
-#    # If -1 returned as number of deleted vertices, no cluster detected, raise an error
-#    assert deleted_vertices != -1, f"No cluster detected for {plant.name}"
-#
-#    # Find stick (straightest branch) and draw cordesponding cylinder
-#    draw_stick(tree_structure)
+
+    if remove_stick:
+        # Detecte=ing the wood stick from the plant by creating horizontal sections
+        # and looking at section structure
+        section_detail = multi_crosssection(plant, stick_criteria, z_delta=0.01)
+        tree_structure = section_skeleton(section_detail, branch_criteria)
+#       draw_tree(tree_structure)
+
+        # Find stick (straightest branch) and draw cordesponding cylinder
+        stick = draw_stick(tree_structure)
+        # Remove stick from the plant (if stick detected)
+        if stick is not None:
+            boolean_modifier(plant, stick, operation="DIFFERENCE", exact=True)
+
+    # Run DBScan clustering on vertex to remove vertex cluster further from given distance
+    deleted_vertices = cluster.dbscan_filter(plant, dbscan_eps=0.02)
+    # If -1 returned as number of deleted vertices, no cluster detected, raise an error
+    assert deleted_vertices != -1, f"No cluster detected for {plant.name}"
 
 
 def main() -> None:
