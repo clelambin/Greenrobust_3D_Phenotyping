@@ -448,10 +448,10 @@ def draw_pot(sections:dict[Cartesian, FaceNode]) -> None:
     # Use RANSAC to fit a simplified pot section
     ransac_param = ransac.RansacParam(
             nb_sample=5,
-            min_cluster=3,
-            max_iter=1000,
-            dist_thresh=0.0001,
-            max_fit=0.9
+            max_iter=500,
+            min_pts_per_line=0,
+            dist_thresh=0.001,
+            max_fit=0.8
     )
     init_model = ransac.PotSection()
     fitted_model  = ransac.ransac_fit(init_model, all_points, ransac_param)
@@ -466,6 +466,12 @@ def draw_pot(sections:dict[Cartesian, FaceNode]) -> None:
         pot_curve    = utility.create_curve(list(pot_segments[index]), name=param.name)
         pot_section  = utility.curve_to_mesh(pot_curve)
         utility.from_z_to_axis(pot_section, "Y")
+
+    # TODO: debug
+    point_cluster = fitted_model.cluster_points(all_points, ransac_param.dist_thresh)
+    print(f"Points per segments: {[len(cluster) for cluster in point_cluster]}")
+    print(f"Segments: {pot_segments}")
+
 
 
 # TODO: check that obj is updated before getting dimension
@@ -528,7 +534,7 @@ def plant_cleanup(plant:bpy.types.Object) -> None:
 #    )
     pot_criteria = FaceCriteria(
             min_area = 1e-4,
-            max_area = 1e-2
+            max_area = 1e-1
     )
     stick_criteria = FaceCriteria(
             min_area = 5e-6,
@@ -550,6 +556,10 @@ def plant_cleanup(plant:bpy.types.Object) -> None:
     # Create vertical section, used to extract the pot
     pot_section = vert_crosssection(plant, pot_criteria)
     print(f"{pot_section=}")
+    for (axis, section) in pot_section.items():
+        section_curve = utility.create_curve(section.coords_2d, name=f"Section_{str(axis)}")
+        section_mesh  = utility.curve_to_mesh(section_curve)
+        utility.from_z_to_axis(section_mesh, axis)
     draw_pot(pot_section)
 #    # Use attribute filtering to exclude pot and get green plant
 #    plant_green = attribute.exclude_pot(plant)

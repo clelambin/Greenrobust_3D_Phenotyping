@@ -9,6 +9,10 @@ from copy import deepcopy
 from random import choices
 from mathutils import Vector, geometry
 
+# Libraries used for test function only
+import bpy
+import bmesh
+
 # Import user modules
 from cc_blender_plant_volume.blender_user_types import Cartesian, Segment
 
@@ -16,21 +20,15 @@ from cc_blender_plant_volume.blender_user_types import Cartesian, Segment
 NORMAL_DIR: dict[Cartesian, Cartesian] = {"X":"Y", "Y":"X"}   # Map normal direction of an axis
 
 # Utility functions
-def is_within(point, segment):
-    """Return true if the point is between each point of the segment"""
-    return (segment[0] <= point <= segment[1]
-            or segment[1] <= point <= segment[0])
-
 def point_to_segment(point:Vector, segment: Segment) -> float:
     """Return the distance from the point to the segment"""
-    # intersect function return the point on the line and the relative normal distance to the line
-    intersect, rel_dist = geometry.intersect_point_line(point, *segment)
-    # Check if intersected point within the segment
-    if is_within(intersect, segment):
+    # Intersect function return the point on the line and the relative normal distance to the line
+    intersect, dist = geometry.intersect_point_line(point, *segment)
+    # Check if intersected point within the segment by checking if distance is between 0 and 1
+    if 0 <= dist <= 1:
         # Intersection point is within the segment
-        # Return relative distance multiplied by line length
-        segment_vect = segment[1] - segment[0]
-        return rel_dist * segment_vect.length
+        # Distance is the length of the vector from initial point to the intersect
+        return (point-intersect).length
     # Compute direct distance between either point and return minimum
     return min((point-seg).length for seg in segment)
 
@@ -52,13 +50,20 @@ def lowest_mid_axis(points:list[Vector], axis:Cartesian) -> float:
     # Return min value
     return min(getattr(point, axis.lower()) for point in half_points)
 
+def max_normal_axis(points:list[Vector], axis:Cartesian) -> float:
+    """Return the axis cooridate for the max along the normal axis"""
+    normal_axis = NORMAL_DIR[axis]
+    max_point = max(points, key=lambda point:getattr(point, normal_axis.lower()))
+    return getattr(max_point, axis.lower())
+
+
 
 # Model
 @dataclass
 class RansacParam:
     """Parameter used to run RANSAC"""
     nb_sample:int = 20
-    min_cluster:int = 3
+    min_pts_per_line:int = 3
     max_iter:int = 100
     dist_thresh:float = 0.01
     max_fit:float = 0.9
@@ -69,29 +74,27 @@ class ModelParam:
     """Parameter with attached value, name and supporting segment"""
     name: str
     direction: Cartesian
-    value: float|None = None
-    fit_fct: Callable = max_along_axis
+    fit_fct: tuple[Callable, Callable]
+    values: tuple[float|None, float|None] = (None, None)
     update_fct: Callable = fmean
     bound_min: "ModelParam|None" = None
     bound_max: "ModelParam|None" = None
 
     def __repr__(self) -> str:
-        return f"{self.name} = {self.value:.3f}"
+        return f"{self.name} = ({self.values[0]:.3f}, {self.values[1]:.3f})"
 
     def set_bound(self, limit_min:"ModelParam|None"=None, limit_max:"ModelParam|None"=None) -> None:
-        """Set corresponding bounding limits for current parameters and input parameters"""
+        """Set corresponding bounding limits"""
         if limit_min is not None:
             self.bound_min = limit_min
-            limit_min.bound_max = self
         if limit_max is not None:
             self.bound_max = limit_max
-            limit_max.bound_min = self
 
     def supporting_segment(self) -> Segment:
         """Compute segment supporting current parameter"""
         # Extract bounding parameters (to define limits)
-        limit_min = 0 if self.bound_min is None else self.bound_min.value
-        limit_max = 0 if self.bound_max is None else self.bound_max.value
+        limit_min = 0 if self.bound_min is None else self.bound_min.values[0]
+        limit_max = 0 if self.bound_max is None else self.bound_max.values[1]
 
         # Initialise the points defining the segment
         point_min = Vector((0, 0))
@@ -99,15 +102,23 @@ class ModelParam:
 
         # Set coordinate along direction to value and normal direction to limit
         normal_axis = NORMAL_DIR[self.direction]
-        setattr(point_min, self.direction.lower(), self.value)
-        setattr(point_max, self.direction.lower(), self.value)
+        setattr(point_min, self.direction.lower(), self.values[0])
+        setattr(point_max, self.direction.lower(), self.values[1])
         setattr(point_min, normal_axis.lower(), limit_min)
         setattr(point_max, normal_axis.lower(), limit_max)
 
         # Return segment
         return (point_min, point_max)
 
-# TODO: Improve model flexibility to allow diagonal segments
+    def set_values(self, points:list[Vector]) -> None:
+        """Update values by calling each fit_fct function on the input points"""
+        new_value = []
+        for fct in self.fit_fct:
+            new_value.append(fct(points, self.direction))
+        self.values = tuple(new_value)
+
+
+# TODO: Recompute twice for horizontal/vertical parameters (not efficient)
 class PotSection:
     """Simplified pot section parameters
 
@@ -121,14 +132,15 @@ class PotSection:
         """Initialise pot section with empty parameter"""
 
         # Initialise parameters
-        pot_width = ModelParam("pot_width", "X", fit_fct=max_along_axis, update_fct=max)
-        pot_height = ModelParam("pot_height", "Y", fit_fct=max_along_axis, update_fct=max)
-        soil_width = ModelParam("soil_width", "X", fit_fct=min_along_axis)
-        soil_height = ModelParam("soil_height", "Y", fit_fct=lowest_mid_axis)
+        pot_width = ModelParam("pot_width", "X", fit_fct=(lowest_mid_axis, max_along_axis))
+        pot_height = ModelParam("pot_height", "Y", fit_fct=(max_along_axis, max_along_axis))
+        soil_width = ModelParam("soil_width", "X", fit_fct=(max_normal_axis, lowest_mid_axis))
+        soil_height = ModelParam("soil_height", "Y", fit_fct=(lowest_mid_axis, lowest_mid_axis))
 
         # Set relations between parameters
-        # (set_bound is 2 way, so no need to set the corresponding limit on the input parameter)
         pot_height.set_bound(limit_min=soil_width, limit_max=pot_width)
+        pot_width.set_bound(limit_max=pot_height)
+        soil_width.set_bound(limit_min=pot_height, limit_max=soil_height)
         soil_height.set_bound(limit_max=soil_width)
 
         # Add all parameters to a list
@@ -183,7 +195,7 @@ class PotSection:
         """Fit model based on current sampled points"""
         # Fit parameters
         for param in self.params:
-            param.value = param.fit_fct(sampled_points, param.direction)
+            param.set_values(sampled_points)
         # Update supporting segment for all parameters
         for (index, param) in enumerate(self.params):
             self.segments[index] = param.supporting_segment()
@@ -197,7 +209,7 @@ class PotSection:
 
             # If enough point, update param value as average of points along axis
             if len(points) >= min_points:
-                param.value = param.update_fct(getattr(point, axis) for point in points)
+                param.values = param.update_fct(getattr(point, axis) for point in points)
 
         # Update supporting segment for all parameters
         for (index, param) in enumerate(self.params):
@@ -218,19 +230,23 @@ def ransac_fit(model:PotSection,
         # Sample points at random
         sampled_points = choices(points, k=ransac_param.nb_sample)
         # Fit new model based on sample points
-        model.fit_param(sampled_points)
+        sampled_model = deepcopy(model)
+        sampled_model.fit_param(sampled_points)
         # Cluster points based on current value of parameters
-        points_cluster = model.cluster_points(sampled_points, ransac_param.dist_thresh)
+        points_cluster = sampled_model.cluster_points(points, ransac_param.dist_thresh)
 
         # Evaluate fitting performance
+        # If not points per cluster lower than defined in ransac param, do not update the parameters
+        if any(len(cluster) < ransac_param.min_pts_per_line for cluster in points_cluster):
+            continue
         # If less outliers than best model, do not update the parameters
-        if model.fit_ratio < best_fit:
+        if sampled_model.fit_ratio < best_fit:
             continue
 
         # Update parameter based on points cluster
-        model.update_param(points_cluster, ransac_param.min_cluster)
-        best_fit = model.fit_ratio
-        best_model = deepcopy(model)
+#        model.update_param(points_cluster, ransac_param.min_cluster)
+        best_fit = sampled_model.fit_ratio
+        best_model = sampled_model
 
         # Evaluate fitting performance
         if best_fit > ransac_param.max_fit:
