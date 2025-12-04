@@ -79,7 +79,7 @@ def area_project(obj: bpy.types.Object,
 
 # Warning: if switch scaling to bmesh, would need to update
 def calc_metrics(obj:bpy.types.Object|None=None,
-                 img_path:str|None=None) -> dict:
+                 img_path:str|None=None) -> dict[str, float]:
     """Return metrics (volume, area, dimension) from bmesh after application of transformation
     Return metrics are saved within a dictionary
     """

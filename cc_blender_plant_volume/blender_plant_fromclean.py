@@ -2,19 +2,22 @@
 
 Note:
 - require digitisation with marker for allignment
-- replace model_prep fromblender_plant_modelprep.py
+- replace model_prep from blender_plant_modelprep.py
 
 Workflow:
 - Import obj
-- Use color attribute to extract green plant
-- Remove support (wood stick or torus) from model
+- Create vertical section to detect pot shape and horizontal section to detect stick shape
+- Create simplified pot shape based on the section and remove it from the plant model
+- Create cylinder at location of wood stick and remove it from the plant model
 - Extract model attribute (volume, ...)
 """
 
 # Import libraries
 from collections.abc import Iterable, Callable
 from dataclasses import dataclass, field
-import numpy as np
+import os                       # File manager
+from bpy.types import Object
+import numpy as np              # Array manipulation
 import bpy                      # Blender python
 import bmesh                    # Blender mesh module
 from mathutils import Matrix, Vector    # Blender object type
@@ -24,6 +27,8 @@ from cc_blender_plant_volume import blender_utility_functions as utility
 from cc_blender_plant_volume import blender_extract_attributefiltering as attribute
 from cc_blender_plant_volume import blender_point_clustering as cluster
 from cc_blender_plant_volume import blender_utility_ransac as ransac
+from cc_blender_plant_volume import blender_plant_metrics as metrics
+from cc_blender_plant_volume import blender_plant_rendering as render
 from cc_blender_plant_volume.blender_user_types import Cartesian, BooleanOperator
 
 
@@ -590,9 +595,7 @@ def vert_crosssection(obj:bpy.types.Object,
 def plant_cleanup(plant:bpy.types.Object,
                   pot_offset:float=0.005,
                   remove_stick:bool=True) -> None:
-    """Extract green plant from 3D model, remove support and ouput model attribute
-    Model attribute: plant volume, plant height, area projection
-    """
+    """Extract green plant from 3D model, remove support and ouput model attribute"""
     # Set criterion requirement for face and branch
 #    plant_criteria = FaceCriteria(
 #           min_area = 1e-6,
@@ -652,6 +655,28 @@ def plant_cleanup(plant:bpy.types.Object,
     # If -1 returned as number of deleted vertices, no cluster detected, raise an error
     assert deleted_vertices != -1, f"No cluster detected for {plant.name}"
 
+def plant_metrics(plant:bpy.types.Object,
+                 output_dir:str|None=None) -> dict[str, float]:
+    """Extract metrics from input plant model and save rendered images for quality control
+    Model attribute: plant volume, plant height, area projection
+    """
+    # Compute plant metrics (volume, surface and dimensions)
+    # (If output dir specified, add temp image in output dir for area project)
+    tmp_img = os.path.join(output_dir, "ObjectProject.png") if output_dir is not None else None
+    metrics_dict = metrics.calc_metrics(plant, tmp_img)
+
+    # Return computed metrics
+    print(f"{metrics_dict = }")
+
+    # If ouput_dir specified, save rendered image of prepared model in output directory
+    if output_dir is not None:
+        render.model_rendering(output_dir, plant.name)
+
+    # Cleanup unused data
+    bpy.ops.outliner.orphans_purge()
+
+    # Return computed metrics
+    return metrics_dict
 
 def main() -> None:
     """Main function, cleanup selected object and output attributes"""
@@ -662,6 +687,9 @@ def main() -> None:
     # Cleanup plant model
     plant_cleanup(plant)
 
+    # Read plant metrics
+    plant_metrics(plant)
+
 if __name__ == "__main__":
-    # Test model preparation on active file
+    # Test model preparation on active object
     main()

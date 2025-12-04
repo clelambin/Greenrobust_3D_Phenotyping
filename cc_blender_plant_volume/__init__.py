@@ -18,7 +18,7 @@ Workflow:
 import os             # File manager
 import bpy            # Blender python
 # User module
-from cc_blender_plant_volume import blender_plant_modelprep as modelprep
+from cc_blender_plant_volume import blender_plant_alignment as modelprep
 
 # User variables
 WORKING_PATH   = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"

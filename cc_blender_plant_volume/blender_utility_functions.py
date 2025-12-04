@@ -1,6 +1,7 @@
 """Utilitiy functions used for the plant_volume modules"""
 
 # Import libraries
+import os                # File manager
 from queue import Queue  # Multi-threading
 import bpy               # Blender python
 import bmesh             # Blender mesh module
@@ -225,3 +226,30 @@ def offset_faces(mesh:bmesh.types.BMesh, dist:float=0.001) -> None:
         # Renormalise the face normal
         offset_dist = face.normal.normalized()*dist
         bmesh.ops.translate(mesh, vec=offset_dist, verts = list(face.verts))
+
+def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
+    """Remove non-relevant object from scene"""
+    # Unselect all to avoid deleting previously selected object
+    select_all(select=False)
+
+    # Loop through object and delete object in the list
+    for obj in bpy.data.objects:
+        if obj.type in type_to_remove or obj.name in obj_to_remove:
+            obj.select_set(True)
+            bpy.ops.object.delete(use_global=False)
+
+def import_file(filepath:str, file_ext:str="obj"):
+    """Import obj or ply file"""
+    # Check if file exist and is obj
+    if not os.path.isfile(filepath):
+        raise OSError(f"File {filepath} not found")
+    if not filepath.endswith(file_ext):
+        raise OSError(f"File {filepath} is not an obj")
+
+    # Import file (based on the file_ext)
+    import_command = {"ply":"ply_import", "obj":"obj_import"}
+    getattr(bpy.ops.wm, import_command[file_ext])(filepath=filepath,
+                                                  forward_axis='X',
+                                                  up_axis='Z')
+    # Apply rotation to consider for the imported axis transformation
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)

@@ -27,33 +27,6 @@ from cc_blender_plant_volume import blender_utility_functions as utility
 from cc_blender_plant_volume import blender_plant_rendering as render
 from cc_blender_plant_volume import blender_plant_metrics as metrics
 
-def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
-    """Remove non-relevant object from scene"""
-    # Unselect all to avoid deleting previously selected object
-    utility.select_all(select=False)
-
-    # Loop through object and delete object in the list
-    for obj in bpy.data.objects:
-        if obj.type in type_to_remove or obj.name in obj_to_remove:
-            obj.select_set(True)
-            bpy.ops.object.delete(use_global=False)
-
-def import_file(filepath:str, file_ext:str="obj"):
-    """Import obj or ply file"""
-    # Check if file exist and is obj
-    if not os.path.isfile(filepath):
-        raise OSError(f"File {filepath} not found")
-    if not filepath.endswith(file_ext):
-        raise OSError(f"File {filepath} is not an obj")
-
-    # Import file (based on the file_ext)
-    import_command = {"ply":"ply_import", "obj":"obj_import"}
-    getattr(bpy.ops.wm, import_command[file_ext])(filepath=filepath,
-                                                  forward_axis='NEGATIVE_Z',
-                                                  up_axis='Y')
-    # Apply rotation to consider for the imported axis transformation
-    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
-
 def get_location(obj:(bpy.types.Object|None)=None, center_ref:str="surface") -> mathutils.Vector:
     """Reset center and get location of active object or sepified object"""
     # Set the origine reference based on input
@@ -200,8 +173,8 @@ def scale_to_ref(ratio) -> None:
 def import_model(obj_path:str, file_ext:str="obj") -> None:
     """Prepare the working environment and load the 3D model"""
     # Prepare working environment
-    cleanup_env()
-    import_file(obj_path, file_ext)
+    utility.cleanup_env()
+    utility.import_file(obj_path, file_ext)
 
 def save_blend(obj_path:str, output_path:str) -> None:
     """Save the prepared model as blend file in output file"""
