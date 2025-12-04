@@ -176,14 +176,6 @@ def import_model(obj_path:str, file_ext:str="obj") -> None:
     utility.cleanup_env()
     utility.import_file(obj_path, file_ext)
 
-def save_blend(obj_path:str, output_path:str) -> None:
-    """Save the prepared model as blend file in output file"""
-    # Extract plant name
-    plant_name = obj_path.split(os.sep)[-1]
-    plant_name = plant_name.split(".")[0]
-    plant_file = f"{plant_name}.blend"
-    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(output_path, plant_file))
-
 def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     """Main function, prepare the geometry and output the prepared volume"""
     plant = bpy.context.active_object
@@ -274,7 +266,7 @@ def single_model_prep(obj_path:str,
     model_metrics = model_prep(pot_size, output_path)
     # Save blend file in output folder
     if output_path is not None:
-        save_blend(obj_path, output_path)
+        utility.save_blend(obj_path, output_path)
     # Return plant metrics
     return model_metrics
 

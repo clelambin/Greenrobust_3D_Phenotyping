@@ -238,8 +238,8 @@ def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = 
             obj.select_set(True)
             bpy.ops.object.delete(use_global=False)
 
-def import_file(filepath:str, file_ext:str="obj"):
-    """Import obj or ply file"""
+def import_file(filepath:str, file_ext:str="obj") -> bpy.types.Object:
+    """Import obj or ply file and return as an object"""
     # Check if file exist and is obj
     if not os.path.isfile(filepath):
         raise OSError(f"File {filepath} not found")
@@ -253,3 +253,14 @@ def import_file(filepath:str, file_ext:str="obj"):
                                                   up_axis='Z')
     # Apply rotation to consider for the imported axis transformation
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+
+    # Imported object is marked aas active, return it
+    return get_active_obj()
+
+def save_blend(obj_path:str, output_path:str) -> None:
+    """Save the prepared model as blend file in output file"""
+    # Extract plant name
+    plant_name = obj_path.split(os.sep)[-1]
+    plant_name = plant_name.split(".")[0]
+    plant_file = f"{plant_name}.blend"
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(output_path, plant_file))

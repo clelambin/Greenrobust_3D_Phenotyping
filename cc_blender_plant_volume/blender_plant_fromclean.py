@@ -16,7 +16,6 @@ Workflow:
 from collections.abc import Iterable, Callable
 from dataclasses import dataclass, field
 import os                       # File manager
-from bpy.types import Object
 import numpy as np              # Array manipulation
 import bpy                      # Blender python
 import bmesh                    # Blender mesh module
@@ -505,8 +504,10 @@ def create_pot(pot_section:ransac.PotSection,
 
 def fit_pot(sections:dict[Cartesian, FaceNode],
             hide_pot:bool=True,
-            pot_offset:float=0.005) -> bpy.types.Object:
-    """Fit simplified pot, based on the input X and Y sections"""
+            pot_offset:float=0.005) -> tuple[bpy.types.Object, dict[str, ransac.ModelParam]]:
+    """Fit simplified pot, based on the input X and Y sections,
+    Return created object and fitted pot model
+    """
     # Reshape all sections and collect into a single list of points
     all_points = reshape_section(sections)
     # Use RANSAC to fit a simplified pot section
@@ -540,9 +541,8 @@ def fit_pot(sections:dict[Cartesian, FaceNode],
 
     if hide_pot:
         utility.hide_object(pot)
-    return pot
+    return pot, fitted_model.get_param()
 
-# TODO: check that obj is updated before getting dimension
 def multi_crosssection(obj:bpy.types.Object,
                        face_criteria:FaceCriteria,
                        z_delta:float=0.1,
@@ -594,7 +594,7 @@ def vert_crosssection(obj:bpy.types.Object,
 
 def plant_cleanup(plant:bpy.types.Object,
                   pot_offset:float=0.005,
-                  remove_stick:bool=True) -> None:
+                  remove_stick:bool=True) -> Vector:
     """Extract green plant from 3D model, remove support and ouput model attribute"""
     # Set criterion requirement for face and branch
 #    plant_criteria = FaceCriteria(
@@ -630,7 +630,10 @@ def plant_cleanup(plant:bpy.types.Object,
 #        section_curve = utility.create_curve(section.coords_2d, name=f"Section_{str(axis)}")
 #        section_mesh  = utility.curve_to_mesh(section_curve)
 #        utility.from_z_to_axis(section_mesh, axis)
-    pot = fit_pot(pot_section, pot_offset=pot_offset)
+    pot, pot_param = fit_pot(pot_section, pot_offset=pot_offset)
+
+    # Define plant reference point at Z=soil_height
+    plant_ref = Vector((0, 0, pot_param["soil_height"].values[0]))
 
     # Remove pot from plant
     boolean_modifier(plant, pot, operation="DIFFERENCE", exact=True)
@@ -655,15 +658,21 @@ def plant_cleanup(plant:bpy.types.Object,
     # If -1 returned as number of deleted vertices, no cluster detected, raise an error
     assert deleted_vertices != -1, f"No cluster detected for {plant.name}"
 
+    # Return plant reference points (used for metrics)
+    return plant_ref
+
 def plant_metrics(plant:bpy.types.Object,
-                 output_dir:str|None=None) -> dict[str, float]:
+                  output_dir:str|None=None,
+                  plant_ref:Vector|None=None) -> dict[str, float]:
     """Extract metrics from input plant model and save rendered images for quality control
     Model attribute: plant volume, plant height, area projection
     """
+    # If reference point specified, convert it to numpy array
+    plant_ref_array = np.array(plant_ref) if plant_ref is not None else None
     # Compute plant metrics (volume, surface and dimensions)
     # (If output dir specified, add temp image in output dir for area project)
     tmp_img = os.path.join(output_dir, "ObjectProject.png") if output_dir is not None else None
-    metrics_dict = metrics.calc_metrics(plant, tmp_img)
+    metrics_dict = metrics.calc_metrics(plant, tmp_img, ref=plant_ref_array)
 
     # Return computed metrics
     print(f"{metrics_dict = }")
@@ -678,17 +687,77 @@ def plant_metrics(plant:bpy.types.Object,
     # Return computed metrics
     return metrics_dict
 
+def single_model_prep(obj_path:str,
+                      output_path:str|None=None,
+                      file_ext:str="obj") -> dict[str, float]:
+    """Single model preparation: import the model, compute the volume and save output blend file"""
+    # Prepare working environment
+    utility.cleanup_env()
+    model = utility.import_file(obj_path, file_ext)
+    # Prepare the model and compute all plant metrics
+    # Cleanup plant model
+    plant_ref = plant_cleanup(model)
+    # Read plant metrics
+    model_metrics = plant_metrics(model, plant_ref=plant_ref)
+    # Save blend file in output folder
+    if output_path is not None:
+        utility.save_blend(obj_path, output_path)
+    # Return plant metrics
+    return model_metrics
+
+def process_model_folder(file_list:list[str],
+                         working_path:str,
+                         volume_path:str,
+                         output_path:str="",
+                         file_ext:str="obj",
+                         metrics_keys:list[str]=["Volume"]) -> None:
+    """Loop through file list and process all model files"""
+    for name in file_list:
+        if not name.lower().endswith(file_ext) or "ptscloud" in name.lower():
+            continue
+        # Process plant model
+        model_path = os.path.join(working_path, name)
+        plant_metrics = single_model_prep(model_path, output_path=output_path, file_ext=file_ext)
+        # Save all plant metrics to csv file
+        plant_info = [working_path, name]
+        for key in metrics_keys:
+            plant_info.append(str(plant_metrics.get(key, 0)))
+        with open(volume_path, "a", encoding="utf-8") as volume_file:
+            volume_file.write(f"{','.join(plant_info)}\n")
+
+def loop_through_folders(working_path:str,
+                         model_folder:str,
+                         model_file_ext:str,
+                         output_path:str,
+                         output_table:str) -> None:
+    """Loop through the folders and process folders matching input name"""
+    # Loop through all files and process plant model
+    volume_path = os.path.join(output_path, output_table)
+    plant_header = ["Path", "Plant name"]
+    metrics_keys = list(metrics.calc_metrics().keys())
+    with open(volume_path, "w", encoding="utf-8") as volume_file:
+        volume_file.write(f"{','.join(plant_header)},{','.join(metrics_keys)}\n")
+    for root, _, files in os.walk(working_path):
+        # Check if last folder in root matches with specified model folder
+        last_folder = root.split(os.sep)[-1]
+        if model_folder == last_folder:
+            print(f"Processing {root}")
+            process_model_folder(files,
+                                 root,
+                                 volume_path,
+                                 output_path,
+                                 model_file_ext,
+                                 metrics_keys=metrics_keys)
+
 def main() -> None:
     """Main function, cleanup selected object and output attributes"""
     plant = bpy.context.active_object
     # If no active object alert the user
     assert plant is not None, "No active object"
-
     # Cleanup plant model
-    plant_cleanup(plant)
-
+    plant_ref = plant_cleanup(plant)
     # Read plant metrics
-    plant_metrics(plant)
+    plant_metrics(plant, plant_ref=plant_ref)
 
 if __name__ == "__main__":
     # Test model preparation on active object

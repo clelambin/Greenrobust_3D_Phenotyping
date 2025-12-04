@@ -211,6 +211,13 @@ class PotSection:
         for (index, param) in enumerate(self.params):
             self.segments[index] = param.supporting_segment()
 
+    def get_param(self) -> dict[str, ModelParam]:
+        """Return the parameters as a dictionary for easier access to individual parameter"""
+        param_dict = {}
+        for param in self.params:
+            param_dict[param.name] = param
+        return param_dict
+
 # RANSAC process to fit model parameters
 # TODO: remove deepcopy and dissociate parameters from model
 def ransac_fit(model:PotSection,
