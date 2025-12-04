@@ -8,6 +8,9 @@ from math import pi
 import os
 import bpy
 
+# Import user modules
+from cc_blender_plant_volume.blender_utility_functions import hide_object
+
 # To improve:
 # - Add type anotation
 # - Create function to loop through object and call visibility or rendering function
@@ -16,13 +19,6 @@ import bpy
 WORKING_DIR = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\Rendering"
 
 # User function
-def hide_object(obj, hide_bool):
-    """Set viewport and render visibility (if boolean set to True, hide, otherwide, show)"""
-    obj.hide_set(hide_bool)
-    obj.hide_render = hide_bool
-    # hide_viewport hide in all viewport, not only in the current one
-#    obj.hide_viewport = False
-
 def plant_rendering(obj:bpy.types.Object,
                     output_dir:str,
                     render_animation:bool=True):
@@ -160,7 +156,8 @@ def model_rendering(output_dir:str, scene_name:str) -> None:
                         target_type="MESH",
                         hide_bool=False)
 
-if __name__ == "__main__":
+def main():
+    """Loop through object and start rendering making only current object visible"""
     # Stating script
     print("Starting script")
     print("- Initial list:")
@@ -180,3 +177,6 @@ if __name__ == "__main__":
     loop_through_plants(call_function=plant_rendering,
                         contain_string="Metashape",
                         output_dir=WORKING_DIR)
+
+if __name__ == "__main__":
+    main()

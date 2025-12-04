@@ -1,13 +1,14 @@
 """Utilitiy functions used for the plant_volume modules"""
 
 # Import libraries
+import os                # File manager
 from queue import Queue  # Multi-threading
 import bpy               # Blender python
 import bmesh             # Blender mesh module
+from mathutils import Vector, Matrix    # Blender object type
 
-# Complex type anotation
-BMEntry = bmesh.types.BMVert | bmesh.types.BMEdge | bmesh.types.BMFace
-BMFaceList = list[bmesh.types.BMFace] | None
+# Import user modules
+from cc_blender_plant_volume.blender_user_types import BMEntry, BMFaceList, Cartesian
 
 def edit_active_object(name:(str|None)=None) -> tuple[bpy.types.Object, bmesh.types.BMesh]:
     """Extract object and mesh from active object and swtich to edit mode"""
@@ -127,3 +128,139 @@ def get_view3d() -> bpy.types.Area | None:
             return area
     # If no area of the VIEW_3D type found, return None
     return None
+
+def get_active_obj() -> bpy.types.Object:
+    """Return active object, raise an error of no object is selected"""
+    obj = bpy.context.active_object
+    assert obj is not None, "No active object"
+    return obj
+
+def hide_object(obj:bpy.types.Object, hide_bool:bool=True):
+    """Set viewport and render visibility (if boolean set to True, hide, otherwide, show)"""
+    obj.hide_set(hide_bool)
+    obj.hide_render = hide_bool
+    # hide_viewport hide in all viewport, not only in the current one
+#    obj.hide_viewport = False
+
+def from_z_to_axis(obj:bpy.types.Object, axis:Cartesian) -> None:
+    """Rotate object to allign to given axis (starting from Z axis)"""
+    # Define rotation matrix for each axis
+    rotation_mat = {
+        "X": Matrix([[0,0,-1],[0,1,0],[1,0,0]]),
+        "Y": Matrix([[1,0,0],[0,0,-1],[0,1,0]]),
+        "Z": Matrix([[1,0,0],[0,1,0],[0,0,1]]),
+    }
+    obj.rotation_euler.rotate(rotation_mat[axis])
+
+def create_curve(point_list:list[Vector], name:str="Curve") -> bpy.types.Curve:
+    """Create a blender curve object with points from point list"""
+    # Initialise the curve object
+    curve_data = bpy.data.curves.new(name, "CURVE")
+    curve_data.dimensions = "3D"
+    # Add polyline to curve with a point at center of each node of straight branch
+    curve_poly = curve_data.splines.new("POLY")
+    curve_poly.points.add(len(point_list) - 1)
+    for (index, coord) in enumerate(point_list):
+        # Polyline coodinate is composed of 4 components: x, y, z (part of coord) and the weight
+        curve_poly.points[index].co = coord.to_4d()
+    return curve_data
+
+def create_plane(normal_axis:Cartesian="Z",
+                 axis_position:float=0,
+                 name_digits:int=3,
+                 hide:bool=False) -> bpy.types.Object:
+    """Create a plane normal to given axis and passing by normal axis as input position"""
+    # Define unit vetor used to define position for each axis
+    unit_vect = {
+        "X": Vector([1,0,0]),
+        "Y": Vector([0,1,0]),
+        "Z": Vector([0,0,1]),
+    }
+    # Create plane at given location
+    # (by default the plane is alligned with z)
+    location = axis_position*unit_vect[normal_axis]
+    bpy.ops.mesh.primitive_plane_add(size=10, align='WORLD', location=location)
+    plane = get_active_obj()
+    # .{name_digit}f add digit to the number to improve object order
+    plane.name = f"Plane_{normal_axis}-{axis_position:.{name_digits}f}"
+    # Return error if plane could not be created
+    assert plane is not None, "Error, section plane not created"
+    # Rotate plane to be normal to specified axis
+    from_z_to_axis(plane, normal_axis)
+    # If requested, hide the created object
+    if hide:
+        hide_object(plane)
+    # Return plane object
+    return plane
+
+def curve_to_mesh(curve:bpy.types.Curve, del_curve:bool=True) -> bpy.types.Object:
+    """Convert input curve into an mesh object and delete input curve (if requested)"""
+    # Create object and link to scene
+    curve_obj  = bpy.data.objects.new(curve.name, curve)
+    curve_mesh = bpy.data.meshes.new_from_object(curve_obj)
+    mesh_obj   = bpy.data.objects.new(curve.name, curve_mesh)
+    bpy.context.collection.objects.link(mesh_obj)
+
+    # Cleanup intermediate data
+    if del_curve:
+        bpy.data.objects.remove(curve_obj)
+        bpy.data.curves.remove(curve)
+
+    # Output converted object
+    return mesh_obj
+
+def extract_face_from_verts(verts:list[bmesh.types.BMVert]) -> bmesh.types.BMFace | None:
+    """Extract face shared by input vertex"""
+    vertices_set = set(verts)
+    # Loop through faces connected to first vertex
+    for face in verts[0].link_faces:
+        # If set of vertices in current face equal to input vertices, return face
+        if set(face.verts) == vertices_set:
+            return face
+    # No face found with same set of vertices, return None
+    return None
+
+def offset_faces(mesh:bmesh.types.BMesh, dist:float=0.001) -> None:
+    """Offset faces of mesh by input distance"""
+    for face in mesh.faces:
+        # Renormalise the face normal
+        offset_dist = face.normal.normalized()*dist
+        bmesh.ops.translate(mesh, vec=offset_dist, verts = list(face.verts))
+
+def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
+    """Remove non-relevant object from scene"""
+    # Unselect all to avoid deleting previously selected object
+    select_all(select=False)
+
+    # Loop through object and delete object in the list
+    for obj in bpy.data.objects:
+        if obj.type in type_to_remove or obj.name in obj_to_remove:
+            obj.select_set(True)
+            bpy.ops.object.delete(use_global=False)
+
+def import_file(filepath:str, file_ext:str="obj") -> bpy.types.Object:
+    """Import obj or ply file and return as an object"""
+    # Check if file exist and is obj
+    if not os.path.isfile(filepath):
+        raise OSError(f"File {filepath} not found")
+    if not filepath.endswith(file_ext):
+        raise OSError(f"File {filepath} is not an obj")
+
+    # Import file (based on the file_ext)
+    import_command = {"ply":"ply_import", "obj":"obj_import"}
+    getattr(bpy.ops.wm, import_command[file_ext])(filepath=filepath,
+                                                  forward_axis='X',
+                                                  up_axis='Z')
+    # Apply rotation to consider for the imported axis transformation
+    bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
+
+    # Imported object is marked aas active, return it
+    return get_active_obj()
+
+def save_blend(obj_path:str, output_path:str) -> None:
+    """Save the prepared model as blend file in output file"""
+    # Extract plant name
+    plant_name = obj_path.split(os.sep)[-1]
+    plant_name = plant_name.split(".")[0]
+    plant_file = f"{plant_name}.blend"
+    bpy.ops.wm.save_as_mainfile(filepath=os.path.join(output_path, plant_file))

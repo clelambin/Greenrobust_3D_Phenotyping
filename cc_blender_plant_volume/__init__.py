@@ -18,17 +18,15 @@ Workflow:
 import os             # File manager
 import bpy            # Blender python
 # User module
-from cc_blender_plant_volume import blender_plant_modelprep as modelprep
+from cc_blender_plant_volume import blender_plant_fromclean as modelprep
 
 # User variables
-WORKING_PATH   = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\02_Input_Greenhouse\2025-05-13_Harvest_Nicotina_benthamiana"
-OUTPUT_PATH    = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\04_Output_BlenderScript"
+WORKING_PATH   = r""
+OUTPUT_PATH    = r""
 OUTPUT_TABLE   = "Plant_data.csv"
-MODEL_FOLDER   = "02_Metashape_BatchProc_Conf"
+MODEL_FOLDER   = "03_Metashape_BatchProc_withMarkers"
 MODEL_FILE_EXT = "ply"
 MODEL_FILE     = None
-#MODEL_FILE     = "Metashape_NB004_S30_20250612_2048.ply"
-#MODEL_FILE     = "Metashape_NB005_S34_20250612_2121.ply"
 
 # Operator classes
 # (Registering operators to be callable in Blender)

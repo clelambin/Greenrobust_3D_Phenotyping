@@ -19,13 +19,16 @@ VIEWPOINT = Literal['LEFT', 'RIGHT', 'BOTTOM', 'TOP', 'FRONT', 'BACK']
 
 def calc_area(mesh:bmesh.types.BMesh) -> float:
     """Return sum of all faces area"""
-    return sum([face.calc_area() for face in mesh.faces])
+    return sum(face.calc_area() for face in mesh.faces)
 
-def calc_dimension(mesh: bmesh.types.BMesh) -> np.ndarray:
+def calc_dimension(mesh: bmesh.types.BMesh, ref:np.ndarray|None = None) -> np.ndarray:
     """Return X, Y and Z dimension of the bounding box of input mesh"""
     # Compute min and max for all 3 dimenions of the vertices coordinate
     vertex_coord = np.array([vertex.co for vertex in mesh.verts])
-    return np.max(vertex_coord, axis=0) - np.min(vertex_coord, axis=0)
+    # If no reference point specified, compare to min dimension
+    if ref is None:
+        ref = np.min(vertex_coord, axis=0)
+    return np.max(vertex_coord, axis=0) - ref
 
 # From https://blender.stackexchange.com/questions/290437/set-orthographic-top-view-with-python
 # Warning: - Relying heavily on operation (context dependant, less stable, ...)
@@ -79,7 +82,8 @@ def area_project(obj: bpy.types.Object,
 
 # Warning: if switch scaling to bmesh, would need to update
 def calc_metrics(obj:bpy.types.Object|None=None,
-                 img_path:str|None=None) -> dict:
+                 img_path:str|None=None,
+                 ref:np.ndarray|None=None) -> dict[str, float]:
     """Return metrics (volume, area, dimension) from bmesh after application of transformation
     Return metrics are saved within a dictionary
     """
@@ -111,7 +115,7 @@ def calc_metrics(obj:bpy.types.Object|None=None,
     # Calculate mesh metrics
     metrics["Volume"] = temp_mesh.calc_volume()
     metrics["Cumul_Area"] = calc_area(temp_mesh)
-    metrics["Dim_X"], metrics["Dim_Y"], metrics["Dim_Z"] = calc_dimension(temp_mesh)
+    metrics["Dim_X"], metrics["Dim_Y"], metrics["Dim_Z"] = calc_dimension(temp_mesh, ref=ref)
     # Free up bmesh and switch back to Object mode
     orig_mesh.free()
     temp_mesh.free()

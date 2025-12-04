@@ -12,7 +12,7 @@ import Metashape
 WORKING_DIR = r"."
 OUTPUT_DIR  = r"03_Metashape_BatchProc_withMarkers"
 #OUTPUT_DIR  = r"03_Metashape_BatchProc_withMarkers"
-SPECIES_INIT = ("AT", "BR", "HS", "HV", "NB", "SD", "SL", "TA")
+SPECIES_INIT = ("AT", "BD", "BR", "HS", "HV", "NB", "SD", "SL", "TA")
 
 # Script function
 def create_folder(path):
