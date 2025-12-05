@@ -310,12 +310,13 @@ def boolean_modifier(source_obj:bpy.types.Object,
     # Set object to intersect
     modifier.object = target_obj
     # If adaptive is true, check the output number of vertices
-    assert isinstance(modifier.object.data, bpy.types.Mesh)
-    out_vertices = len(modifier.object.data.vertices)
-    if adaptive and out_vertices < min_vertices:
-        # Switch to Exact solver and allow self intersection
-        modifier.solver = "EXACT"
-        modifier.use_self = adaptive
+    if adaptive:
+        # Extract scene stats to get number of vertex (before modification is applied)
+        scene_stat = utility.scene_statistics()
+        if int(scene_stat["Verts"]) < min_vertices:
+            # Switch to Exact solver and allow self intersection
+            modifier.solver = "EXACT"
+            modifier.use_self = adaptive
     # Apply modifier
     if apply:
         bpy.ops.object.modifier_apply(modifier=modifier.name)
