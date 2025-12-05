@@ -260,18 +260,3 @@ def save_blend(obj_path:str, output_path:str) -> None:
     plant_name = plant_name.split(".")[0]
     plant_file = f"{plant_name}.blend"
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(output_path, plant_file))
-
-def scene_statistics() -> dict[str, str]:
-    """Return the scene statistics of the active object as a dictionary"""
-    # Scene statistics outputed as a full string like such:
-    # 'Scene Collection | Metashape_BR07IC_20251110_1658 | Verts:4 | Faces:4 | Tris:4 | Objects:1/1 | Duration: 00:10+10 (Frame 1/250) | Memory: 74.6 MiB | 4.4.3'
-    stats_string = bpy.context.scene.statistics(bpy.context.view_layer)
-    stats_dict   = {}
-    # Split by " | "
-    for stat in stats_string.split(" | "):
-        # If element is a property, it contain a : which split the name and the value
-        property = stat.split(":")
-        if len(property) == 2:
-            stats_dict[property[0]] = property[1]
-    # Return the dictionary containing the scene properties
-    return stats_dict
