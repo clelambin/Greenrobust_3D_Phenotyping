@@ -229,14 +229,10 @@ def offset_faces(mesh:bmesh.types.BMesh, dist:float=0.001) -> None:
 
 def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = ["MESH",]) -> None:
     """Remove non-relevant object from scene"""
-    # Unselect all to avoid deleting previously selected object
-    select_all(select=False)
-
     # Loop through object and delete object in the list
     for obj in bpy.data.objects:
         if obj.type in type_to_remove or obj.name in obj_to_remove:
-            obj.select_set(True)
-            bpy.ops.object.delete(use_global=False)
+            bpy.data.objects.remove(obj)
 
 def import_file(filepath:str, file_ext:str="obj") -> bpy.types.Object:
     """Import obj or ply file and return as an object"""

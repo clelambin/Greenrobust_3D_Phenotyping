@@ -679,7 +679,7 @@ def plant_metrics(plant:bpy.types.Object,
 
     # If ouput_dir specified, save rendered image of prepared model in output directory
     if output_dir is not None:
-        render.model_rendering(output_dir, plant.name)
+        render.model_rendering(output_dir, plant.name, hide_pattern=None)
 
     # Cleanup unused data
     bpy.ops.outliner.orphans_purge()
@@ -698,7 +698,7 @@ def single_model_prep(obj_path:str,
     # Cleanup plant model
     plant_ref = plant_cleanup(model)
     # Read plant metrics
-    model_metrics = plant_metrics(model, plant_ref=plant_ref)
+    model_metrics = plant_metrics(model, output_dir=output_path, plant_ref=plant_ref)
     # Save blend file in output folder
     if output_path is not None:
         utility.save_blend(obj_path, output_path)

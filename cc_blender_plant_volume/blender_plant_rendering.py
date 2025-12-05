@@ -114,7 +114,7 @@ def set_material_from_attribute(material_name:str="ColorAttribute") -> None:
     # Assign material to all meshs in the scene
     loop_through_plants(assign_material, target_type="MESH", material=material)
 
-def model_rendering(output_dir:str, scene_name:str) -> None:
+def model_rendering(output_dir:str, scene_name:str, hide_pattern:str|None="Metashape") -> None:
     """Create rendering of current prepared model"""
     # Initialise scene object
     scene = bpy.context.scene
@@ -126,10 +126,11 @@ def model_rendering(output_dir:str, scene_name:str) -> None:
     bpy.context.scene.render.resolution_x = 360
     bpy.context.scene.render.resolution_y = 360
     # Hide initial mesh from the scene
-    loop_through_plants(call_function=hide_object,
-                        contain_string="Metashape",
-                        target_type="MESH",
-                        hide_bool=True)
+    if hide_pattern is not None:
+        loop_through_plants(call_function=hide_object,
+                            contain_string=hide_pattern,
+                            target_type="MESH",
+                            hide_bool=True)
     # Assign mmaterial from color attribute to all Mesh
     set_material_from_attribute()
     # Define camera viewpoints
@@ -151,10 +152,11 @@ def model_rendering(output_dir:str, scene_name:str) -> None:
         camera.rotation_euler = position["rotation"]
         bpy.ops.render.render(write_still=True, use_viewport=True)
     # Reset model visibility
-    loop_through_plants(call_function=hide_object,
-                        contain_string="Metashape",
-                        target_type="MESH",
-                        hide_bool=False)
+    if hide_pattern is not None:
+        loop_through_plants(call_function=hide_object,
+                            contain_string=hide_pattern,
+                            target_type="MESH",
+                            hide_bool=False)
 
 def main():
     """Loop through object and start rendering making only current object visible"""
