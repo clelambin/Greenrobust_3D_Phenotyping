@@ -294,7 +294,8 @@ def boolean_modifier(source_obj:bpy.types.Object,
                      thresh:float=0.00001,
                      operation:BooleanOperator="INTERSECT",
                      apply:bool=True,
-                     exact:bool=False)-> None:
+                     adaptive:bool=False,
+                     min_vertices:int=50) -> None:
     """Create intersection between object to intersect and plane
     Using boolean mesh operator
     """
@@ -302,13 +303,19 @@ def boolean_modifier(source_obj:bpy.types.Object,
     utility.make_active(source_obj)
     # Boolean modifier using fast intersection mode
     modifier = source_obj.modifiers.new(name="Section", type="BOOLEAN")
-    modifier.solver = "EXACT" if exact else "FAST"
-    # if use EXACT solver, allow self intersection
-    modifier.use_self = exact
+    assert isinstance(modifier, bpy.types.BooleanModifier)
+    modifier.solver = "FAST"
     modifier.operation = operation
     modifier.double_threshold = thresh
     # Set object to intersect
     modifier.object = target_obj
+    # If adaptive is true, check the output number of vertices
+    assert isinstance(modifier.object.data, bpy.types.Mesh)
+    out_vertices = len(modifier.object.data.vertices)
+    if adaptive and out_vertices < min_vertices:
+        # Switch to Exact solver and allow self intersection
+        modifier.solver = "EXACT"
+        modifier.use_self = adaptive
     # Apply modifier
     if apply:
         bpy.ops.object.modifier_apply(modifier=modifier.name)
@@ -363,8 +370,11 @@ def section_faces(obj:bpy.types.Object,
     return face_descr
 
 def section_skeleton(section_detail: list[list[FaceNode]],
-                     branch_criteria:BranchCriteria) -> TreeStructure:
+                     branch_criteria:BranchCriteria) -> TreeStructure|None:
     """Link face accross sections based on closest projection"""
+    # If section_detail is empty, return None to prevert script to stop
+    if len(section_detail) == 0:
+        return None
     # Initialise TreeStructure object containing the link between faces
     section_tree = TreeStructure(section_detail.pop(), branch_criteria)
     # Start from last section, create architecture of linked faces
@@ -460,9 +470,7 @@ def create_pot(pot_section:ransac.PotSection,
                name:str="Simplified_pot") -> bpy.types.Object:
     """Create simplified pot model based on fitted pot section"""
     # Extract all parameters from fitted model and convert to dictionary
-    param_dict = {}
-    for param in pot_section.params:
-        param_dict[param.name] = param.values
+    param_dict = pot_section.get_param()
     # Extract relevant parameters as variables
     pot_width_base = param_dict["pot_width"][0]
     pot_width_top = param_dict["pot_width"][1]
@@ -481,7 +489,7 @@ def create_pot(pot_section:ransac.PotSection,
     cube_mesh = bmesh.new()
     cube_mesh.from_mesh(cube.data)
 
-    # Select lower face and rescale to fit pot_width_width
+    # Select lower face and rescale to fit base and top width
     base_verts = [vert for vert in cube_mesh.verts if vert.co.z == -1]
     top_verts = [vert for vert in cube_mesh.verts if vert.co.z == 1]
     bmesh.ops.transform(cube_mesh, matrix=Matrix.Scale(pot_width_base, 3), verts=base_verts)
@@ -490,10 +498,13 @@ def create_pot(pot_section:ransac.PotSection,
         verts.co.z = 0
     for verts in top_verts:
         verts.co.z = pot_height
+    # Inset top face to translate downward to fit soil height
     top_face = utility.extract_face_from_verts(top_verts)
     assert top_face is not None, "No faces connected to input vertices"
     bmesh.ops.inset_individual(cube_mesh, faces=[top_face], thickness=pot_width_top-soil_width)
-    bmesh.ops.translate(cube_mesh, vec=Vector((0, 0, soil_height-pot_height)), verts=list(top_face.verts))
+    bmesh.ops.translate(cube_mesh,
+                        vec=Vector((0, 0, soil_height-pot_height)),
+                        verts=list(top_face.verts))
 
     # Offset all faces
     utility.offset_faces(cube_mesh, dist=offset)
@@ -504,7 +515,7 @@ def create_pot(pot_section:ransac.PotSection,
 
 def fit_pot(sections:dict[Cartesian, FaceNode],
             hide_pot:bool=True,
-            pot_offset:float=0.005) -> tuple[bpy.types.Object, dict[str, ransac.ModelParam]]:
+            pot_offset:float=0.005) -> tuple[bpy.types.Object, dict[str, tuple[float, float]]]:
     """Fit simplified pot, based on the input X and Y sections,
     Return created object and fitted pot model
     """
@@ -633,10 +644,10 @@ def plant_cleanup(plant:bpy.types.Object,
     pot, pot_param = fit_pot(pot_section, pot_offset=pot_offset)
 
     # Define plant reference point at Z=soil_height
-    plant_ref = Vector((0, 0, pot_param["soil_height"].values[0]))
+    plant_ref = Vector((0, 0, pot_param["soil_height"][0]))
 
     # Remove pot from plant
-    boolean_modifier(plant, pot, operation="DIFFERENCE", exact=True)
+    boolean_modifier(plant, pot, operation="DIFFERENCE", adaptive=True)
 #    # Use attribute filtering to exclude pot and get green plant
 #    plant_green = attribute.exclude_pot(plant)
 
@@ -648,10 +659,10 @@ def plant_cleanup(plant:bpy.types.Object,
 #       draw_tree(tree_structure)
 
         # Find stick (straightest branch) and draw cordesponding cylinder
-        stick = draw_stick(tree_structure)
+        stick = draw_stick(tree_structure) if tree_structure is not None else None
         # Remove stick from the plant (if stick detected)
         if stick is not None:
-            boolean_modifier(plant, stick, operation="DIFFERENCE", exact=True)
+            boolean_modifier(plant, stick, operation="DIFFERENCE", adaptive=True)
 
     # Run DBScan clustering on vertex to remove vertex cluster further from given distance
     deleted_vertices = cluster.dbscan_filter(plant, dbscan_eps=0.02)

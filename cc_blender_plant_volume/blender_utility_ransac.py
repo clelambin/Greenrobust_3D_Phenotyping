@@ -211,11 +211,14 @@ class PotSection:
         for (index, param) in enumerate(self.params):
             self.segments[index] = param.supporting_segment()
 
-    def get_param(self) -> dict[str, ModelParam]:
+    def get_param(self) -> dict[str, tuple[float, float]]:
         """Return the parameters as a dictionary for easier access to individual parameter"""
         param_dict = {}
         for param in self.params:
-            param_dict[param.name] = param
+            assert any(value is not None for value in param.values), (
+                f"Prameter for {param.name} is None"
+            )
+            param_dict[param.name] = param.values
         return param_dict
 
 # RANSAC process to fit model parameters
