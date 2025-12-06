@@ -3,6 +3,8 @@
 # Import libraries
 import os                # File manager
 from queue import Queue  # Multi-threading
+from contextlib import contextmanager
+from collections.abc import Generator
 import bpy               # Blender python
 import bmesh             # Blender mesh module
 from mathutils import Vector, Matrix    # Blender object type
@@ -36,6 +38,16 @@ def select_mesh_entry(mesh_list:list[BMEntry]) -> None:
     # Select all mesh elements within the list
     for element in mesh_list:
         element.select_set(True)
+
+@contextmanager
+def bmesh_edit(obj:bpy.types.Object) -> Generator[bmesh.types.BMesh]:
+    """Context manager to edit mesh from input object using bmesh"""
+    assert isinstance(obj.data, bpy.types.Mesh), f"Object {obj.name} does not have any mesh"
+    mesh = bmesh.new()
+    mesh.from_mesh(obj.data)
+    yield mesh
+    mesh.to_mesh(obj.data)
+    mesh.free()
 
 def delete_vertices(mesh: bmesh.types.BMesh,
                     vertex_list:list[bmesh.types.BMVert]) -> None:

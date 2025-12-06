@@ -76,19 +76,14 @@ def filter_from_plane_normal(obj:bpy.types.Object,
     """Delte points from input object if not in oriented toward the plane normal
     Check point orientation by computing dot product between plane equation and point
     """
-    # Initialise new bmesh entry based on input object
-    obj_mesh = bmesh.new()
-    obj_mesh.from_mesh(obj.data)
     # Loop through vetices and check on which side of the plane it stand
-    for vertex in obj_mesh.verts:
-        # Use to.4d to add 1 as extra dimension(to match with plane equation)
-        vertex_coord = np.array(vertex.co.to_4d())
-        # Delete points which are not alligned with plane normal
-        if plane_equation.dot(vertex_coord) < 0:
-            obj_mesh.verts.remove(vertex)
-    # Update object mesh and free bmesh data
-    obj_mesh.to_mesh(obj.data)
-    obj_mesh.free()
+    with utility.bmesh_edit(obj) as obj_mesh:
+        for vertex in obj_mesh.verts:
+            # Use to.4d to add 1 as extra dimension(to match with plane equation)
+            vertex_coord = np.array(vertex.co.to_4d())
+            # Delete points which are not alligned with plane normal
+            if plane_equation.dot(vertex_coord) < 0:
+                obj_mesh.verts.remove(vertex)
     return obj
 
 def extract_component(name:str="Pot",

@@ -289,15 +289,25 @@ def remove_ground(obj:bpy.types.Object, ground_height:float=0.005) -> None:
     # Hide Ground
     utility.hide_object(ground)
 
+def modified_vertex_count(obj:bpy.types.Object) -> int:
+    """Return the number of vertex after modifier are applied to input opbject"""
+    depsgraph = bpy.context.evaluated_depsgraph_get()
+    evaluated_obj = obj.evaluated_get(depsgraph)
+    assert isinstance(evaluated_obj.data, bpy.types.Mesh)
+    return len(evaluated_obj.data.vertices)
+
+def is_in_range(value:float, range_tuple:tuple[float, float]) -> bool:
+    """Return true if the value is within the input range"""
+    return range_tuple[0] < value < range_tuple[1]
+
 def boolean_modifier(source_obj:bpy.types.Object,
                      target_obj:bpy.types.Object,
                      thresh:float=0.00001,
                      operation:BooleanOperator="INTERSECT",
                      apply:bool=True,
-                     adaptive:bool=False,
-                     vertex_ratio:tuple[float, float]=(0.3, 0.8)) -> None:
+                     vertex_ratio_range:tuple[float, float]|None=None) -> float:
     """Create intersection between object to intersect and plane
-    Using boolean mesh operator
+    Using boolean mesh operator, return vertex ratio (modified/initial vertex count)
     """
     # Get vertex count before modification
     assert isinstance(source_obj.data, bpy.types.Mesh)
@@ -312,22 +322,24 @@ def boolean_modifier(source_obj:bpy.types.Object,
     modifier.double_threshold = thresh
     # Set object to intersect
     modifier.object = target_obj
-    # If adaptive is true, check the output number of vertices
-    if adaptive:
+    # If vertex_ratio_range specified, only apply modifier if within range
+    if vertex_ratio_range is not None:
         # Evaluate the vertex count after modifier modification
-        depsgraph = bpy.context.evaluated_depsgraph_get()
-        evaluated_obj = source_obj.evaluated_get(depsgraph)
-        assert isinstance(evaluated_obj.data, bpy.types.Mesh)
-        vertex_out = len(evaluated_obj.data.vertices)
-        if vertex_out/vertex_init < vertex_ratio[0] or vertex_out/vertex_init > vertex_ratio[1]:
+        vertex_out = modified_vertex_count(source_obj)
+        if not is_in_range(vertex_out/vertex_init, vertex_ratio_range):
             # Switch to Exact solver and allow self intersection
             modifier.solver = "EXACT"
-            modifier.use_self = adaptive
+            modifier.use_self = True
+        # If the vertex range is still not in range, return 1 (same vertex count before and after)
+        vertex_out = modified_vertex_count(source_obj)
+        if not is_in_range(vertex_out/vertex_init, vertex_ratio_range):
+            return 1
     # Apply modifier
     if apply:
         bpy.ops.object.modifier_apply(modifier=modifier.name)
+    # Return vertex ratio
+    return modified_vertex_count(source_obj) / vertex_init
 
-# TODO: replace edge_face_add by non low level function
 def section_faces(obj:bpy.types.Object,
                   axis_position:float,
                   face_criteria:FaceCriteria,
@@ -342,36 +354,29 @@ def section_faces(obj:bpy.types.Object,
     # initialise face description list
     face_descr = []
 
-    # Extract mesh from object
-    mesh = bmesh.new()
-    mesh.from_mesh(obj.data)
-
     # Save all vertices connected to faces as a set
-    connected_verts = set()
-    for (index, face) in enumerate(mesh.faces):
-        connected_verts.update(face.verts)
-        # Save roundness and center of current face
-        face_node = FaceNode(face,
-                             name = f"{obj.name}-{index}",
-                             axis_position = axis_position,
-                             save_coords = save_coords)
-        # If face roundness and area criterion are respected, add face to the face description
-        if face_criteria.is_in_range(face_node.info):
-            face_descr.append(face_node)
+    with utility.bmesh_edit(obj) as mesh:
+        connected_verts = set()
+        for (index, face) in enumerate(mesh.faces):
+            connected_verts.update(face.verts)
+            # Save roundness and center of current face
+            face_node = FaceNode(face,
+                                 name = f"{obj.name}-{index}",
+                                 axis_position = axis_position,
+                                 save_coords = save_coords)
+            # If face roundness and area criterion are respected, add face to the face description
+            if face_criteria.is_in_range(face_node.info):
+                face_descr.append(face_node)
 
-    # If object has less faces in range than min number of faces, delete it
-    if len(face_descr) < min_faces:
-        bpy.data.objects.remove(obj, do_unlink=True)
-        return None
+        # If object has less faces in range than min number of faces, delete it
+        if len(face_descr) < min_faces:
+            bpy.data.objects.remove(obj, do_unlink=True)
+            return None
 
-    # Get vertices not parts of connected vertices and delete them
-    all_verts = set(mesh.verts)
-    disconnected_verts = list(all_verts.difference(connected_verts))
-    utility.delete_vertices(mesh, disconnected_verts)
-
-    # Apply modification to object
-    mesh.to_mesh(obj.data)
-    mesh.free()
+        # Get vertices not parts of connected vertices and delete them
+        all_verts = set(mesh.verts)
+        disconnected_verts = list(all_verts.difference(connected_verts))
+        utility.delete_vertices(mesh, disconnected_verts)
 
     # Return the face description list, sorted by roundness
     return face_descr
@@ -493,31 +498,27 @@ def create_pot(pot_section:ransac.PotSection,
     cube.name = name
 
     # Edit the primitive to fit parameters
-    cube_mesh = bmesh.new()
-    cube_mesh.from_mesh(cube.data)
+    with utility.bmesh_edit(cube) as cube_mesh:
+        # Select lower face and rescale to fit base and top width
+        base_verts = [vert for vert in cube_mesh.verts if vert.co.z == -1]
+        top_verts = [vert for vert in cube_mesh.verts if vert.co.z == 1]
+        bmesh.ops.transform(cube_mesh, matrix=Matrix.Scale(pot_width_base, 3), verts=base_verts)
+        bmesh.ops.transform(cube_mesh, matrix=Matrix.Scale(pot_width_top, 3), verts=top_verts)
+        for verts in base_verts:
+            verts.co.z = 0
+        for verts in top_verts:
+            verts.co.z = pot_height
+        # Inset top face to translate downward to fit soil height
+        top_face = utility.extract_face_from_verts(top_verts)
+        assert top_face is not None, "No faces connected to input vertices"
+        bmesh.ops.inset_individual(cube_mesh, faces=[top_face], thickness=pot_width_top-soil_width)
+        bmesh.ops.translate(cube_mesh,
+                            vec=Vector((0, 0, soil_height-pot_height)),
+                            verts=list(top_face.verts))
 
-    # Select lower face and rescale to fit base and top width
-    base_verts = [vert for vert in cube_mesh.verts if vert.co.z == -1]
-    top_verts = [vert for vert in cube_mesh.verts if vert.co.z == 1]
-    bmesh.ops.transform(cube_mesh, matrix=Matrix.Scale(pot_width_base, 3), verts=base_verts)
-    bmesh.ops.transform(cube_mesh, matrix=Matrix.Scale(pot_width_top, 3), verts=top_verts)
-    for verts in base_verts:
-        verts.co.z = 0
-    for verts in top_verts:
-        verts.co.z = pot_height
-    # Inset top face to translate downward to fit soil height
-    top_face = utility.extract_face_from_verts(top_verts)
-    assert top_face is not None, "No faces connected to input vertices"
-    bmesh.ops.inset_individual(cube_mesh, faces=[top_face], thickness=pot_width_top-soil_width)
-    bmesh.ops.translate(cube_mesh,
-                        vec=Vector((0, 0, soil_height-pot_height)),
-                        verts=list(top_face.verts))
-
-    # Offset all faces
-    utility.offset_faces(cube_mesh, dist=offset)
-
-    # Update cube object
-    cube_mesh.to_mesh(cube.data)
+        # Offset all faces
+        utility.offset_faces(cube_mesh, dist=offset)
+    # Return modified cube
     return cube
 
 def fit_pot(sections:dict[Cartesian, FaceNode],
@@ -654,7 +655,7 @@ def plant_cleanup(plant:bpy.types.Object,
     plant_ref = Vector((0, 0, pot_param["soil_height"][0]))
 
     # Remove pot from plant
-    boolean_modifier(plant, pot, operation="DIFFERENCE", adaptive=True)
+    boolean_modifier(plant, pot, operation="DIFFERENCE", vertex_ratio_range=(0.3, 0.8))
 #    # Use attribute filtering to exclude pot and get green plant
 #    plant_green = attribute.exclude_pot(plant)
 
@@ -669,7 +670,7 @@ def plant_cleanup(plant:bpy.types.Object,
         stick = draw_stick(tree_structure) if tree_structure is not None else None
         # Remove stick from the plant (if stick detected)
         if stick is not None:
-            boolean_modifier(plant, stick, operation="DIFFERENCE", adaptive=True)
+            boolean_modifier(plant, stick, operation="DIFFERENCE", vertex_ratio_range=(0.3, 0.8))
 
     # Run DBScan clustering on vertex to remove vertex cluster further from given distance
     deleted_vertices = cluster.dbscan_filter(plant, dbscan_eps=0.02)

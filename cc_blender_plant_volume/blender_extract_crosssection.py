@@ -85,14 +85,9 @@ def keep_intersection(obj: bpy.types.Object) -> None:
     After cross-section modifier, only the vertices in the intersection are selected
     Use bmesh to delete non-selected vertices
     """
-    # Extract bmesh from obj
-    obj_mesh = bmesh.new()
-    obj_mesh.from_mesh(obj.data)
-    # Delete unselected vertices
-    obj_mesh = utility.delete_selected(obj_mesh, selected_status=False)
-    # Update object mesh
-    obj_mesh.to_mesh(obj.data)
-    obj_mesh.free()
+    with utility.bmesh_edit(obj) as obj_mesh:
+        # Delete unselected vertices
+        obj_mesh = utility.delete_selected(obj_mesh, selected_status=False)
 
 def main(intersect:bpy.types.Object) -> bpy.types.Object:
     """Main script, use geometry node to create cross section of intersect object"""
