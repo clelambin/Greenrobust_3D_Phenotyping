@@ -57,6 +57,7 @@ def dbscan_filter(obj:bpy.types.Object, dbscan_eps=0.1) -> int:
     """Apply dbscan clustering on input object and keep biggest cluster.
     Return number of deleted vertices
     """
+    utility.make_active(obj)
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False) # Go to object mode
     # Read object vertex coordinates and convert to np_array
     vertices_coord = np.array([vertex.co for vertex in obj.data.vertices])

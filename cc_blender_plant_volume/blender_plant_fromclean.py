@@ -295,10 +295,13 @@ def boolean_modifier(source_obj:bpy.types.Object,
                      operation:BooleanOperator="INTERSECT",
                      apply:bool=True,
                      adaptive:bool=False,
-                     min_vertices:int=50) -> None:
+                     vertex_ratio:tuple[float, float]=(0.3, 0.8)) -> None:
     """Create intersection between object to intersect and plane
     Using boolean mesh operator
     """
+    # Get vertex count before modification
+    assert isinstance(source_obj.data, bpy.types.Mesh)
+    vertex_init = len(source_obj.data.vertices)
     # Mark source object as active
     utility.make_active(source_obj)
     # Boolean modifier using fast intersection mode
@@ -315,8 +318,8 @@ def boolean_modifier(source_obj:bpy.types.Object,
         depsgraph = bpy.context.evaluated_depsgraph_get()
         evaluated_obj = source_obj.evaluated_get(depsgraph)
         assert isinstance(evaluated_obj.data, bpy.types.Mesh)
-        vertex_count = len(evaluated_obj.data.vertices)
-        if vertex_count < min_vertices:
+        vertex_out = len(evaluated_obj.data.vertices)
+        if vertex_out/vertex_init < vertex_ratio[0] or vertex_out/vertex_init > vertex_ratio[1]:
             # Switch to Exact solver and allow self intersection
             modifier.solver = "EXACT"
             modifier.use_self = adaptive

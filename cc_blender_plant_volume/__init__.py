@@ -25,7 +25,7 @@ WORKING_PATH   = r""
 OUTPUT_PATH    = r""
 OUTPUT_TABLE   = "Plant_data.csv"
 MODEL_FOLDER   = "03_Metashape_BatchProc_withMarkers"
-MODEL_FILE_EXT = "ply"
+MODEL_FILE_EXT = "obj"
 MODEL_FILE     = None
 
 # Operator classes
