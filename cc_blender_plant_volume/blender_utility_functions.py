@@ -252,7 +252,7 @@ def import_file(filepath:str, file_ext:str="obj") -> bpy.types.Object:
     if not os.path.isfile(filepath):
         raise OSError(f"File {filepath} not found")
     if not filepath.endswith(file_ext):
-        raise OSError(f"File {filepath} is not an obj")
+        raise OSError(f"File {filepath} is not a {file_ext}")
 
     # Import file (based on the file_ext)
     import_command = {"ply":"ply_import", "obj":"obj_import"}

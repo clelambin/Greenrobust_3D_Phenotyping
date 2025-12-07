@@ -23,12 +23,26 @@ from mathutils import Matrix, Vector    # Blender object type
 
 # Import user modules
 from cc_blender_plant_volume import blender_utility_functions as utility
-from cc_blender_plant_volume import blender_extract_attributefiltering as attribute
 from cc_blender_plant_volume import blender_point_clustering as cluster
 from cc_blender_plant_volume import blender_utility_ransac as ransac
 from cc_blender_plant_volume import blender_plant_metrics as metrics
 from cc_blender_plant_volume import blender_plant_rendering as render
-from cc_blender_plant_volume.blender_user_types import Cartesian, BooleanOperator
+from cc_blender_plant_volume.blender_user_types import Cartesian, BooleanOperator, ConfigOptions
+
+# Script function
+FILE_PREFIX = "Metashape_"
+SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
+    "AT":{"POT_OFFSET": 0.002, "HAS_STICK":False},
+    "BD":{"POT_OFFSET": 0.002, "HAS_STICK":True},
+    "BR":{"POT_OFFSET": 0.003, "HAS_STICK":True},
+    "HS":{"POT_OFFSET": 0.003, "HAS_STICK":True},
+    "HV":{"POT_OFFSET": 0.003, "HAS_STICK":True},
+    "NB":{"POT_OFFSET": 0.005, "HAS_STICK":False},
+    "SD":{"POT_OFFSET": 0.005, "HAS_STICK":True},
+    "SL":{"POT_OFFSET": 0.005, "HAS_STICK":False},
+    "TA":{"POT_OFFSET": 0.003, "HAS_STICK":True},
+}
+CONFIG_DEFAULT:dict[ConfigOptions, float|bool] = {"POT_OFFSET": 0.003, "HAS_STICK":True}
 
 
 # Utility functions
@@ -367,16 +381,15 @@ def section_faces(obj:bpy.types.Object,
             # If face roundness and area criterion are respected, add face to the face description
             if face_criteria.is_in_range(face_node.info):
                 face_descr.append(face_node)
-
-        # If object has less faces in range than min number of faces, delete it
-        if len(face_descr) < min_faces:
-            bpy.data.objects.remove(obj, do_unlink=True)
-            return None
-
         # Get vertices not parts of connected vertices and delete them
         all_verts = set(mesh.verts)
         disconnected_verts = list(all_verts.difference(connected_verts))
         utility.delete_vertices(mesh, disconnected_verts)
+
+    # If object has less faces in range than min number of faces, delete it
+    if len(face_descr) < min_faces:
+        bpy.data.objects.remove(obj, do_unlink=True)
+        return None
 
     # Return the face description list, sorted by roundness
     return face_descr
@@ -532,7 +545,7 @@ def fit_pot(sections:dict[Cartesian, FaceNode],
     # Use RANSAC to fit a simplified pot section
     ransac_param = ransac.RansacParam(
             nb_sample=5,
-            max_iter=1000,
+            max_iter=2000,
             min_pts_per_line=0,
             dist_thresh=0.001,
             max_fit=0.6
@@ -570,6 +583,7 @@ def multi_crosssection(obj:bpy.types.Object,
     # Initialise list which will contain the face information for each section
     section_detail = []
     # Get the highest point in Z to define number of cross-sections
+    assert isinstance(obj.data, bpy.types.Mesh), f"Object {obj.name} does not have a mesh"
     max_z = max(vertex.co[2] for vertex in obj.data.vertices)
     nb_section = int(max_z / z_delta) + 1
     for section_index in range(1, nb_section):
@@ -587,7 +601,7 @@ def multi_crosssection(obj:bpy.types.Object,
 
 def vert_crosssection(obj:bpy.types.Object,
                       face_criteria:FaceCriteria,
-                      select:Callable=lambda face:face.info.area, 
+                      select:Callable=lambda face:face.info.area,
                       hide_plane:bool=True) -> dict[Cartesian, FaceNode]:
     """Create vertical crosssection of input object for X and Y direction"""
     # Create a section normal to X and normal to Y
@@ -656,8 +670,6 @@ def plant_cleanup(plant:bpy.types.Object,
 
     # Remove pot from plant
     boolean_modifier(plant, pot, operation="DIFFERENCE", vertex_ratio_range=(0.3, 0.8))
-#    # Use attribute filtering to exclude pot and get green plant
-#    plant_green = attribute.exclude_pot(plant)
 
     if remove_stick:
         # Detecte=ing the wood stick from the plant by creating horizontal sections
@@ -710,12 +722,16 @@ def single_model_prep(obj_path:str,
                       output_path:str|None=None,
                       file_ext:str="obj") -> dict[str, float]:
     """Single model preparation: import the model, compute the volume and save output blend file"""
+    # Read species label from path and extract relevant species config
+    file_name = os.path.basename(obj_path)
+    species_short = file_name.replace(FILE_PREFIX, "")[0:2]
+    species_config = SPECIES_CONFIG.get(species_short, CONFIG_DEFAULT)
     # Prepare working environment
     utility.cleanup_env()
     model = utility.import_file(obj_path, file_ext)
     # Prepare the model and compute all plant metrics
     # Cleanup plant model
-    plant_ref = plant_cleanup(model)
+    plant_ref = plant_cleanup(model, species_config["POT_OFFSET"], species_config["HAS_STICK"])
     # Read plant metrics
     model_metrics = plant_metrics(model, output_dir=output_path, plant_ref=plant_ref)
     # Save blend file in output folder
@@ -736,11 +752,11 @@ def process_model_folder(file_list:list[str],
             continue
         # Process plant model
         model_path = os.path.join(working_path, name)
-        plant_metrics = single_model_prep(model_path, output_path=output_path, file_ext=file_ext)
+        model_metrics = single_model_prep(model_path, output_path=output_path, file_ext=file_ext)
         # Save all plant metrics to csv file
         plant_info = [working_path, name]
         for key in metrics_keys:
-            plant_info.append(str(plant_metrics.get(key, 0)))
+            plant_info.append(str(model_metrics.get(key, 0)))
         with open(volume_path, "a", encoding="utf-8") as volume_file:
             volume_file.write(f"{','.join(plant_info)}\n")
 
