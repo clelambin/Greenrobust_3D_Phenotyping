@@ -93,6 +93,7 @@ def calc_metrics(obj:bpy.types.Object|None=None,
         "Dim_X"          : 0.,
         "Dim_Y"          : 0.,
         "Dim_Z"          : 0.,
+        "Height"         : 0.,
         "Cumul_Area"     : 0.,
         "Font_Area_Ratio": 0.,
         "Left_Area_Ratio": 0.,
@@ -115,7 +116,8 @@ def calc_metrics(obj:bpy.types.Object|None=None,
     # Calculate mesh metrics
     metrics["Volume"] = temp_mesh.calc_volume()
     metrics["Cumul_Area"] = calc_area(temp_mesh)
-    metrics["Dim_X"], metrics["Dim_Y"], metrics["Dim_Z"] = calc_dimension(temp_mesh, ref=ref)
+    metrics["Dim_X"], metrics["Dim_Y"], metrics["Dim_Z"] = calc_dimension(temp_mesh)
+    _, _, metrics["Height"] = calc_dimension(temp_mesh, ref=ref)
     # Free up bmesh and switch back to Object mode
     orig_mesh.free()
     temp_mesh.free()
