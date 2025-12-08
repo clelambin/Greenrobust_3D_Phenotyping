@@ -30,6 +30,21 @@ def calc_dimension(mesh: bmesh.types.BMesh, ref:np.ndarray|None = None) -> np.nd
         ref = np.min(vertex_coord, axis=0)
     return np.max(vertex_coord, axis=0) - ref
 
+def calc_convex_hull_volume(mesh:bmesh.types.BMesh, z_min:float|None=None) -> float:
+    """Create convex hull copy from current mesh and output its volume"""
+    mesh_copy = mesh.copy()
+    # Delete vertices with z bellow z_min (if specified)
+    if z_min is not None:
+        verts_below_zmin = [v for v in mesh_copy.verts if v.co.z < z_min]
+        utility.delete_vertices(mesh_copy, verts_below_zmin)
+    # Create convex hull on copy
+    bmesh.ops.convex_hull(mesh_copy, input=list(mesh_copy.verts))
+    # Save mesh volume then free copy
+    convex_hull_volume = mesh_copy.calc_volume()
+    mesh_copy.free()
+    # Return saved volume
+    return convex_hull_volume
+
 # From https://blender.stackexchange.com/questions/290437/set-orthographic-top-view-with-python
 # Warning: - Relying heavily on operation (context dependant, less stable, ...)
 def uv_project(obj:bpy.types.Object,
@@ -90,6 +105,9 @@ def calc_metrics(obj:bpy.types.Object|None=None,
     # Initialise metrics dictionary
     metrics = {
         "Volume"         : 0.,
+        "Convex_hull"    : 0.,
+        "Convex_hull_40" : 0.,
+        "Convex_hull_60" : 0.,
         "Dim_X"          : 0.,
         "Dim_Y"          : 0.,
         "Dim_Z"          : 0.,
@@ -103,25 +121,27 @@ def calc_metrics(obj:bpy.types.Object|None=None,
     # If no object, return empty dictionary (for the keys)
     if obj is None:
         return metrics
-    # Mark object as active and switch to Edit mode
-    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
-    utility.select_all(select=False)
-    bpy.context.view_layer.objects.active = obj
-    bpy.ops.object.mode_set(mode='EDIT', toggle=False)
-    # Extract bmesh from object
-    orig_mesh = bmesh.from_edit_mesh(obj.data)
-    temp_mesh = orig_mesh.copy()
-    # Apply mesh transformation
-    temp_mesh.transform(obj.matrix_world)
-    # Calculate mesh metrics
-    metrics["Volume"] = temp_mesh.calc_volume()
-    metrics["Cumul_Area"] = calc_area(temp_mesh)
-    metrics["Dim_X"], metrics["Dim_Y"], metrics["Dim_Z"] = calc_dimension(temp_mesh)
-    _, _, metrics["Height"] = calc_dimension(temp_mesh, ref=ref)
-    # Free up bmesh and switch back to Object mode
-    orig_mesh.free()
-    temp_mesh.free()
-    bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    with utility.bmesh_edit(obj) as orig_mesh:
+        # Create a temporary mesh from where apply transformation
+        temp_mesh = orig_mesh.copy()
+        # Apply mesh transformation
+        temp_mesh.transform(obj.matrix_world)
+        # Calculate mesh metrics
+        metrics["Volume"] = temp_mesh.calc_volume()
+        metrics["Convex_hull"] = calc_convex_hull_volume(temp_mesh)
+        metrics["Cumul_Area"] = calc_area(temp_mesh)
+        metrics["Dim_X"], metrics["Dim_Y"], metrics["Dim_Z"] = calc_dimension(temp_mesh)
+        # If a reference point is mentioned, also compute height and 40% and 60% convex hull
+        if ref is not None:
+            _, _, metrics["Height"] = calc_dimension(temp_mesh, ref=ref)
+            # Keep 60% of height from reference point (so z_min at 40%)
+            # and other way for 40% of height
+            z_min_60 = 0.4*metrics["Height"] + ref[2]
+            z_min_40 = 0.6*metrics["Height"] + ref[2]
+            metrics["Convex_hull_60"] = calc_convex_hull_volume(temp_mesh, z_min=z_min_60)
+            metrics["Convex_hull_40"] = calc_convex_hull_volume(temp_mesh, z_min=z_min_40)
+        # Free up temporary mesh
+        temp_mesh.free()
     # Calculate projection metrics
     project_view:list[VIEWPOINT] = ["FRONT", "LEFT", "TOP"]
     project_area:list[float] = [0.] * len(project_view)
