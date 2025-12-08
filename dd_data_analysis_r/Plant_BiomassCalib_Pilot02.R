@@ -11,7 +11,7 @@ if(length(dev.list()!=0)){dev.off()}
 par_init <- par(no.readonly = TRUE)
 
 # Script variables
-input_from3d  <- "data//Plant_data_20251207_pilot02.csv"
+input_from3d  <- "data//Plant_data_20251208_pilot02.csv"
 input_harvest <- "data//20251208_ppa_drought.csv"
 input_organes <- "data//Plant_organes_count_20251202.csv"
 output_label  <- "20251208"
@@ -25,7 +25,7 @@ par_args      <- list(cex = 1, cex.axis=0.7, mgp=c(2, 0.8, 0))
 indiv_label   <- "[A-Z]{2}[0-9]{2}I[CD]"
 # Relevant columns to use
 filter_collect <- c("pot_id", "species", "treatment", "aboveground_dry_biomass_g", "Height..cm.", "Nb.leaves", "Nb.Flowers", "Leaf.area..cm2.")
-filter_from3d  <- c("Volume", "Dim_X", "Dim_Y", "Dim_Z", "Cumul_Area", "Font_Area_Ratio", "Left_Area_Ratio", "Top_Area_Ratio")
+filter_from3d  <- c("Volume", "Dim_X", "Dim_Y", "Dim_Z", "Height", "Cumul_Area", "Font_Area_Ratio", "Left_Area_Ratio", "Top_Area_Ratio")
 
 
 # Libraries
@@ -38,15 +38,21 @@ library(stats)        # For AIC
 # ---- User function ----
 plot_obs_vs_pred <- function(obs, mdl, data=plant_correlation, img_name="", xlab="", ylab="")
 {
+  # Description: Plot objserved data in function of prediction for input model
+
   # Initialise plot and save image (if set)
   par(par_init)
   if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
   do.call(par, c(list(mar=c(4, 4, 1, 1)), par_args))
+  # Check available species levels in current dataframe
+  avail_species <- levels(data$species)
+
   # Plot prediction
   plot(obs ~ predict(mdl),
-       col=species_color[data[,species]], pch=16,
+       col=species_color[data$species], pch=16,
        xlab=xlab, ylab=ylab)
-  legend("bottomright", legend=species_level, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
+  legend("bottomright", legend=avail_species, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
+
   # Add 1:1 line
   range_min <- min(obs)
   range_max <- max(obs)
@@ -57,6 +63,22 @@ plot_obs_vs_pred <- function(obs, mdl, data=plant_correlation, img_name="", xlab
   mtext(paste0(" ", formula), side=3, adj=0, line=-1.25, cex=0.8)
   mtext(paste0(" R²=", r_squared), side=3, adj=0, line=-2, cex=0.8)
   if(save_plot){dev.off()}
+}
+model_stats <- function(mdl, plot_res=TRUE)
+{
+  # Description display stats for input model
+  if(plot_res)
+  {
+    # Reset graphic before simulate residuals
+    par(par_init)
+    simulateResiduals(mdl, plot=TRUE)
+  }
+  # Save stats
+  mdl_sum <- summary(mdl)
+  mdl_aic <- AIC(mdl)
+  mdl_drop <- drop1(mdl, test="F")
+  # Return stats as list
+  return(list(summary=mdl_sum, AIC=mdl_aic, drop1=mdl_drop))
 }
 
 # ---- Data preparation ----
@@ -145,7 +167,7 @@ colnames(table_combine)[ncol(table_combine)] <- "sum"
 rownames(table_combine) <- c("Havest", "Merged data", "Merged, no missing")
 table_combine
 
-# ---- Data analysis ----
+# ---- Data analysis global ----
 ## ==== Cross-correlation ====
 # From: https://www.sthda.com/english/wiki/correlation-matrix-a-quick-start-guide-to-analyze-format-and-visualize-a-correlation-matrix-using-r-software
 # Note: Pearson vs Spearman (https://www.reddit.com/r/statistics/comments/76iw0w/how_do_you_decide_which_correlation_coefficient/)
@@ -174,47 +196,111 @@ color_palette <- colorRampPalette(c("blue", "yellow", "red"))
 species_level <- levels(plant_correlation$species)
 species_color <- color_palette(length(species_level))
 
-## ==== Height ~ Dim_Z ====
-lm_height <- lm(Height..cm. ~ Dim_Z, data=plant_correlation)
-# Reset graphic before simulate residuals
-par(par_init)
-simulateResiduals(lm_height, plot=TRUE)
-summary(lm_height)
-AIC(lm_height)
-drop1(lm_height, test="F")
+## ==== Height ~ Height ====
+lm_height <- lm(Height..cm. ~ Height, data=plant_correlation)
+model_stats(lm_height)
 
 # Observed vs predicted plot
-# Reset graphic before simulate residuals
 img_name <- paste0(output_folder, "//Height_Predict_", output_label, ".jpg")
 plot_obs_vs_pred(obs=plant_correlation$Height..cm., mdl=lm_height,
-                 img_name=img_name, xlab="Predicted height(cm))", ylab="Measured height(cm))")
+                 img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
 
-## ==== (log) Biomass ~ Volume + Species ====
-lm_bmass_vol_log <- lm(log(biomass_g) ~ log(Volume) + species, data=plant_correlation)
-# Reset graphic before simulate residuals
-par(par_init)
-simulateResiduals(lm_bmass_vol_log, plot=TRUE)
-summary(lm_bmass_vol_log)
-AIC(lm_bmass_vol_log)
-drop1(lm_bmass_vol_log, test="F")
+## ==== Leaf_Area ~ Cumul_Area + Species ====
+plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
+# plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Nicotiana benthamiana",])
+# plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Hordeum vulgare",])
+lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area + species, data=plant_lf_area)
+# lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area, data=plant_lf_area)
+model_stats(lm_area_log)
 
 # Observed vs predicted plot
-# Reset graphic before simulate residuals
-img_name <- paste0(output_folder, "//Biomass_Volume_Predict_", output_label, ".jpg")
+img_name <- paste0(output_folder, "//Leaf_Area_Species_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(obs=plant_lf_area$Height..cm., mdl=lm_area_log, data=plant_lf_area,
+                 img_name=img_name, xlab="Predicted leaf area(cm2)", ylab="Measured leaf area(cm2)")
+
+# ---- Data analysis biomass ----
+## ==== (log) Biomass ~ Volume + Species ====
+lm_bmass_vol_log <- lm(log(biomass_g) ~ log(Volume) + species, data=plant_correlation)
+model_stats(lm_bmass_vol_log)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Volume_Species_Predict_Log_", output_label, ".jpg")
 plot_obs_vs_pred(obs=log(plant_correlation$biomass_g), mdl=lm_bmass_vol_log,
                  img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
 ## ==== (log) Biomass ~ Dim_Z + Top_Area + Species ====
 lm_bmass_z_top_log <- lm(log(biomass_g) ~ log(Dim_Z) + log(Top_Area) + species, data=plant_correlation)
-# Reset graphic before simulate residuals
-par(par_init)
-simulateResiduals(lm_bmass_z_top_log, plot=TRUE)
-summary(lm_bmass_z_top_log)
-AIC(lm_bmass_z_top_log)
-drop1(lm_bmass_z_top_log, test="F")
+model_stats(lm_bmass_z_top_log)
 
 # Observed vs predicted plot
-# Reset graphic before simulate residuals
-img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_", output_label, ".jpg")
+img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Species_Predict_Log_", output_label, ".jpg")
 plot_obs_vs_pred(obs=log(plant_correlation$biomass_g), mdl=lm_bmass_z_top_log,
                  img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+
+## ==== (sqrt) Biomass ~ Dim_Z + Top_Area + Species ====
+lm_bmass_z_top_sqrt <- lm(sqrt(biomass_g) ~ sqrt(Dim_Z) + sqrt(Top_Area) + species, data=plant_correlation)
+model_stats(lm_bmass_z_top_sqrt)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Species_Predict_Sqrt_", output_label, ".jpg")
+plot_obs_vs_pred(obs=sqrt(plant_correlation$biomass_g), mdl=lm_bmass_z_top_sqrt,
+                 img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+
+## ==== (log) Biomass ~ Dim_Z + Top_Area ====
+lm_bmass_z_top_log_nospecies <- lm(log(biomass_g) ~ log(Dim_Z) + log(Top_Area), data=plant_correlation)
+model_stats(lm_bmass_z_top_log_nospecies)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Log_", output_label, ".jpg")
+plot_obs_vs_pred(obs=log(plant_correlation$biomass_g), mdl=lm_bmass_z_top_log_nospecies,
+                 img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+
+## ==== (sqrt) Biomass ~ Dim_Z + Top_Area ====
+lm_bmass_z_top_sqrt_nospecies <- lm(sqrt(biomass_g) ~ sqrt(Dim_Z) + sqrt(Top_Area), data=plant_correlation)
+model_stats(lm_bmass_z_top_sqrt_nospecies)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Sqrt_", output_label, ".jpg")
+plot_obs_vs_pred(obs=sqrt(plant_correlation$biomass_g), mdl=lm_bmass_z_top_sqrt_nospecies,
+                 img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+
+## ==== (sqrt) Biomass ~ Dim_Z * Top_Area ====
+lm_bmass_z_top_sqrt_nospecies_interact <- lm(sqrt(biomass_g) ~ sqrt(Dim_Z) * sqrt(Top_Area), data=plant_correlation)
+model_stats(lm_bmass_z_top_sqrt_nospecies_interact)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Heigth_inter_TopArea_Predict_Sqrt_", output_label, ".jpg")
+plot_obs_vs_pred(obs=sqrt(plant_correlation$biomass_g), mdl=lm_bmass_z_top_sqrt_nospecies_interact,
+                 img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+
+# Analysis per species (skipped because bad correlation)
+if(FALSE)
+{
+  for(species in species_level)
+  {
+    # ---- Data analysis per species ----
+    # Create filtered dataframe
+    plant_perspecies <- droplevels(plant_correlation[plant_correlation$species==species,])
+    # Replace space by underscore for file output
+    species_string <- replace(species, " ", "_")
+    
+    ## ==== (log) Biomass ~ Dim_Z + Top_Area ====
+    # Model
+    lm_bmass_z_top_log_perspecies <- lm(log(biomass_g) ~ log(Dim_Z) + log(Top_Area), data=plant_perspecies)
+    model_stats(lm_bmass_z_top_log_perspecies, plot_res=FALSE)
+    # Observed vs predicted plot
+    img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Sqrt_", output_label, ".jpg")
+    plot_obs_vs_pred(obs=log(plant_perspecies$biomass_g), mdl=lm_bmass_z_top_log_perspecies, data=plant_perspecies,
+                     img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+    
+    ## ==== (sqrt) Biomass ~ Dim_Z + Top_Area ====
+    # Model
+    lm_bmass_z_top_sqrt_perspecies <- lm(sqrt(biomass_g) ~ sqrt(Dim_Z) + sqrt(Top_Area), data=plant_perspecies)
+    model_stats(lm_bmass_z_top_sqrt_perspecies, plot_res=FALSE)
+    # Observed vs predicted plot
+    img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Sqrt_", output_label, ".jpg")
+    plot_obs_vs_pred(obs=sqrt(plant_perspecies$biomass_g), mdl=lm_bmass_z_top_sqrt_perspecies, data=plant_perspecies,
+                     img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+    
+  }
+}
