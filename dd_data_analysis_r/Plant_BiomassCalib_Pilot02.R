@@ -15,7 +15,7 @@ input_from3d  <- "data//Plant_data_20251208_pilot02.csv"
 input_harvest <- "data//20251208_ppa_drought.csv"
 input_organes <- "data//Plant_organes_count_20251202.csv"
 output_label  <- "20251208"
-output_folder <- "output//pilot02"
+output_folder <- "output//Pilot02"
 save_plot     <- FALSE
 # Set default arguments for plot display (par) and image export (jpeg)
 jpeg_args     <- list(height=4, width=6, units="in", res=300)
@@ -36,50 +36,7 @@ library(corrplot)     # Correlation plot
 library(stats)        # For AIC
 
 # ---- User function ----
-plot_obs_vs_pred <- function(obs, mdl, data=plant_correlation, img_name="", xlab="", ylab="")
-{
-  # Description: Plot objserved data in function of prediction for input model
-
-  # Initialise plot and save image (if set)
-  par(par_init)
-  if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-  do.call(par, c(list(mar=c(4, 4, 1, 1)), par_args))
-  # Check available species levels in current dataframe
-  avail_species <- levels(data$species)
-
-  # Plot prediction
-  plot(obs ~ predict(mdl),
-       col=species_color[data$species], pch=16,
-       xlab=xlab, ylab=ylab)
-  legend("bottomright", legend=avail_species, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
-
-  # Add 1:1 line
-  range_min <- min(obs)
-  range_max <- max(obs)
-  lines(c(range_min, range_max), c(range_min, range_max), lty=3)
-  # Add R squared
-  r_squared <- round(as.numeric(summary(mdl)["r.squared"]), digit=3)
-  formula   <- Reduce(paste, deparse(mdl$call$formula))
-  mtext(paste0(" ", formula), side=3, adj=0, line=-1.25, cex=0.8)
-  mtext(paste0(" R²=", r_squared), side=3, adj=0, line=-2, cex=0.8)
-  if(save_plot){dev.off()}
-}
-model_stats <- function(mdl, plot_res=TRUE)
-{
-  # Description display stats for input model
-  if(plot_res)
-  {
-    # Reset graphic before simulate residuals
-    par(par_init)
-    simulateResiduals(mdl, plot=TRUE)
-  }
-  # Save stats
-  mdl_sum <- summary(mdl)
-  mdl_aic <- AIC(mdl)
-  mdl_drop <- drop1(mdl, test="F")
-  # Return stats as list
-  return(list(summary=mdl_sum, AIC=mdl_aic, drop1=mdl_drop))
-}
+source("Plant_BiomassCalib_Functions.R")
 
 # ---- Data preparation ----
 ## ==== Data extraction ====
@@ -140,11 +97,23 @@ plant_correlation <- plant_correlation[plant_correlation$Dim_X > 0 & plant_corre
 plant_correlation <- plant_correlation[!is.na(plant_correlation$biomass_g),]
 
 ## ==== Convert to factors ====
-plant_harvest$species <- as.factor(plant_harvest$species)
-# plant_organes$species <- as.factor(plant_organes$Plant)
-# plant_from3d$label <- as.factor(plant_from3d$label)
-plant_correlation$species <- as.factor(plant_correlation$species)
-plant_correlation$treatment <- as.factor(plant_correlation$treatment)
+species_corresp <- c("Arabidopsis thaliana"="AT",
+                     "Brachypodium distachyon"="BD",
+                     "Brassica rapa"="BR",
+                     "Hordeum spontaneum"="HS",
+                     "Hordeum vulgare"="HV",
+                     "Nicotiana benthamiana"="NB",
+                     "Solanum dulcamara"="SD",
+                     "Solanum lycopersicum"="SL",
+                     "Thlaspi arvense"="TA")
+treatment_corresp <- c("drought"="D",
+                       "control"="C")
+plant_harvest$species <- as.factor(species_corresp[plant_harvest$species])
+plant_correlation$species <- as.factor(species_corresp[plant_correlation$species])
+plant_correlation$treatment <- as.factor(treatment_corresp[plant_correlation$treatment])
+# plant_harvest$species <- as.factor(plant_harvest$species)
+# plant_correlation$species <- as.factor(plant_correlation$species)
+# plant_correlation$treatment <- as.factor(plant_correlation$treatment)
 
 ## ==== Overview ====
 # Data summary
@@ -273,6 +242,10 @@ img_name <- paste0(output_folder, "//Biomass_Heigth_inter_TopArea_Predict_Sqrt_"
 plot_obs_vs_pred(obs=sqrt(plant_correlation$biomass_g), mdl=lm_bmass_z_top_sqrt_nospecies_interact,
                  img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
 
+# ---- Data analysis flower count ----
+
+# ---- Data analysis leaf count ----
+
 # Analysis per species (skipped because bad correlation)
 if(FALSE)
 {
@@ -304,3 +277,7 @@ if(FALSE)
     
   }
 }
+
+# ---- Reset ----
+# Reset graphic display
+par(par_init)
