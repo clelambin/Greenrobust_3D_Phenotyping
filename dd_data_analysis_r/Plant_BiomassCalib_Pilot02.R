@@ -26,6 +26,8 @@ indiv_label   <- "[A-Z]{2}[0-9]{2}I[CD]"
 # Relevant columns to use
 filter_collect <- c("pot_id", "species", "treatment", "aboveground_dry_biomass_g", "Height..cm.", "Nb.leaves", "Nb.Flowers", "Leaf.area..cm2.")
 filter_from3d  <- c("Volume", "Dim_X", "Dim_Y", "Dim_Z", "Height", "Cumul_Area", "Font_Area_Ratio", "Left_Area_Ratio", "Top_Area_Ratio")
+# Apply filter based on height prediction deviation (in %)
+height_filter_thresh <- 0.2
 
 
 # Libraries
@@ -92,7 +94,7 @@ plant_correlation$Top_Area   <- plant_correlation$Top_BBox   * plant_correlation
 plant_init        <- plant_correlation
 # Remove outliers
 # (To check why outliers occurs in script)
-plant_correlation <- plant_correlation[plant_correlation$Dim_X > 0 & plant_correlation$Dim_Y > 0 & plant_correlation$Dim_Z > 0,]
+plant_correlation <- plant_correlation[plant_correlation$Dim_X > 0 & plant_correlation$Dim_Y > 0 & plant_correlation$Dim_Z > 0 & plant_correlation$Height > 0,]
 # Remove missing data
 plant_correlation <- plant_correlation[!is.na(plant_correlation$biomass_g),]
 
@@ -109,6 +111,7 @@ species_corresp <- c("Arabidopsis thaliana"="AT",
 treatment_corresp <- c("drought"="D",
                        "control"="C")
 plant_harvest$species <- as.factor(species_corresp[plant_harvest$species])
+plant_init$species    <- as.factor(species_corresp[plant_init$species])
 plant_correlation$species <- as.factor(species_corresp[plant_correlation$species])
 plant_correlation$treatment <- as.factor(treatment_corresp[plant_correlation$treatment])
 # plant_harvest$species <- as.factor(plant_harvest$species)
@@ -197,8 +200,17 @@ img_name <- paste0(output_folder, "//Biomass_Volume_Species_Predict_Log_", outpu
 plot_obs_vs_pred(obs=log(plant_correlation$biomass_g), mdl=lm_bmass_vol_log,
                  img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
-## ==== (log) Biomass ~ Dim_Z + Top_Area + Species ====
-lm_bmass_z_top_log <- lm(log(biomass_g) ~ log(Dim_Z) + log(Top_Area) + species, data=plant_correlation)
+## ==== (sqrt) Biomass ~ Volume + Species ====
+lm_bmass_vol_sqrt <- lm(sqrt(biomass_g) ~ sqrt(Volume) + species, data=plant_correlation)
+model_stats(lm_bmass_vol_sqrt)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Volume_Species_Predict_Sqrt_", output_label, ".jpg")
+plot_obs_vs_pred(obs=sqrt(plant_correlation$biomass_g), mdl=lm_bmass_vol_sqrt,
+                 img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+
+## ==== (log) Biomass ~ Height + Top_Area + Species ====
+lm_bmass_z_top_log <- lm(log(biomass_g) ~ log(Height) + log(Top_Area) + species, data=plant_correlation)
 model_stats(lm_bmass_z_top_log)
 
 # Observed vs predicted plot
@@ -206,8 +218,8 @@ img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Species_Predict_Log_
 plot_obs_vs_pred(obs=log(plant_correlation$biomass_g), mdl=lm_bmass_z_top_log,
                  img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
-## ==== (sqrt) Biomass ~ Dim_Z + Top_Area + Species ====
-lm_bmass_z_top_sqrt <- lm(sqrt(biomass_g) ~ sqrt(Dim_Z) + sqrt(Top_Area) + species, data=plant_correlation)
+## ==== (sqrt) Biomass ~ Height + Top_Area + Species ====
+lm_bmass_z_top_sqrt <- lm(sqrt(biomass_g) ~ sqrt(Height) + sqrt(Top_Area) + species, data=plant_correlation)
 model_stats(lm_bmass_z_top_sqrt)
 
 # Observed vs predicted plot
@@ -215,8 +227,8 @@ img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Species_Predict_Sqrt
 plot_obs_vs_pred(obs=sqrt(plant_correlation$biomass_g), mdl=lm_bmass_z_top_sqrt,
                  img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
 
-## ==== (log) Biomass ~ Dim_Z + Top_Area ====
-lm_bmass_z_top_log_nospecies <- lm(log(biomass_g) ~ log(Dim_Z) + log(Top_Area), data=plant_correlation)
+## ==== (log) Biomass ~ Height + Top_Area ====
+lm_bmass_z_top_log_nospecies <- lm(log(biomass_g) ~ log(Height) + log(Top_Area), data=plant_correlation)
 model_stats(lm_bmass_z_top_log_nospecies)
 
 # Observed vs predicted plot
@@ -224,8 +236,8 @@ img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Log_", outpu
 plot_obs_vs_pred(obs=log(plant_correlation$biomass_g), mdl=lm_bmass_z_top_log_nospecies,
                  img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
-## ==== (sqrt) Biomass ~ Dim_Z + Top_Area ====
-lm_bmass_z_top_sqrt_nospecies <- lm(sqrt(biomass_g) ~ sqrt(Dim_Z) + sqrt(Top_Area), data=plant_correlation)
+## ==== (sqrt) Biomass ~ Height + Top_Area ====
+lm_bmass_z_top_sqrt_nospecies <- lm(sqrt(biomass_g) ~ sqrt(Height) + sqrt(Top_Area), data=plant_correlation)
 model_stats(lm_bmass_z_top_sqrt_nospecies)
 
 # Observed vs predicted plot
@@ -233,8 +245,8 @@ img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Sqrt_", outp
 plot_obs_vs_pred(obs=sqrt(plant_correlation$biomass_g), mdl=lm_bmass_z_top_sqrt_nospecies,
                  img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
 
-## ==== (sqrt) Biomass ~ Dim_Z * Top_Area ====
-lm_bmass_z_top_sqrt_nospecies_interact <- lm(sqrt(biomass_g) ~ sqrt(Dim_Z) * sqrt(Top_Area), data=plant_correlation)
+## ==== (sqrt) Biomass ~ Height * Top_Area ====
+lm_bmass_z_top_sqrt_nospecies_interact <- lm(sqrt(biomass_g) ~ sqrt(Height) * sqrt(Top_Area), data=plant_correlation)
 model_stats(lm_bmass_z_top_sqrt_nospecies_interact)
 
 # Observed vs predicted plot
@@ -242,18 +254,60 @@ img_name <- paste0(output_folder, "//Biomass_Heigth_inter_TopArea_Predict_Sqrt_"
 plot_obs_vs_pred(obs=sqrt(plant_correlation$biomass_g), mdl=lm_bmass_z_top_sqrt_nospecies_interact,
                  img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
 
+## ==== Model comparison ====
+model_to_compare <- list(lm_bmass_vol_log, lm_bmass_z_top_log, lm_bmass_z_top_log_nospecies, lm_bmass_z_top_sqrt, lm_bmass_z_top_sqrt_nospecies, lm_bmass_z_top_sqrt_nospecies_interact)
+model_names <- sapply(model_to_compare, function(mdl) Reduce(paste, deparse(mdl$call$formula)))
+model_AIC <- sapply(model_to_compare, FUN=AIC)
+names(model_AIC) <- model_names
+sort(model_AIC, decreasing=TRUE)
+
+# ---- Data analysis height filter ----
+# Filter data where the height prediction is too far from the measured height
+height_deviation <- abs(predict(lm_height) - plant_correlation$Height..cm.) / plant_correlation$Height..cm.
+paste0("Ratio of points with deviation below ", height_filter_thresh, ": ", round(mean(height_deviation<height_filter_thresh), 3))
+plant_filtered <- droplevels(plant_correlation[height_deviation<height_filter_thresh,])
+
+## ==== Height ~ Height ====
+lm_height <- lm(Height..cm. ~ Height, data=plant_filtered)
+model_stats(lm_height)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Height_Predict_Filtered_", output_label, ".jpg")
+plot_obs_vs_pred(obs=plant_filtered$Height..cm., mdl=lm_height, data=plant_filtered,
+                 img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+
+## ==== (sqrt) Biomass ~ Height + Top_Area ====
+lm_bmass_z_top_sqrt_filt <- lm(sqrt(biomass_g) ~ sqrt(Height) + sqrt(Top_Area), data=plant_filtered)
+model_stats(lm_bmass_z_top_sqrt_filt)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Sqrt_Filtered_", output_label, ".jpg")
+plot_obs_vs_pred(obs=sqrt(plant_filtered$biomass_g), mdl=lm_bmass_z_top_sqrt_filt, data=plant_filtered,
+                 img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+
+## ==== (sqrt) Biomass ~ Height * Top_Area ====
+lm_bmass_z_top_sqrt_filt_interact <- lm(sqrt(biomass_g) ~ sqrt(Height) * sqrt(Top_Area), data=plant_filtered)
+model_stats(lm_bmass_z_top_sqrt_filt_interact)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Heigth_inter_TopArea_Predict_Sqrt_Filtered_", output_label, ".jpg")
+plot_obs_vs_pred(obs=sqrt(plant_filtered$biomass_g), mdl=lm_bmass_z_top_sqrt_filt_interact, data=plant_filtered,
+                 img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+
 # ---- Data analysis flower count ----
 
 # ---- Data analysis leaf count ----
 
 # Analysis per species (skipped because bad correlation)
+# dataframe = plant_correlation
+dataframe = plant_filtered
 if(FALSE)
 {
   for(species in species_level)
   {
     # ---- Data analysis per species ----
     # Create filtered dataframe
-    plant_perspecies <- droplevels(plant_correlation[plant_correlation$species==species,])
+    plant_perspecies <- droplevels(dataframe[dataframe$species==species,])
     # Replace space by underscore for file output
     species_string <- replace(species, " ", "_")
     
