@@ -682,7 +682,7 @@ def plant_cleanup(plant:bpy.types.Object,
         stick = draw_stick(tree_structure) if tree_structure is not None else None
         # Remove stick from the plant (if stick detected)
         if stick is not None:
-            boolean_modifier(plant, stick, operation="DIFFERENCE", vertex_ratio_range=(0.3, 0.8))
+            boolean_modifier(plant, stick, operation="DIFFERENCE", vertex_ratio_range=(0.3, 1))
 
     # Run DBScan clustering on vertex to remove vertex cluster further from given distance
     deleted_vertices = cluster.dbscan_filter(plant, dbscan_eps=0.02)
