@@ -16,7 +16,7 @@ input_harvest <- "data//20251208_ppa_drought.csv"
 input_organes <- "data//Plant_organes_count_20251202.csv"
 output_label  <- "20251210"
 output_folder <- "output//Pilot02"
-save_plot     <- FALSE
+save_plot     <- TRUE
 plot_dharma   <- FALSE
 distrib_plot  <- TRUE
 species_plot  <- FALSE
@@ -250,7 +250,7 @@ model_stats(lm_bmass_z_top_inter_log, plot_res=plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_inter_Species_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_bmass_z_top_inter_log, img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+plot_obs_vs_pred(mdl=lm_bmass_z_top_inter_log, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
 ## ==== (log) Biomass ~ Height + Top_Area ====
 lm_bmass_z_top_log_nospecies <- lm(log(biomass_g) ~ log(Height) + log(Top_Area), data=plant_correlation)
@@ -266,7 +266,7 @@ model_stats(lm_bmass_chull_inter_log, plot_res=plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Biomass_Chull60_inter_Species_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_bmass_chull_inter_log, img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+plot_obs_vs_pred(mdl=lm_bmass_chull_inter_log, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
 ## ==== Model comparison ====
 model_to_compare <- list(lm_bmass_vol_log, lm_bmass_z_top_log, lm_bmass_z_top_inter_log, lm_bmass_z_top_log_nospecies, lm_bmass_chull_inter_log)
