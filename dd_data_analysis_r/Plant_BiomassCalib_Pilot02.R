@@ -11,13 +11,15 @@ if(length(dev.list()!=0)){dev.off()}
 par_init <- par(no.readonly = TRUE)
 
 # Script variables
-input_from3d  <- "data//Plant_data_20251209_pilot02_chull.csv"
+input_from3d  <- "data//Plant_data_20251210_pilot02_stickrm.csv"
 input_harvest <- "data//20251208_ppa_drought.csv"
 input_organes <- "data//Plant_organes_count_20251202.csv"
-output_label  <- "20251209"
+output_label  <- "20251210"
 output_folder <- "output//Pilot02"
 save_plot     <- FALSE
 plot_dharma   <- FALSE
+distrib_plot  <- TRUE
+species_plot  <- FALSE
 # Set default arguments for plot display (par) and image export (jpeg)
 jpeg_args     <- list(height=4, width=6, units="in", res=300)
 # mgp=c(title, labels, line) set the distance for the axis (default is (3, 2, 0))
@@ -29,6 +31,18 @@ filter_collect <- c("pot_id", "species", "treatment", "aboveground_dry_biomass_g
 filter_from3d  <- c("Volume", "Dim_X", "Dim_Y", "Dim_Z", "Height", "Cumul_Area", "Font_Area_Ratio", "Left_Area_Ratio", "Top_Area_Ratio", "Convex_hull", "Convex_hull_40", "Convex_hull_60")
 # Apply filter based on height prediction deviation (in %)
 height_filter_thresh <- 0.2
+
+# Script functions
+label_var  <- c(
+  "Cumul_Area"="Cumulative area (m2)",
+  "Volume"="Volume (m3)",
+  "Convex_hull"="Volume of convex hull (m3)",
+  "Convex_hull_40"="Volume of 40% convex hull (m3)",
+  "Convex_hull_60"="Volume of 60% convex hull (m3)",
+  "Top_Area"="Projected top area (m2)",
+  "Height"="Plant height (m)"
+)
+fct_label <- c(ident="", log="log of ", sqrt="sqrt of ")
 
 
 # Libraries
@@ -177,32 +191,41 @@ model_stats(lm_height, plot_res=plot_dharma)
 img_name <- paste0(output_folder, "//Height_Predict_", output_label, ".jpg")
 plot_obs_vs_pred(mdl=lm_height, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
 
-## ==== Leaf_Area ~ Cumul_Area + Species ====
-plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
-# plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Nicotiana benthamiana",])
-# plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Hordeum vulgare",])
-lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area + species, data=plant_lf_area)
-# lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area, data=plant_lf_area)
-model_stats(lm_area_log, plot_res=plot_dharma)
+## ==== Height ~ Height * species ====
+lm_height_species_inter <- lm(Height..cm. ~ Height*species, data=plant_correlation)
+model_stats(lm_height_species_inter, plot_res=plot_dharma)
 
 # Observed vs predicted plot
-img_name <- paste0(output_folder, "//Leaf_Area_Species_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(obs=plant_lf_area$Leaf.area..cm2., mdl=lm_area_log, data=plant_lf_area,
-                 img_name=img_name, xlab="Predicted leaf area(cm2)", ylab="Measured leaf area(cm2)")
+img_name <- paste0(output_folder, "//Height_inter_species_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_height_species_inter, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
 
 
-## ==== Leaf_Area ~ Cumul_Area + Species ====
-plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
-# plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Nicotiana benthamiana",])
-# plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Hordeum vulgare",])
-lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area * species, data=plant_lf_area)
-# lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area, data=plant_lf_area)
-model_stats(lm_area_log, plot_res=plot_dharma)
-
-# Observed vs predicted plot
-img_name <- paste0(output_folder, "//Leaf_Area_Species_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(obs=plant_lf_area$Leaf.area..cm2., mdl=lm_area_log, data=plant_lf_area,
-                 img_name=img_name, xlab="Predicted leaf area(cm2)", ylab="Measured leaf area(cm2)")
+# ## ==== Leaf_Area ~ Cumul_Area + Species ====
+# plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
+# # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Nicotiana benthamiana",])
+# # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Hordeum vulgare",])
+# lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area + species, data=plant_lf_area)
+# # lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area, data=plant_lf_area)
+# model_stats(lm_area_log, plot_res=plot_dharma)
+# 
+# # Observed vs predicted plot
+# img_name <- paste0(output_folder, "//Leaf_Area_Species_Predict_", output_label, ".jpg")
+# plot_obs_vs_pred(obs=plant_lf_area$Leaf.area..cm2., mdl=lm_area_log, data=plant_lf_area,
+#                  img_name=img_name, xlab="Predicted leaf area(cm2)", ylab="Measured leaf area(cm2)")
+# 
+# 
+# ## ==== Leaf_Area ~ Cumul_Area + Species ====
+# plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
+# # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Nicotiana benthamiana",])
+# # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Hordeum vulgare",])
+# lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area * species, data=plant_lf_area)
+# # lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area, data=plant_lf_area)
+# model_stats(lm_area_log, plot_res=plot_dharma)
+# 
+# # Observed vs predicted plot
+# img_name <- paste0(output_folder, "//Leaf_Area_Species_Predict_", output_label, ".jpg")
+# plot_obs_vs_pred(obs=plant_lf_area$Leaf.area..cm2., mdl=lm_area_log, data=plant_lf_area,
+#                  img_name=img_name, xlab="Predicted leaf area(cm2)", ylab="Measured leaf area(cm2)")
 
 # ---- Data analysis biomass ----
 ## ==== (log) Biomass ~ Volume + Species ====
@@ -237,8 +260,16 @@ model_stats(lm_bmass_z_top_log_nospecies, plot_res=plot_dharma)
 img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Log_", output_label, ".jpg")
 plot_obs_vs_pred(mdl=lm_bmass_z_top_log_nospecies, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
+## ==== (log) Biomass ~ 60% Convex Hull * Species ====
+lm_bmass_chull_inter_log <- lm(log(biomass_g) ~ log(Convex_hull_60) * species, data=plant_correlation)
+model_stats(lm_bmass_chull_inter_log, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Chull60_inter_Species_Predict_Log_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_bmass_chull_inter_log, img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+
 ## ==== Model comparison ====
-model_to_compare <- list(lm_bmass_vol_log, lm_bmass_z_top_log, lm_bmass_z_top_inter_log, lm_bmass_z_top_log_nospecies)
+model_to_compare <- list(lm_bmass_vol_log, lm_bmass_z_top_log, lm_bmass_z_top_inter_log, lm_bmass_z_top_log_nospecies, lm_bmass_chull_inter_log)
 model_names <- sapply(model_to_compare, function(mdl) Reduce(paste, deparse(mdl$call$formula)))
 model_AIC <- sapply(model_to_compare, FUN=AIC)
 names(model_AIC) <- model_names
@@ -247,17 +278,22 @@ sort(model_AIC, decreasing=TRUE)
 # ---- Data analysis height filter ----
 # Filter data where the height prediction is too far from the measured height
 height_deviation <- abs(predict(lm_height) - plant_correlation$Height..cm.) / plant_correlation$Height..cm.
+sort(model_AIC, decreasing=TRUE)
 paste0("Ratio of points with deviation below ", height_filter_thresh, ": ", round(mean(height_deviation<height_filter_thresh), 3))
-plant_filtered <- droplevels(plant_correlation[height_deviation<height_filter_thresh,])
+# Create dataframe with deviation above threshold
+plant_filtered <- plant_correlation
+plant_filtered$deviation <- height_deviation
+plant_filtered <- droplevels(plant_filtered[height_deviation<height_filter_thresh,])
+# Sort dataframe by deviation
+plant_filtered <- plant_filtered[sort(plant_filtered$deviation, decreasing=TRUE, index.return=TRUE)$ix,]
 
 ## ==== Height ~ Height ====
-lm_height <- lm(Height..cm. ~ Height, data=plant_filtered)
-model_stats(lm_height, plot_res=plot_dharma)
+lm_height_filt <- lm(Height..cm. ~ Height, data=plant_filtered)
+model_stats(lm_height_filt, plot_res=plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Height_Predict_Filtered_", output_label, ".jpg")
-plot_obs_vs_pred(obs=plant_filtered$Height..cm., mdl=lm_height, data=plant_filtered,
-                 img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+plot_obs_vs_pred(mdl=lm_height_filt, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
 
 ## ==== (log) Biomass ~ (Height + Top_Area) * Species ====
 lm_bmass_z_top_inter_log_filt <- lm(log(biomass_g) ~ (log(Height) + log(Top_Area)) * species, data=plant_filtered)
@@ -272,32 +308,27 @@ plot_obs_vs_pred(mdl=lm_bmass_z_top_inter_log_filt, img_name=img_name, xlab="Pre
 # Initialise variables used for ploting the different trait distribution
 dataframe <- plant_correlation
 ident <- function(x) x
-transf_fct <- c(ident=ident, ident=ident, ident=ident, ident=ident,    log=log,       log=log)
-indep_var  <- c("Cumul_Area", "Volume", "Convex_hull", "Convex_hull_60", "Convex_hull", "Convex_hull_60")
-label_var  <- c(
-  "Cumul_Area"="Cumulative area (m2)",
-  "Volume"="Volume (m3)",
-  "Convex_hull"="Volume of convex hull (m3)",
-  "Convex_hull_40"="Volume of 40% convex hull (m3)",
-  "Convex_hull_60"="Volume of 60% convex hull (m3)"
-)
-fct_label <- c(ident="", log="log of ", sqrt="sqrt of ")
+transf_fct <- c(log=log,          log=log,  log=log,    log=log)
+indep_var  <- c("Convex_hull_60", "Height", "Top_Area", "Cumul_Area")
 
 # Loop through all variable and plot distribution
-for(index in 1:length(indep_var))
+if (distrib_plot)
 {
-  fct   <- transf_fct[[index]]
-  var_x <- indep_var[index]
-  fct_name <- names(transf_fct)[index]
-  img_name <- paste0(output_folder, "//NbLeaves_", var_x, "_", fct_name, "_", output_label, ".jpg")
-  if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-  par(c(list(mar=c(4, 4, 1, 1)), par_args))
-  plot(fct(dataframe$Nb.leaves)~fct(dataframe[,var_x]),
-       pch=16, col=species_color[dataframe$species],
-       xlab=paste0(fct_label[fct_name], label_var[var_x]),
-       ylab=paste0(fct_label[fct_name], "Number of leaves"))
-  legend("bottomright", legend=levels(dataframe$species), col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
-  if(save_plot){dev.off()}
+  for(index in 1:length(indep_var))
+  {
+    fct   <- transf_fct[[index]]
+    var_x <- indep_var[index]
+    fct_name <- names(transf_fct)[index]
+    img_name <- paste0(output_folder, "//NbLeaves_", var_x, "_", fct_name, "_", output_label, ".jpg")
+    if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+    par(c(list(mar=c(4, 4, 1, 1)), par_args))
+    plot(fct(dataframe$Nb.leaves)~fct(dataframe[,var_x]),
+         pch=16, col=species_color[dataframe$species],
+         xlab=paste0(fct_label[fct_name], label_var[var_x]),
+         ylab=paste0(fct_label[fct_name], "Number of leaves"))
+    legend("bottomright", legend=levels(dataframe$species), col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
+    if(save_plot){dev.off()}
+  }
 }
 
 # # Individual plot
@@ -323,7 +354,16 @@ model_stats(glm_nbleaves_chull_60_inter_log, plot_res=plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//NbLeaves_Chull60_inter_Species_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=glm_nbleaves_chull_60_inter_log, img_name=img_name, xlab="Predicted log(leaf count)", ylab="Measured log(leaf count)")
+plot_obs_vs_pred(mdl=glm_nbleaves_chull_60_inter_log, img_name=img_name, xlab="Predicted leaf count", ylab="Measured leaf count")
+
+## ==== (log) Nb Leaves ~ (Height + Top_Area) * Species ====
+glm_nbleaves_z_top_inter_log <- glm(Nb.leaves ~ (log(Height) + log(Top_Area)) * species,
+                                    data=plant_correlation, family = poisson())
+model_stats(glm_nbleaves_z_top_inter_log, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//NbLeaves_Height_TopArea_inter_Species_Predict_Log_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=glm_nbleaves_z_top_inter_log, img_name=img_name, xlab="Predicted leaf count", ylab="Measured leaf count")
 
 ## ==== Model comparison ====
 model_to_compare <- list(glm_nbleaves_chull_60_inter_log)
@@ -337,32 +377,27 @@ sort(model_AIC, decreasing=TRUE)
 # Initialise variables used for ploting the different trait distribution
 dataframe <- plant_correlation
 ident <- function(x) x
-transf_fct <- c(ident=ident, ident=ident, ident=ident, ident=ident,    log=log,       log=log)
-indep_var  <- c("Cumul_Area", "Volume", "Convex_hull", "Convex_hull_60", "Convex_hull", "Convex_hull_60")
-label_var  <- c(
-  "Cumul_Area"="Cumulative area (m2)",
-  "Volume"="Volume (m3)",
-  "Convex_hull"="Volume of convex hull (m3)",
-  "Convex_hull_40"="Volume of 40% convex hull (m3)",
-  "Convex_hull_60"="Volume of 60% convex hull (m3)"
-)
-fct_label <- c(ident="", log="log of ", sqrt="sqrt of ")
+transf_fct <- c(log=log,          log=log,  log=log,    log=log)
+indep_var  <- c("Convex_hull_60", "Height", "Top_Area", "Cumul_Area")
 
 # Loop through all variable and plot distribution
-for(index in 1:length(indep_var))
+if(distrib_plot)
 {
-  fct   <- transf_fct[[index]]
-  var_x <- indep_var[index]
-  fct_name <- names(transf_fct)[index]
-  img_name <- paste0(output_folder, "//NbFlowers_", var_x, "_", fct_name, "_", output_label, ".jpg")
-  if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-  par(c(list(mar=c(4, 4, 1, 1)), par_args))
-  plot(fct(dataframe$Nb.Flowers)~fct(dataframe[,var_x]),
-       pch=16, col=species_color[dataframe$species],
-       xlab=paste0(fct_label[fct_name], label_var[var_x]),
-       ylab=paste0(fct_label[fct_name], "Number of flowers"))
-  legend("bottomright", legend=levels(dataframe$species), col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
-  if(save_plot){dev.off()}
+  for(index in 1:length(indep_var))
+  {
+    fct   <- transf_fct[[index]]
+    var_x <- indep_var[index]
+    fct_name <- names(transf_fct)[index]
+    img_name <- paste0(output_folder, "//NbFlowers_", var_x, "_", fct_name, "_", output_label, ".jpg")
+    if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+    par(c(list(mar=c(4, 4, 1, 1)), par_args))
+    plot(fct(dataframe$Nb.Flowers)~fct(dataframe[,var_x]),
+         pch=16, col=species_color[dataframe$species],
+         xlab=paste0(fct_label[fct_name], label_var[var_x]),
+         ylab=paste0(fct_label[fct_name], "Number of flowers"))
+    legend("bottomright", legend=levels(dataframe$species), col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
+    if(save_plot){dev.off()}
+  }
 }
 
 # # Individual plot
@@ -378,14 +413,22 @@ model_stats(glm_nbflowers_chull_60_inter_log, plot_res=plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//NbFlowers_Chull60_inter_Species_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=glm_nbflowers_chull_60_inter_log, img_name=img_name, xlab="Log(Predicted flower count)", ylab="Log(Measured flower count)")
+plot_obs_vs_pred(mdl=glm_nbflowers_chull_60_inter_log, img_name=img_name, xlab="Predicted flower count", ylab="Measured flower count")
 
+## ==== (log) Nb Flowers ~ (Height + Top_Area) * Species ====
+glm_nbflowers_z_top_inter_log <- glm(Nb.Flowers ~ (log(Height) + log(Top_Area)) * species,
+                                     data=plant_correlation, family = poisson())
+model_stats(glm_nbflowers_z_top_inter_log, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//NbFlowers_Height_TopArea_inter_Species_Predict_Log_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=glm_nbflowers_z_top_inter_log, img_name=img_name, xlab="Predicted flower count", ylab="Measured flower count")
 
 # = = = = = = =
 # Analysis per species (skipped because bad correlation)
 # dataframe = plant_correlation
 dataframe = plant_filtered
-if(FALSE)
+if(species_plot)
 {
   for(species in species_level)
   {
