@@ -1,7 +1,7 @@
 # Functions for biomass callibration project
 
 # Functions
-plot_obs_vs_pred <- function(mdl, img_name="", data=NA, obs=NA, xlab=NA, ylab=NA)
+plot_obs_vs_pred <- function(mdl, img_name=NA, data=NA, obs=NA, xlab=NA, ylab=NA)
 {
   # Description: Plot observed data in function of prediction for input model
   
@@ -15,7 +15,7 @@ plot_obs_vs_pred <- function(mdl, img_name="", data=NA, obs=NA, xlab=NA, ylab=NA
   
   # Initialise plot and save image (if set)
   par(par_init)
-  if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+  if(save_plot & !is.na(img_name)){do.call(jpeg, c(filename=img_name, jpeg_args))}
   do.call(par, c(list(mar=c(4, 4, 1, 1)), par_args))
   # Check available species levels in current dataframe
   avail_species <- levels(data$species)
@@ -40,7 +40,7 @@ plot_obs_vs_pred <- function(mdl, img_name="", data=NA, obs=NA, xlab=NA, ylab=NA
   formula   <- Reduce(paste, deparse(mdl$call$formula))
   mtext(paste0(" ", formula), side=3, adj=0, line=-1.25, cex=0.8)
   mtext(paste0(" R²=", r_squared), side=3, adj=0, line=-2, cex=0.8)
-  if(save_plot){dev.off()}
+  if(save_plot & !is.na(img_name)){dev.off()}
 }
 
 model_stats <- function(mdl, plot_res=TRUE)

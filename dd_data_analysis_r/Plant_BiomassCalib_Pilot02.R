@@ -16,7 +16,7 @@ input_harvest <- "data//20251208_ppa_drought.csv"
 input_organes <- "data//Plant_organes_count_20251202.csv"
 output_label  <- "20251210"
 output_folder <- "output//Pilot02"
-save_plot     <- TRUE
+save_plot     <- FALSE
 plot_dharma   <- FALSE
 distrib_plot  <- TRUE
 species_plot  <- FALSE
@@ -228,6 +228,12 @@ plot_obs_vs_pred(mdl=lm_height_species_inter, img_name=img_name, xlab="Predicted
 #                  img_name=img_name, xlab="Predicted leaf area(cm2)", ylab="Measured leaf area(cm2)")
 
 # ---- Data analysis biomass ----
+## ==== (log) Biomass ~ Species ====
+lm_bmass_spec_log <- lm(log(biomass_g) ~ species, data=plant_correlation)
+model_stats(lm_bmass_spec_log, plot_res=plot_dharma)
+img_name <- paste0(output_folder, "//Biomass_Species_Predict_Log_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_bmass_spec_log, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+
 ## ==== (log) Biomass ~ Volume + Species ====
 lm_bmass_vol_log <- lm(log(biomass_g) ~ log(Volume) + species, data=plant_correlation)
 model_stats(lm_bmass_vol_log, plot_res=plot_dharma)
@@ -269,7 +275,7 @@ img_name <- paste0(output_folder, "//Biomass_Chull60_inter_Species_Predict_Log_"
 plot_obs_vs_pred(mdl=lm_bmass_chull_inter_log, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
 ## ==== Model comparison ====
-model_to_compare <- list(lm_bmass_vol_log, lm_bmass_z_top_log, lm_bmass_z_top_inter_log, lm_bmass_z_top_log_nospecies, lm_bmass_chull_inter_log)
+model_to_compare <- list(lm_bmass_vol_log, lm_bmass_z_top_log, lm_bmass_z_top_inter_log, lm_bmass_z_top_log_nospecies, lm_bmass_chull_inter_log, lm_bmass_spec_log)
 model_names <- sapply(model_to_compare, function(mdl) Reduce(paste, deparse(mdl$call$formula)))
 model_AIC <- sapply(model_to_compare, FUN=AIC)
 names(model_AIC) <- model_names
@@ -338,6 +344,15 @@ if (distrib_plot)
 #      xlab="Cumulative area (m2)", ylab="Number of leaves")
 # legend("bottomright", legend=levels(plant_correlation$species), col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
 
+## ==== Nb Leaves ~ Species ====
+glm_nbleaves_spec <- glm(Nb.leaves ~ species,
+                         data=plant_correlation, family = poisson())
+model_stats(glm_nbleaves_spec, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//NbLeaves_Species_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=glm_nbleaves_spec, img_name=img_name, xlab="Predicted leaf count", ylab="Measured leaf count")
+
 ## ==== Nb Leaves ~ 60% Convex Hull + Species ====
 lm_nbleaves_chull_60 <- lm(Nb.leaves ~ Convex_hull_60 + species, data=plant_correlation)
 model_stats(lm_nbleaves_chull_60, plot_res=plot_dharma)
@@ -366,7 +381,7 @@ img_name <- paste0(output_folder, "//NbLeaves_Height_TopArea_inter_Species_Predi
 plot_obs_vs_pred(mdl=glm_nbleaves_z_top_inter_log, img_name=img_name, xlab="Predicted leaf count", ylab="Measured leaf count")
 
 ## ==== Model comparison ====
-model_to_compare <- list(glm_nbleaves_chull_60_inter_log)
+model_to_compare <- list(glm_nbleaves_chull_60_inter_log, glm_nbleaves_spec)
 model_names <- sapply(model_to_compare, function(mdl) Reduce(paste, deparse(mdl$call$formula)))
 model_AIC <- sapply(model_to_compare, FUN=AIC)
 names(model_AIC) <- model_names
@@ -407,6 +422,14 @@ if(distrib_plot)
 #      xlab="Cumulative area (m2)", ylab="Number of flowers")
 # legend("bottomright", legend=levels(plant_correlation$species), col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
 
+## ==== Nb Flower ~ Species ====
+glm_nbflowers_species <- glm(Nb.Flowers ~ species, data=plant_correlation, family=poisson())
+model_stats(glm_nbflowers_species, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//NbFlowers_Species_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=glm_nbflowers_species, img_name=img_name, xlab="Predicted flower count", ylab="Measured flower count")
+
 ## ==== (log) Nb Flower ~ 60% Convex Hull * Species ====
 glm_nbflowers_chull_60_inter_log <- glm(Nb.Flowers ~ log(Convex_hull_60) * species, data=plant_correlation, family=poisson())
 model_stats(glm_nbflowers_chull_60_inter_log, plot_res=plot_dharma)
@@ -423,6 +446,14 @@ model_stats(glm_nbflowers_z_top_inter_log, plot_res=plot_dharma)
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//NbFlowers_Height_TopArea_inter_Species_Predict_Log_", output_label, ".jpg")
 plot_obs_vs_pred(mdl=glm_nbflowers_z_top_inter_log, img_name=img_name, xlab="Predicted flower count", ylab="Measured flower count")
+
+## ==== Model comparison ====
+model_to_compare <- list(glm_nbflowers_z_top_inter_log, glm_nbflowers_species)
+model_names <- sapply(model_to_compare, function(mdl) Reduce(paste, deparse(mdl$call$formula)))
+model_AIC <- sapply(model_to_compare, FUN=AIC)
+names(model_AIC) <- model_names
+sort(model_AIC, decreasing=TRUE)
+
 
 # = = = = = = =
 # Analysis per species (skipped because bad correlation)
