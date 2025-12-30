@@ -183,6 +183,14 @@ color_palette <- colorRampPalette(c("blue", "yellow", "red"))
 species_level <- levels(plant_correlation$species)
 species_color <- color_palette(length(species_level))
 
+## ==== Height ~ Species ====
+lm_height_species_only <- lm(Height..cm. ~ species , data=plant_correlation)
+model_stats(lm_height_species_only, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Height_Species_only_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_height_species_only, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+
 ## ==== Height ~ Height ====
 lm_height <- lm(Height..cm. ~ Height, data=plant_correlation)
 model_stats(lm_height, plot_res=plot_dharma)
@@ -190,6 +198,14 @@ model_stats(lm_height, plot_res=plot_dharma)
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Height_Predict_", output_label, ".jpg")
 plot_obs_vs_pred(mdl=lm_height, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+
+## ==== Height ~ Height + species ====
+lm_height_species <- lm(Height..cm. ~ Height+species, data=plant_correlation)
+model_stats(lm_height_species, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Height_species_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_height_species, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
 
 ## ==== Height ~ Height * species ====
 lm_height_species_inter <- lm(Height..cm. ~ Height*species, data=plant_correlation)
@@ -199,6 +215,8 @@ model_stats(lm_height_species_inter, plot_res=plot_dharma)
 img_name <- paste0(output_folder, "//Height_inter_species_Predict_", output_label, ".jpg")
 plot_obs_vs_pred(mdl=lm_height_species_inter, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
 
+## ==== Model comparison ====
+mdl_compare(list(lm_height, lm_height_species_only, lm_height_species, lm_height_species_inter))
 
 # ## ==== Leaf_Area ~ Cumul_Area + Species ====
 # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
@@ -275,16 +293,11 @@ img_name <- paste0(output_folder, "//Biomass_Chull60_inter_Species_Predict_Log_"
 plot_obs_vs_pred(mdl=lm_bmass_chull_inter_log, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
 ## ==== Model comparison ====
-model_to_compare <- list(lm_bmass_vol_log, lm_bmass_z_top_log, lm_bmass_z_top_inter_log, lm_bmass_z_top_log_nospecies, lm_bmass_chull_inter_log, lm_bmass_spec_log)
-model_names <- sapply(model_to_compare, function(mdl) Reduce(paste, deparse(mdl$call$formula)))
-model_AIC <- sapply(model_to_compare, FUN=AIC)
-names(model_AIC) <- model_names
-sort(model_AIC, decreasing=TRUE)
+mdl_compare(list(lm_bmass_vol_log, lm_bmass_z_top_log, lm_bmass_z_top_inter_log, lm_bmass_z_top_log_nospecies, lm_bmass_chull_inter_log, lm_bmass_spec_log))
 
 # ---- Data analysis height filter ----
 # Filter data where the height prediction is too far from the measured height
 height_deviation <- abs(predict(lm_height) - plant_correlation$Height..cm.) / plant_correlation$Height..cm.
-sort(model_AIC, decreasing=TRUE)
 paste0("Ratio of points with deviation below ", height_filter_thresh, ": ", round(mean(height_deviation<height_filter_thresh), 3))
 # Create dataframe with deviation above threshold
 plant_filtered <- plant_correlation
@@ -300,6 +313,15 @@ model_stats(lm_height_filt, plot_res=plot_dharma)
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Height_Predict_Filtered_", output_label, ".jpg")
 plot_obs_vs_pred(mdl=lm_height_filt, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+
+## ==== (log) Biomass ~ Height + Top_Area + Species ====
+lm_bmass_z_top_log_filt <- lm(log(biomass_g) ~ log(Height) + log(Top_Area) + species, data=plant_filtered)
+model_stats(lm_bmass_z_top_log_filt, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Species_Predict_Filtered_Log_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_bmass_z_top_log_filt, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+
 
 ## ==== (log) Biomass ~ (Height + Top_Area) * Species ====
 lm_bmass_z_top_inter_log_filt <- lm(log(biomass_g) ~ (log(Height) + log(Top_Area)) * species, data=plant_filtered)
@@ -371,6 +393,15 @@ model_stats(glm_nbleaves_chull_60_inter_log, plot_res=plot_dharma)
 img_name <- paste0(output_folder, "//NbLeaves_Chull60_inter_Species_Predict_Log_", output_label, ".jpg")
 plot_obs_vs_pred(mdl=glm_nbleaves_chull_60_inter_log, img_name=img_name, xlab="Predicted leaf count", ylab="Measured leaf count")
 
+## ==== (log) Nb Leaves ~ Height + Top_Area + Species ====
+glm_nbleaves_z_top_log <- glm(Nb.leaves ~ log(Height) + log(Top_Area) + species,
+                              data=plant_correlation, family = poisson())
+model_stats(glm_nbleaves_z_top_log, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//NbLeaves_Height_TopArea_Species_Predict_Log_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=glm_nbleaves_z_top_log, img_name=img_name, xlab="Predicted leaf count", ylab="Measured leaf count")
+
 ## ==== (log) Nb Leaves ~ (Height + Top_Area) * Species ====
 glm_nbleaves_z_top_inter_log <- glm(Nb.leaves ~ (log(Height) + log(Top_Area)) * species,
                                     data=plant_correlation, family = poisson())
@@ -381,15 +412,11 @@ img_name <- paste0(output_folder, "//NbLeaves_Height_TopArea_inter_Species_Predi
 plot_obs_vs_pred(mdl=glm_nbleaves_z_top_inter_log, img_name=img_name, xlab="Predicted leaf count", ylab="Measured leaf count")
 
 ## ==== Model comparison ====
-model_to_compare <- list(glm_nbleaves_chull_60_inter_log, glm_nbleaves_spec)
-model_names <- sapply(model_to_compare, function(mdl) Reduce(paste, deparse(mdl$call$formula)))
-model_AIC <- sapply(model_to_compare, FUN=AIC)
-names(model_AIC) <- model_names
-sort(model_AIC, decreasing=TRUE)
+mdl_compare(list(glm_nbleaves_chull_60_inter_log, glm_nbleaves_z_top_log, glm_nbleaves_z_top_inter_log, glm_nbleaves_spec))
 
 # ---- Data analysis flower count ----
 ## ==== Trait distribution ====
-# Initialise variables used for ploting the different trait distribution
+# Initialize variables used for plotting the different trait distribution
 dataframe <- plant_correlation
 ident <- function(x) x
 transf_fct <- c(log=log,          log=log,  log=log,    log=log)
@@ -430,13 +457,22 @@ model_stats(glm_nbflowers_species, plot_res=plot_dharma)
 img_name <- paste0(output_folder, "//NbFlowers_Species_Predict_", output_label, ".jpg")
 plot_obs_vs_pred(mdl=glm_nbflowers_species, img_name=img_name, xlab="Predicted flower count", ylab="Measured flower count")
 
-## ==== (log) Nb Flower ~ 60% Convex Hull * Species ====
+## ==== (log) Nb Flowers ~ 60% Convex Hull * Species ====
 glm_nbflowers_chull_60_inter_log <- glm(Nb.Flowers ~ log(Convex_hull_60) * species, data=plant_correlation, family=poisson())
 model_stats(glm_nbflowers_chull_60_inter_log, plot_res=plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//NbFlowers_Chull60_inter_Species_Predict_Log_", output_label, ".jpg")
 plot_obs_vs_pred(mdl=glm_nbflowers_chull_60_inter_log, img_name=img_name, xlab="Predicted flower count", ylab="Measured flower count")
+
+## ==== (log) Nb Flowers ~ Height + Top_Area + Species ====
+glm_nbflowers_z_top_log <- glm(Nb.Flowers ~ log(Height) + log(Top_Area) + species,
+                               data=plant_correlation, family = poisson())
+model_stats(glm_nbflowers_z_top_log, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//NbFlowers_Height_TopArea_Species_Predict_Log_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=glm_nbflowers_z_top_log, img_name=img_name, xlab="Predicted flower count", ylab="Measured flower count")
 
 ## ==== (log) Nb Flowers ~ (Height + Top_Area) * Species ====
 glm_nbflowers_z_top_inter_log <- glm(Nb.Flowers ~ (log(Height) + log(Top_Area)) * species,
@@ -448,12 +484,7 @@ img_name <- paste0(output_folder, "//NbFlowers_Height_TopArea_inter_Species_Pred
 plot_obs_vs_pred(mdl=glm_nbflowers_z_top_inter_log, img_name=img_name, xlab="Predicted flower count", ylab="Measured flower count")
 
 ## ==== Model comparison ====
-model_to_compare <- list(glm_nbflowers_z_top_inter_log, glm_nbflowers_species)
-model_names <- sapply(model_to_compare, function(mdl) Reduce(paste, deparse(mdl$call$formula)))
-model_AIC <- sapply(model_to_compare, FUN=AIC)
-names(model_AIC) <- model_names
-sort(model_AIC, decreasing=TRUE)
-
+mdl_compare(list(glm_nbflowers_z_top_inter_log, glm_nbflowers_z_top_log, glm_nbflowers_species))
 
 # = = = = = = =
 # Analysis per species (skipped because bad correlation)
@@ -474,18 +505,24 @@ if(species_plot)
     lm_bmass_z_top_log_perspecies <- lm(log(biomass_g) ~ log(Dim_Z) + log(Top_Area), data=plant_perspecies)
     model_stats(lm_bmass_z_top_log_perspecies, plot_res=FALSE)
     # Observed vs predicted plot
-    img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Sqrt_", output_label, ".jpg")
-    plot_obs_vs_pred(obs=log(plant_perspecies$biomass_g), mdl=lm_bmass_z_top_log_perspecies, data=plant_perspecies,
-                     img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+    img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Log_", species, "_", output_label, ".jpg")
+    plot_obs_vs_pred(mdl=lm_bmass_z_top_log_perspecies, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
     
-    ## ==== (sqrt) Biomass ~ Dim_Z + Top_Area ====
+    ## ==== (log) Biomass ~ 60% Convex hull + Species ====
     # Model
-    lm_bmass_z_top_sqrt_perspecies <- lm(sqrt(biomass_g) ~ sqrt(Dim_Z) + sqrt(Top_Area), data=plant_perspecies)
-    model_stats(lm_bmass_z_top_sqrt_perspecies, plot_res=FALSE)
+    lm_bmass_chull_perspecies <- lm(log(biomass_g) ~ log(Convex_hull_60), data=plant_perspecies)
+    model_stats(lm_bmass_chull_perspecies, plot_res=FALSE)
     # Observed vs predicted plot
-    img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Predict_Sqrt_", output_label, ".jpg")
-    plot_obs_vs_pred(obs=sqrt(plant_perspecies$biomass_g), mdl=lm_bmass_z_top_sqrt_perspecies, data=plant_perspecies,
-                     img_name=img_name, xlab="Predicted sqrt(biomass(g))", ylab="Measured sqrt(biomass(g))")
+    img_name <- paste0(output_folder, "//Biomass_ConvexHull60_Predict_Log_", species, "_", output_label, ".jpg")
+    plot_obs_vs_pred(mdl=lm_bmass_chull_perspecies, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+    
+    ## ==== (log) Biomass ~ Dim_Z + Top_Area + 60% Convex hull + Species ====
+    # Model
+    lm_bmass_z_top_chull_perspecies <- lm(log(biomass_g) ~ log(Dim_Z) + log(Top_Area) + log(Convex_hull_60), data=plant_perspecies)
+    model_stats(lm_bmass_z_top_chull_perspecies, plot_res=FALSE)
+    # Observed vs predicted plot
+    img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_ConvexHull60_Predict_Log_", species, "_", output_label, ".jpg")
+    plot_obs_vs_pred(mdl=lm_bmass_z_top_chull_perspecies, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
     
   }
 }

@@ -1,6 +1,29 @@
 # Functions for biomass callibration project
 
 # Functions
+mdl_rsquared <- function(mdl)
+{
+  # Description: Compute the R square of input model (use different input based on model type)
+  # (extracted from summary for lm, computed for glm)
+  if(is.null(mdl$deviance)){
+    r_squared <- round(as.numeric(summary(mdl)["r.squared"]), digit=3)
+  } else {
+    r_squared <- round(1 - mdl$deviance/mdl$null.deviance, digit=3)
+  }
+  return(r_squared)
+}
+
+mdl_compare <- function(model_to_compare)
+{
+  # Description: Compute AIC and R squared for input model list, output sorted by AIC
+  model_names <- sapply(model_to_compare, function(mdl) Reduce(paste, deparse(mdl$call$formula)))
+  model_AIC   <- sapply(model_to_compare, FUN=AIC)
+  model_rsquared <- sapply(model_to_compare, FUN=mdl_rsquared)
+  model_comp  <- data.frame(AIC = model_AIC, RSquared = model_rsquared)
+  row.names(model_comp) <- model_names
+  return(model_comp[order(model_comp$AIC, decreasing=TRUE),])
+}
+
 plot_obs_vs_pred <- function(mdl, img_name=NA, data=NA, obs=NA, xlab=NA, ylab=NA)
 {
   # Description: Plot observed data in function of prediction for input model
@@ -30,12 +53,8 @@ plot_obs_vs_pred <- function(mdl, img_name=NA, data=NA, obs=NA, xlab=NA, ylab=NA
   range_min <- min(obs)
   range_max <- max(obs)
   lines(c(range_min, range_max), c(range_min, range_max), lty=3)
-  # Add R squared (extracted from summary for lm, computed for glm)
-  if(is.null(mdl$deviance)){
-    r_squared <- round(as.numeric(summary(mdl)["r.squared"]), digit=3)
-  } else {
-    r_squared <- round(1 - mdl$deviance/mdl$null.deviance, digit=3)
-  }
+  # Add R squared
+  r_squared <- mdl_rsquared(mdl)
   
   formula   <- Reduce(paste, deparse(mdl$call$formula))
   mtext(paste0(" ", formula), side=3, adj=0, line=-1.25, cex=0.8)
