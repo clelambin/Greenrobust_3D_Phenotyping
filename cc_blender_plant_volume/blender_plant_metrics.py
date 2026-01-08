@@ -53,6 +53,9 @@ def uv_project(obj:bpy.types.Object,
     """Create UV projection of input object from projection viewpoint"""
     # Edit input object
     utility.make_active(obj)
+    # Duplicate object for the UV remapping
+    bpy.ops.object.duplicate_move()
+    # Initialise view 3D
     view3d = utility.get_view3d()
     # Set viewpoint to projected view and project from view within correct context
     # (need to use with to tell blender from which area (the view3d) to work)
@@ -72,6 +75,8 @@ def uv_project(obj:bpy.types.Object,
     bpy.ops.uv.export_layout(filepath=tmp_path, size=(480, 480), opacity=1)
     # Switch back to objetc mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
+    # Delete duplicated object
+    bpy.ops.object.delete()
 
 # (image type in PIL library confusing: PIL.Image = Module, PIL.Image.Image = image type)
 def image_pixel_ratio(img:Image.Image) -> float:
