@@ -15,7 +15,8 @@ Workflow:
 # Import libraries
 from collections.abc import Iterable, Callable
 from dataclasses import dataclass, field
-import os                       # File manager
+import os
+from typing import Tuple                       # File manager
 import numpy as np              # Array manipulation
 import bpy                      # Blender python
 import bmesh                    # Blender mesh module
@@ -627,8 +628,16 @@ def vert_crosssection(obj:bpy.types.Object,
 
 def plant_cleanup(plant:bpy.types.Object,
                   pot_offset:float=0.005,
-                  remove_stick:bool=True) -> Vector:
+                  remove_stick:bool=True) -> tuple[Vector, int]:
     """Extract green plant from 3D model, remove support and ouput model attribute"""
+    # Initialise code error
+    # If no error, code error remain at 0, otherwise, each error adds up to it
+    # (similar to chmod ownership code)
+    # code error and corresponding function
+    # +1 : pot boolean operation
+    # +2 : stick boolean operation
+    code_error:int = 0
+
     # Set criterion requirement for face and branch
 #    plant_criteria = FaceCriteria(
 #           min_area = 1e-6,
@@ -669,7 +678,13 @@ def plant_cleanup(plant:bpy.types.Object,
     plant_ref = Vector((0, 0, pot_param["soil_height"][0]))
 
     # Remove pot from plant
-    boolean_modifier(plant, pot, operation="DIFFERENCE", vertex_ratio_range=(0.3, 0.8))
+    pot_vert_ratio = boolean_modifier(plant,
+                                      pot,
+                                      operation="DIFFERENCE",
+                                      vertex_ratio_range=(0.4, 0.8))
+    # If vertex ratio is 1, boolean not applied, update code error
+    if pot_vert_ratio == 1:
+        code_error += 1
 
     if remove_stick:
         # Detecte=ing the wood stick from the plant by creating horizontal sections
@@ -682,15 +697,18 @@ def plant_cleanup(plant:bpy.types.Object,
         stick = draw_stick(tree_structure) if tree_structure is not None else None
         # Remove stick from the plant (if stick detected)
         if stick is not None:
-            boolean_modifier(plant, stick, operation="DIFFERENCE", vertex_ratio_range=(0.3, 1))
+            stick_vert_ratio = boolean_modifier(plant, stick, operation="DIFFERENCE", vertex_ratio_range=(0.3, 1))
+            # If vertex ratio is 1, boolean not applied, update code error
+            if stick_vert_ratio == 1:
+                code_error += 2
 
     # Run DBScan clustering on vertex to remove vertex cluster further from given distance
     deleted_vertices = cluster.dbscan_filter(plant, dbscan_eps=0.02)
     # If -1 returned as number of deleted vertices, no cluster detected, raise an error
     assert deleted_vertices != -1, f"No cluster detected for {plant.name}"
 
-    # Return plant reference points (used for metrics)
-    return plant_ref
+    # Return plant reference points and code error (used for metrics)
+    return plant_ref, code_error
 
 def plant_metrics(plant:bpy.types.Object,
                   output_dir:str|None=None,
@@ -731,9 +749,13 @@ def single_model_prep(obj_path:str,
     model = utility.import_file(obj_path, file_ext)
     # Prepare the model and compute all plant metrics
     # Cleanup plant model
-    plant_ref = plant_cleanup(model, species_config["POT_OFFSET"], species_config["HAS_STICK"])
+    plant_ref, code_error = plant_cleanup(model,
+                                          species_config["POT_OFFSET"],
+                                          species_config["HAS_STICK"])
     # Read plant metrics
     model_metrics = plant_metrics(model, output_dir=output_path, plant_ref=plant_ref)
+    # Update metrics code error to output from plant_cleanup function
+    model_metrics["CODE_ERROR"] = code_error
     # Save blend file in output folder
     if output_path is not None:
         utility.save_blend(obj_path, output_path)
