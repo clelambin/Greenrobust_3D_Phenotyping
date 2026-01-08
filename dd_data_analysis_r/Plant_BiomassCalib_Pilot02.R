@@ -218,6 +218,93 @@ plot_obs_vs_pred(mdl=lm_height_species_inter, img_name=img_name, xlab="Predicted
 ## ==== Model comparison ====
 mdl_compare(list(lm_height, lm_height_species_only, lm_height_species, lm_height_species_inter))
 
+## ==== Plant trait distribution ====
+# Plot distribution of the different plant traits per species
+img_name <- paste0(output_folder, "//Trait_distribution_per_species_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(2, 2), mar=c(2, 3, 1, 1)), par_args))
+boxplot(Height..cm. ~ species, data=plant_correlation, col=species_color, xlab="", ylab="Height (cm)")
+boxplot(log(biomass_g) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Biomass (g))")
+boxplot(log(Nb.leaves) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Leaf count)")
+boxplot(log(Nb.Flowers) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Flower count)")
+if(save_plot){dev.off()}
+
+img_name <- paste0(output_folder, "//Trait_distribution_per_treatment_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(2, 2), mar=c(2, 3, 1, 1)), par_args))
+boxplot(Height..cm. ~ treatment, data=plant_correlation, col=c("lightblue", "orangered"),
+        xlab="", ylab="Height (cm)", names=c("Control", "Drought"))
+boxplot(log(biomass_g) ~ treatment, data=plant_correlation, col=c("lightblue", "orangered"),
+        xlab="", ylab="log(Biomass (g))", names=c("Control", "Drought"))
+boxplot(log(Nb.leaves) ~ treatment, data=plant_correlation, col=c("lightblue", "orangered"),
+        xlab="", ylab="log(Leaf count)", names=c("Control", "Drought"))
+boxplot(log(Nb.Flowers) ~ treatment, data=plant_correlation, col=c("lightblue", "orangered"),
+        xlab="", ylab="log(Flower count)", names=c("Control", "Drought"))
+if(save_plot){dev.off()}
+
+# Individual plots
+# Plot distribution of the different plant traits per species
+img_name <- paste0(output_folder, "//Height_distribution_per_species_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(Height..cm. ~ species, data=plant_correlation, col=species_color, xlab="", ylab="Height (cm)")
+if(save_plot){dev.off()}
+img_name <- paste0(output_folder, "//Biomass_distribution_per_species_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(log(biomass_g) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Biomass (g))")
+if(save_plot){dev.off()}
+img_name <- paste0(output_folder, "//NbLeaves_distribution_per_species_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(log(Nb.leaves) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Leaf count)")
+if(save_plot){dev.off()}
+img_name <- paste0(output_folder, "//NbFlowers_distribution_per_species_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(log(Nb.Flowers) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Flower count)")
+if(save_plot){dev.off()}
+
+# Plot distribution of the different plant traits per treatment
+img_name <- paste0(output_folder, "//Height_distribution_per_treatment_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(Height..cm. ~ treatment, data=plant_correlation, col=c("lightblue", "orangered"),
+        xlab="", ylab="Height (cm)", names=c("Control", "Drought"))
+if(save_plot){dev.off()}
+img_name <- paste0(output_folder, "//Biomass_distribution_per_treatment_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(log(biomass_g) ~ treatment, data=plant_correlation, col=c("lightblue", "orangered"),
+        xlab="", ylab="log(Biomass (g))", names=c("Control", "Drought"))
+if(save_plot){dev.off()}
+img_name <- paste0(output_folder, "//NbLeaves_distribution_per_treatment_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(log(Nb.leaves) ~ treatment, data=plant_correlation, col=c("lightblue", "orangered"),
+        xlab="", ylab="log(Leaf count)", names=c("Control", "Drought"))
+if(save_plot){dev.off()}
+img_name <- paste0(output_folder, "//NbFlowers_distribution_per_treatment_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(log(Nb.Flowers) ~ treatment, data=plant_correlation, col=c("lightblue", "orangered"),
+        xlab="", ylab="log(Flower count)", names=c("Control", "Drought"))
+if(save_plot){dev.off()}
+
+# Biomass stats in function of treatment and species
+by(plant_correlation, plant_correlation$treatment, function(subframe)
+  {
+    stat<-c(mean(subframe$biomass_g), var(subframe$biomass_g), sd(subframe$biomass_g))
+    names(stat)<-c("mean", "var", "std dev")
+    stat
+  }, simplify = TRUE)
+by(plant_correlation, plant_correlation$species, function(subframe)
+  {
+    stat<-c(mean(subframe$biomass_g), var(subframe$biomass_g), sd(subframe$biomass_g))
+    names(stat)<-c("mean", "var", "std dev")
+    stat
+  }, simplify = TRUE)
+
 # ## ==== Leaf_Area ~ Cumul_Area + Species ====
 # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
 # # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Nicotiana benthamiana",])
@@ -333,7 +420,7 @@ plot_obs_vs_pred(mdl=lm_bmass_z_top_inter_log_filt, img_name=img_name, xlab="Pre
 
 # ---- Data analysis leaf count ----
 ## ==== Trait distribution ====
-# Initialise variables used for ploting the different trait distribution
+# Initialise variables used for plotting the different trait distribution
 dataframe <- plant_correlation
 ident <- function(x) x
 transf_fct <- c(log=log,          log=log,  log=log,    log=log)

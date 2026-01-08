@@ -227,6 +227,36 @@ for(i in 1:length(variable_distr))
 mtext("Frequency", side=2, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
 
+## ==== Plant trait distribution ====
+# Plot distribution of the different plant traits per species
+img_name <- paste0(output_folder, "//Biomass_distribution_per_species_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(log(biomass) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Biomass (g))")
+if(save_plot){dev.off()}
+
+# Plot distribution of the different plant traits per treatment
+img_name <- paste0(output_folder, "//Biomass_distribution_per_treatment_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
+boxplot(log(biomass) ~ temperature, data=plant_correlation, col=c("darkblue", "lightblue", "yellow", "orangered", "darkred"),
+        xlab="", ylab="log(Biomass (g))", names=c("22°C", "26°C", "30°C", "34°C", "38°C"))
+if(save_plot){dev.off()}
+
+# Biomass stats in function of treatment and species
+by(plant_correlation, plant_correlation$temperature, function(subframe)
+  {
+    stat<-c(mean(subframe$biomass), var(subframe$biomass), sd(subframe$biomass))
+    names(stat)<-c("mean", "var", "std dev")
+    stat
+  }, simplify = TRUE)
+by(plant_correlation, plant_correlation$species, function(subframe)
+  {
+    stat<-c(mean(subframe$biomass), var(subframe$biomass), sd(subframe$biomass))
+    names(stat)<-c("mean", "var", "std dev")
+    stat
+  }, simplify = TRUE)
+
 ## ==== Volume, Dim_Z, Top_Area ====
 # Plot Volume, Dim_Z and Top_Area in function of each other
 img_name <- paste0(output_folder, "//DependantVar_Plot_LogAxis_", output_label, ".jpg")
@@ -242,6 +272,14 @@ mtext("Plant height (m)", side=2, adj=0.2, line=1, cex=1, col="black", outer=TRU
 mtext("Plant height (m)", side=1, adj=0.2, line=1, cex=1, col="black", outer=TRUE)
 mtext("Top area (m2)", side=1, adj=0.8, line=1, cex=1, col="black", outer=TRUE)
 if(save_plot){dev.off()}
+
+## ==== (log) Biomass ~ species ====
+# Fit linear model only dependent on species to use as baseline for comparison
+lm_biomass_species_log <- lm(log(biomass) ~ species, data=plant_correlation)
+model_stats(lm_biomass_species_log)
+img_name = paste0(output_folder, "//Biomass_Species_LogAxis_", output_label, "_AllPoints.jpg")
+plot_obs_vs_pred(obs=log(plant_correlation$biomass), mdl=lm_biomass_species_log,
+                 img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
 ## ==== (log) Biomass ~ Volume + species ====
 # Create prediction for the different filter level to see impact of outliers
@@ -272,7 +310,7 @@ plot_obs_vs_pred(obs=log(plant_correlation$biomass), mdl=lm_biomass_top_with_int
 lm_biomass_top_sqrt <- lm(sqrt(biomass) ~ sqrt(Dim_Z) + sqrt(Top_Area) + species, data=plant_correlation)
 model_stats(lm_biomass_top_sqrt)
 img_name <- paste0(output_folder, "//Biomass_DimZ_TopArea_LinearModel_Sqrt_", output_label, ".jpg")
-plot_obs_vs_pred(obs=log(plant_correlation$biomass), mdl=lm_biomass_top_sqrt,
+plot_obs_vs_pred(obs=sqrt(plant_correlation$biomass), mdl=lm_biomass_top_sqrt,
                  img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
 
 ## ==== (sqrt) Biomass ~ Dim_Z + Top_Area ====
