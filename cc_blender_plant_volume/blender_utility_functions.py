@@ -265,10 +265,18 @@ def import_file(filepath:str, file_ext:str="obj") -> bpy.types.Object:
     # Imported object is marked aas active, return it
     return get_active_obj()
 
-def save_blend(obj_path:str, output_path:str) -> None:
+def save_blend(obj_path:str, output_path:str, include_external:bool=True) -> None:
     """Save the prepared model as blend file in output file"""
     # Extract plant name
     plant_name = obj_path.split(os.sep)[-1]
     plant_name = plant_name.split(".")[0]
     plant_file = f"{plant_name}.blend"
+    # If include_external, pack external texture to current blend file
+    if include_external:
+        try:
+            bpy.ops.file.pack_all()
+        # If external file not found, return RuntimeError, then, skip the file packing
+        except RuntimeError:
+            pass
+    # Save blend file
     bpy.ops.wm.save_as_mainfile(filepath=os.path.join(output_path, plant_file))

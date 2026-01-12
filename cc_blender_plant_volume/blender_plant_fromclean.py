@@ -16,7 +16,6 @@ Workflow:
 from collections.abc import Iterable, Callable
 from dataclasses import dataclass, field
 import os
-from typing import Tuple                       # File manager
 import numpy as np              # Array manipulation
 import bpy                      # Blender python
 import bmesh                    # Blender mesh module
@@ -728,7 +727,7 @@ def plant_metrics(plant:bpy.types.Object,
 
     # If ouput_dir specified, save rendered image of prepared model in output directory
     if output_dir is not None:
-        render.model_rendering(output_dir, plant.name, hide_pattern=None)
+        render.model_rendering(output_dir, plant.name)
 
     # Cleanup unused data
     bpy.ops.outliner.orphans_purge()
@@ -755,7 +754,7 @@ def single_model_prep(obj_path:str,
     # Read plant metrics
     model_metrics = plant_metrics(model, output_dir=output_path, plant_ref=plant_ref)
     # Update metrics code error to output from plant_cleanup function
-    model_metrics["CODE_ERROR"] = code_error
+    model_metrics["Code_Error"] = code_error
     # Save blend file in output folder
     if output_path is not None:
         utility.save_blend(obj_path, output_path)
@@ -812,9 +811,11 @@ def main() -> None:
     # If no active object alert the user
     assert plant is not None, "No active object"
     # Cleanup plant model
-    plant_ref = plant_cleanup(plant)
+    plant_ref, code_error = plant_cleanup(plant)
     # Read plant metrics
     plant_metrics(plant, plant_ref=plant_ref)
+    # Display code error
+    print(f"{code_error=}")
 
 if __name__ == "__main__":
     # Test model preparation on active object

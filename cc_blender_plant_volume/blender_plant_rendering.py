@@ -4,19 +4,19 @@ As a stand alone, run animation of all model in the scene containing a substring
 
 # Import libraries
 from collections.abc import Callable
-from math import pi
 import os
 import bpy
 
 # Import user modules
-from cc_blender_plant_volume.blender_utility_functions import hide_object
+from cc_blender_plant_volume.blender_utility_functions import hide_object, get_view3d
 
 # To improve:
 # - Add type anotation
 # - Create function to loop through object and call visibility or rendering function
 
 # User variables
-WORKING_DIR = r"C:\Users\cleme\Documents\Hohenheim\00_Courses\320_Landscape_and_Plant_Ecology\MSc_3D_Plant_Characterisation\3D_Digitalisation\Rendering"
+# (only when calling the script directly)
+WORKING_DIR = r"."
 
 # User function
 def plant_rendering(obj:bpy.types.Object,
@@ -39,7 +39,7 @@ def plant_rendering(obj:bpy.types.Object,
 def is_target_object(obj: bpy.types.Object,
                      contain_string: str|None,
                      target_type: str|None) -> bool:
-    """Return True if object name contain inut string or is of input type
+    """Return True if object name contain input string or is of input type
     If both criteria defined, both used in criteria
     """
     # Both criteria cannot be None at the same time
@@ -60,12 +60,10 @@ def loop_through_plants(call_function:Callable,
     """Loop through object containing the defined string and apply the function on each object"""
     for obj in bpy.data.objects:
         if is_target_object(obj, contain_string, target_type):
-            print(f"Working on {obj.name}")
             call_function(obj, *args, **kwargs)
-        else:
-            print(f"Object {obj.name} not including {contain_string}")
 
-def material_from_attribute(material_name:str="ColorAttribute", attribute_name:str="Col") -> bpy.types.Material:
+def material_from_attribute(material_name:str="ColorAttribute",
+                            attribute_name:str="Col") -> bpy.types.Material:
     """Create material from attribute using Shadder Node"""
     # Initialise material node
     material = bpy.data.materials.new(name = material_name)
@@ -114,49 +112,71 @@ def set_material_from_attribute(material_name:str="ColorAttribute") -> None:
     # Assign material to all meshs in the scene
     loop_through_plants(assign_material, target_type="MESH", material=material)
 
-def model_rendering(output_dir:str, scene_name:str, hide_pattern:str|None="Metashape") -> None:
-    """Create rendering of current prepared model"""
+def model_rendering(output_dir:str,
+                    scene_name:str,
+                    solid_pattern:str|None="Metashape",
+                    wireframe_pattern:str|None="Simplified_pot") -> None:
+    """Create viewport rendering of current prepared model"""
+    # Based on https://blender.stackexchange.com/questions/281136/render-a-3d-viewport-and-save-using-python
     # Initialise scene object
     scene = bpy.context.scene
     assert scene is not None, "No active scene found"
-    camera = scene.camera
-    assert camera is not None, "No Camera in the scene"
-    # Set background color to white and image resolution
-    bpy.data.worlds["World"].node_tree.nodes["Background"].inputs[0].default_value = (1, 1, 1, 1)
-    bpy.context.scene.render.resolution_x = 360
-    bpy.context.scene.render.resolution_y = 360
-    # Hide initial mesh from the scene
-    if hide_pattern is not None:
-        loop_through_plants(call_function=hide_object,
-                            contain_string=hide_pattern,
-                            target_type="MESH",
-                            hide_bool=True)
-    # Assign mmaterial from color attribute to all Mesh
-    set_material_from_attribute()
-    # Define camera viewpoints
-    camera_vp = {
-         "front":{"location":(0, -2, 0.5),
-                  "rotation":(pi/2, 0, 0)},
-         "left" :{"location":(-2, 0, 0.5),
-                  "rotation":(pi/2, 0, -pi/2)},
-         "top"  :{"location":(0, 0, 1.5),
-                  "rotation":(0, 0, 0)},
-    }
+    # Set image resolution
+    bpy.context.scene.render.resolution_x = 1920
+    bpy.context.scene.render.resolution_y = 1080
+    # Set the output format
+    bpy.context.scene.render.image_settings.file_format = "PNG"
+    # Change colour management to standard to force white BG
+    bpy.context.scene.view_settings.view_transform = 'Standard'
+
+    # Access current view3d
+    view3d = get_view3d()
+    assert view3d is not None, "No view3D found"
+
+    # Set viewport background to white
+    view3d.spaces.active.shading.background_color = (1, 1, 1)
+    view3d.spaces.active.shading.background_type = 'VIEWPORT'
+
+    # Set colour to Texture
+    view3d.spaces.active.shading.color_type = 'TEXTURE'
+
+    # Loop through objects, set visibility
+    for obj in bpy.data.objects:
+        # If match solid pattern, display as solid
+        if solid_pattern in obj.name:
+            obj.hide_set(False)
+            obj.hide_render = False
+        # If object part of wireframe_list, set as wireframe
+        elif obj.name in wireframe_pattern:
+            obj.hide_set(False)
+            obj.hide_render = False
+            obj.display_type = "WIRE"
+        # Otherwise, hide object
+        else:
+            obj.hide_set(True)
+            obj.hide_render = True
+
+    # List views to save
+    views = ["FRONT", "LEFT", "TOP"]
     # Create animation for each camera viewpoints
-    for view, position in camera_vp.items():
+    for view in views:
         # Define output path
-        img_name = f"{scene_name}_{view}.jpg"
+        img_name = f"{scene_name}_{view}"
         scene.render.filepath = os.path.join(output_dir, img_name)
-        # Set camera position and save rendering
-        camera.location = position["location"]
-        camera.rotation_euler = position["rotation"]
-        bpy.ops.render.render(write_still=True, use_viewport=True)
-    # Reset model visibility
-    if hide_pattern is not None:
-        loop_through_plants(call_function=hide_object,
-                            contain_string=hide_pattern,
-                            target_type="MESH",
-                            hide_bool=False)
+
+        # Set viewpoint
+        # Work in the same view3d as where set the background colour
+        with bpy.context.temp_override(area=view3d, region=view3d.regions[-1]):
+            # Set front view and zoom on all opened objets
+            bpy.ops.view3d.view_axis(type=view)
+            bpy.ops.view3d.view_all(center=False)
+            # Set view to orthographic (if not already)
+            # From https://blender.stackexchange.com/questions/290437/set-orthographic-top-view-with-python
+            if view3d.spaces.active.region_3d.is_perspective:
+                bpy.ops.view3d.view_persportho()
+
+        # Save render
+        bpy.ops.render.opengl(write_still=True)
 
 def main():
     """Loop through object and start rendering making only current object visible"""
