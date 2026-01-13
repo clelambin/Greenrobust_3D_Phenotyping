@@ -149,6 +149,7 @@ class PotSection:
 
         # Initialise model performance
         self.fit_ratio: float = 0
+        self.reach_fit: bool = False
 
     def __repr__(self) -> str:
         """Output model parameters"""
@@ -257,6 +258,8 @@ def ransac_fit(model:PotSection,
         # Evaluate fitting performance
         if best_fit > ransac_param.max_fit:
             print(f"Model fitted in {iteration} iterations")
+            # Reach fitted requirement, update info in model
+            best_model.reach_fit = True
             return best_model
 
     # Reach max number of iteration

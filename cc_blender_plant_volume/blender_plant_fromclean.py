@@ -538,7 +538,7 @@ def create_pot(pot_section:ransac.PotSection,
 
 def fit_pot(sections:dict[Cartesian, FaceNode],
             hide_pot:bool=True,
-            pot_offset:float=0.005) -> tuple[bpy.types.Object, dict[str, tuple[float, float]]]:
+            pot_offset:float=0.005) -> tuple[bpy.types.Object, ransac.PotSection]:
     """Fit simplified pot, based on the input X and Y sections,
     Return created object and fitted pot model
     """
@@ -547,7 +547,7 @@ def fit_pot(sections:dict[Cartesian, FaceNode],
     # Use RANSAC to fit a simplified pot section
     ransac_param = ransac.RansacParam(
             nb_sample=5,
-            max_iter=2000,
+            max_iter=10000,
             min_pts_per_line=0,
             dist_thresh=0.001,
             max_fit=0.6
@@ -575,7 +575,7 @@ def fit_pot(sections:dict[Cartesian, FaceNode],
 
     if hide_pot:
         utility.hide_object(pot)
-    return pot, fitted_model.get_param()
+    return pot, fitted_model
 
 def multi_crosssection(obj:bpy.types.Object,
                        face_criteria:FaceCriteria,
@@ -637,6 +637,7 @@ def plant_cleanup(plant:bpy.types.Object,
     # code error and corresponding function
     # +1 : pot boolean operation
     # +2 : stick boolean operation
+    # +4 : pot RANSAC shape did not reach requirement
     code_error:int = 0
 
     # Set criterion requirement for face and branch
@@ -675,8 +676,12 @@ def plant_cleanup(plant:bpy.types.Object,
 #        utility.from_z_to_axis(section_mesh, axis)
     pot, pot_param = fit_pot(pot_section, pot_offset=pot_offset)
 
+    # If did not fit defined fitted ratio, update code error
+    if not pot_param.reach_fit:
+        code_error += 4
+
     # Define plant reference point at Z=soil_height
-    plant_ref = Vector((0, 0, pot_param["soil_height"][0]))
+    plant_ref = Vector((0, 0, pot_param.get_param()["soil_height"][0]))
 
     # Remove pot from plant
     pot_vert_ratio = boolean_modifier(plant,
