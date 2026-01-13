@@ -344,10 +344,12 @@ def boolean_modifier(source_obj:bpy.types.Object,
             # Switch to Exact solver and allow self intersection
             modifier.solver = "EXACT"
             modifier.use_self = True
-        # If the vertex range is still not in range, return 1 (same vertex count before and after)
+        # If the vertex range is still not in range, return -1 and disable modification
         vertex_out = modified_vertex_count(source_obj)
         if not is_in_range(vertex_out/vertex_init, vertex_ratio_range):
-            return 1
+            modifier.show_viewport = False
+            modifier.show_render = False
+            return -1
     # Apply modifier
     if apply:
         bpy.ops.object.modifier_apply(modifier=modifier.name)
@@ -680,9 +682,9 @@ def plant_cleanup(plant:bpy.types.Object,
     pot_vert_ratio = boolean_modifier(plant,
                                       pot,
                                       operation="DIFFERENCE",
-                                      vertex_ratio_range=(0.4, 0.8))
-    # If vertex ratio is 1, boolean not applied, update code error
-    if pot_vert_ratio == 1:
+                                      vertex_ratio_range=(0.3, 0.8))
+    # If vertex ratio is -1, boolean not applied, update code error
+    if pot_vert_ratio == -1:
         code_error += 1
 
     if remove_stick:
@@ -697,8 +699,8 @@ def plant_cleanup(plant:bpy.types.Object,
         # Remove stick from the plant (if stick detected)
         if stick is not None:
             stick_vert_ratio = boolean_modifier(plant, stick, operation="DIFFERENCE", vertex_ratio_range=(0.3, 1))
-            # If vertex ratio is 1, boolean not applied, update code error
-            if stick_vert_ratio == 1:
+            # If vertex ratio is -1, boolean not applied, update code error
+            if stick_vert_ratio == -1:
                 code_error += 2
 
     # Run DBScan clustering on vertex to remove vertex cluster further from given distance
