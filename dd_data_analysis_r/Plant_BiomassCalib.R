@@ -19,7 +19,7 @@ save_plot     <- FALSE
 # Set default arguments for plot display (par) and image export (jpeg)
 jpeg_args     <- list(height=4, width=6, units="in", res=300)
 # mgp=c(title, labels, line) set the distance for the axis (default is (3, 2, 0))
-par_args      <- list(cex = 1, cex.axis=0.7, mgp=c(2, 0.8, 0))
+par_args      <- list(cex = 1.3, cex.axis=0.95, mgp=c(2, 0.8, 0))
 
 # Libraries
 library(stringr)      # Regular expression

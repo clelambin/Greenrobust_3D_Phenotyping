@@ -11,10 +11,10 @@ if(length(dev.list()!=0)){dev.off()}
 par_init <- par(no.readonly = TRUE)
 
 # Script variables
-input_from3d  <- "data//Plant_data_20251210_pilot02_stickrm.csv"
-input_harvest <- "data//20251208_ppa_drought.csv"
-input_organes <- "data//Plant_organes_count_20251202.csv"
-output_label  <- "20251210"
+input_from3d  <- "data//Plant_data_20260114_pilot02.csv"
+input_harvest <- "data//20251217_ppa_drought.csv"
+input_organes <- "data//Plant_organes_count_20251210.csv"
+output_label  <- "20260114"
 output_folder <- "output//Pilot02"
 save_plot     <- FALSE
 plot_dharma   <- FALSE
@@ -23,7 +23,7 @@ species_plot  <- FALSE
 # Set default arguments for plot display (par) and image export (jpeg)
 jpeg_args     <- list(height=4, width=6, units="in", res=300)
 # mgp=c(title, labels, line) set the distance for the axis (default is (3, 2, 0))
-par_args      <- list(cex = 1, cex.axis=0.7, mgp=c(2, 0.8, 0))
+par_args      <- list(cex = 1.3, cex.axis=0.95, mgp=c(2, 0.8, 0))
 # Regular expression pattern
 indiv_label   <- "[A-Z]{2}[0-9]{2}I[CD]"
 # Relevant columns to use
@@ -61,6 +61,14 @@ source("Plant_BiomassCalib_Functions.R")
 plant_harvest <- read.csv(input_harvest)
 plant_organes <- read.csv(input_organes)
 plant_from3d  <- read.csv(input_from3d)
+
+# Replace _ by space in species name (if any)
+plant_harvest$species <- sub("_", " ", plant_harvest$species)
+
+# Exclude species: SD to compare with previous analysis
+#                  AT to exclude bad input 3D model
+# plant_harvest <- plant_harvest[plant_harvest$species != "Solanum dulcamara",]
+# plant_harvest <- plant_harvest[plant_harvest$species != "Arabidopsis thaliana",]
 
 # Extract label from model name
 plant_from3d$label <- str_extract(plant_from3d$Plant.name, indiv_label)
@@ -571,7 +579,7 @@ img_name <- paste0(output_folder, "//NbFlowers_Height_TopArea_inter_Species_Pred
 plot_obs_vs_pred(mdl=glm_nbflowers_z_top_inter_log, img_name=img_name, xlab="Predicted flower count", ylab="Measured flower count")
 
 ## ==== Model comparison ====
-mdl_compare(list(glm_nbflowers_z_top_inter_log, glm_nbflowers_z_top_log, glm_nbflowers_species))
+mdl_compare(list(glm_nbflowers_z_top_inter_log, glm_nbflowers_z_top_log, glm_nbflowers_species, glm_nbflowers_chull_60_inter_log))
 
 # = = = = = = =
 # Analysis per species (skipped because bad correlation)
