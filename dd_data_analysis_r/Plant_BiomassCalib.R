@@ -7,7 +7,7 @@
 #setting working directory & clean up environment
 rm(list=ls())
 # Reset display and save initial par
-if(length(dev.list()!=0)){dev.off()}
+while(length(dev.list()!=0)){dev.off()}
 par_init <- par(no.readonly = TRUE)
 
 # Script variables
@@ -185,6 +185,13 @@ if(save_plot){dev.off()}
 color_palette <- colorRampPalette(c("blue", "yellow", "red"))
 species_level <- levels(plant_correlation$species)
 species_color <- color_palette(length(species_level))
+
+# Save legend as a separate plot
+img_name <- paste0(output_folder, "//Legend_species_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+plot.new()
+legend("bottomright", legend=species_level, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
+if(save_plot){dev.off()}
 
 ## ==== Variable distribution ====
 # Relevant variable to study distribution from

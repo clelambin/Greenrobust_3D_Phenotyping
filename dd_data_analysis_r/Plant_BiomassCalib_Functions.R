@@ -24,7 +24,7 @@ mdl_compare <- function(model_to_compare)
   return(model_comp[order(model_comp$AIC, decreasing=TRUE),])
 }
 
-plot_obs_vs_pred <- function(mdl, img_name=NA, data=NA, obs=NA, xlab=NA, ylab=NA)
+plot_obs_vs_pred <- function(mdl, img_name=NA, data=NA, obs=NA, xlab=NA, ylab=NA, legend=FALSE)
 {
   # Description: Plot observed data in function of prediction for input model
   
@@ -39,7 +39,7 @@ plot_obs_vs_pred <- function(mdl, img_name=NA, data=NA, obs=NA, xlab=NA, ylab=NA
   # Initialise plot and save image (if set)
   par(par_init)
   if(save_plot & !is.na(img_name)){do.call(jpeg, c(filename=img_name, jpeg_args))}
-  do.call(par, c(list(mar=c(4, 4, 1, 1)), par_args))
+  do.call(par, c(list(mar=c(3, 3, 0.2, 0.2)), par_args))
   # Check available species levels in current dataframe
   avail_species <- levels(data$species)
   
@@ -47,7 +47,7 @@ plot_obs_vs_pred <- function(mdl, img_name=NA, data=NA, obs=NA, xlab=NA, ylab=NA
   plot(obs ~ predict(mdl, type="response"),
        col=species_color[data$species], pch=16,
        xlab=xlab, ylab=ylab)
-  legend("bottomright", legend=avail_species, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
+  if(legend){legend("bottomright", legend=avail_species, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)}
   
   # Add 1:1 line
   range_min <- min(obs)
@@ -57,8 +57,8 @@ plot_obs_vs_pred <- function(mdl, img_name=NA, data=NA, obs=NA, xlab=NA, ylab=NA
   r_squared <- mdl_rsquared(mdl)
   
   formula   <- Reduce(paste, deparse(mdl$call$formula))
-  mtext(paste0(" ", formula), side=3, adj=0, line=-1.25, cex=0.8)
-  mtext(paste0(" R²=", r_squared), side=3, adj=0, line=-2, cex=0.8)
+  mtext(paste0(" ", formula), side=3, adj=0, line=-1.25, cex=1.1)
+  mtext(paste0(" R²=", r_squared), side=3, adj=0, line=-2, cex=1.1)
   if(save_plot & !is.na(img_name)){dev.off()}
 }
 

@@ -7,11 +7,11 @@
 #setting working directory & clean up environment
 rm(list=ls())
 # Reset display and save initial par
-if(length(dev.list()!=0)){dev.off()}
+while(length(dev.list()!=0)){dev.off()}
 par_init <- par(no.readonly = TRUE)
 
 # Script variables
-input_from3d  <- "data//Plant_data_20260114_pilot02.csv"
+input_from3d  <- "data//Plant_data_20260114_pilot02_commented.csv"
 input_harvest <- "data//20251217_ppa_drought.csv"
 input_organes <- "data//Plant_organes_count_20251210.csv"
 output_label  <- "20260114"
@@ -28,7 +28,7 @@ par_args      <- list(cex = 1.3, cex.axis=0.95, mgp=c(2, 0.8, 0))
 indiv_label   <- "[A-Z]{2}[0-9]{2}I[CD]"
 # Relevant columns to use
 filter_collect <- c("pot_id", "species", "treatment", "aboveground_dry_biomass_g", "Height..cm.", "Nb.leaves", "Nb.Flowers", "Leaf.area..cm2.")
-filter_from3d  <- c("Volume", "Dim_X", "Dim_Y", "Dim_Z", "Height", "Cumul_Area", "Font_Area_Ratio", "Left_Area_Ratio", "Top_Area_Ratio", "Convex_hull", "Convex_hull_40", "Convex_hull_60")
+filter_from3d  <- c("Volume", "Dim_X", "Dim_Y", "Dim_Z", "Height", "Cumul_Area", "Font_Area_Ratio", "Left_Area_Ratio", "Top_Area_Ratio", "Convex_hull", "Convex_hull_40", "Convex_hull_60", "Code_Error", "Model_quality")
 # Apply filter based on height prediction deviation (in %)
 height_filter_thresh <- 0.2
 
@@ -170,7 +170,7 @@ table_combine
 #       Spearman is computed on ranks and measures the monotonicity of data (doesn't necessarily have to be linear)
 correlation_data <- as.matrix(subset(plant_correlation, select=-c(pot_id, species, treatment, Leaf.area..cm2.,
                                                                   Font_Area_Ratio, Top_Area_Ratio, Left_Area_Ratio,
-                                                                  Front_BBox, Top_BBox, Left_BBox)))
+                                                                  Front_BBox, Top_BBox, Left_BBox, Code_Error, Model_quality)))
 summary(correlation_data)
 correlation_mat <- rcorr(correlation_data, type="pearson")
 # (Set diagonal of significance to 0, not computed during correlation)
@@ -191,40 +191,12 @@ color_palette <- colorRampPalette(c("blue", "yellow", "red"))
 species_level <- levels(plant_correlation$species)
 species_color <- color_palette(length(species_level))
 
-## ==== Height ~ Species ====
-lm_height_species_only <- lm(Height..cm. ~ species , data=plant_correlation)
-model_stats(lm_height_species_only, plot_res=plot_dharma)
-
-# Observed vs predicted plot
-img_name <- paste0(output_folder, "//Height_Species_only_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_height_species_only, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
-
-## ==== Height ~ Height ====
-lm_height <- lm(Height..cm. ~ Height, data=plant_correlation)
-model_stats(lm_height, plot_res=plot_dharma)
-
-# Observed vs predicted plot
-img_name <- paste0(output_folder, "//Height_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_height, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
-
-## ==== Height ~ Height + species ====
-lm_height_species <- lm(Height..cm. ~ Height+species, data=plant_correlation)
-model_stats(lm_height_species, plot_res=plot_dharma)
-
-# Observed vs predicted plot
-img_name <- paste0(output_folder, "//Height_species_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_height_species, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
-
-## ==== Height ~ Height * species ====
-lm_height_species_inter <- lm(Height..cm. ~ Height*species, data=plant_correlation)
-model_stats(lm_height_species_inter, plot_res=plot_dharma)
-
-# Observed vs predicted plot
-img_name <- paste0(output_folder, "//Height_inter_species_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_height_species_inter, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
-
-## ==== Model comparison ====
-mdl_compare(list(lm_height, lm_height_species_only, lm_height_species, lm_height_species_inter))
+# Save legend as a separate plot
+img_name <- paste0(output_folder, "//Legend_species_", output_label, ".jpg")
+if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+plot.new()
+legend("bottomright", legend=species_level, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
+if(save_plot){dev.off()}
 
 ## ==== Plant trait distribution ====
 # Plot distribution of the different plant traits per species
@@ -301,17 +273,53 @@ if(save_plot){dev.off()}
 
 # Biomass stats in function of treatment and species
 by(plant_correlation, plant_correlation$treatment, function(subframe)
-  {
-    stat<-c(mean(subframe$biomass_g), var(subframe$biomass_g), sd(subframe$biomass_g))
-    names(stat)<-c("mean", "var", "std dev")
-    stat
-  }, simplify = TRUE)
+{
+  stat<-c(mean(subframe$biomass_g), var(subframe$biomass_g), sd(subframe$biomass_g))
+  names(stat)<-c("mean", "var", "std dev")
+  stat
+}, simplify = TRUE)
 by(plant_correlation, plant_correlation$species, function(subframe)
-  {
-    stat<-c(mean(subframe$biomass_g), var(subframe$biomass_g), sd(subframe$biomass_g))
-    names(stat)<-c("mean", "var", "std dev")
-    stat
-  }, simplify = TRUE)
+{
+  stat<-c(mean(subframe$biomass_g), var(subframe$biomass_g), sd(subframe$biomass_g))
+  names(stat)<-c("mean", "var", "std dev")
+  stat
+}, simplify = TRUE)
+
+# ---- Data analysis height ----
+## ==== Height ~ Species ====
+lm_height_species_only <- lm(Height..cm. ~ species , data=plant_correlation)
+model_stats(lm_height_species_only, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Height_Species_only_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_height_species_only, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+
+## ==== Height ~ Height ====
+lm_height <- lm(Height..cm. ~ Height, data=plant_correlation)
+model_stats(lm_height, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Height_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_height, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+
+## ==== Height ~ Height + species ====
+lm_height_species <- lm(Height..cm. ~ Height+species, data=plant_correlation)
+model_stats(lm_height_species, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Height_species_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_height_species, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+
+## ==== Height ~ Height * species ====
+lm_height_species_inter <- lm(Height..cm. ~ Height*species, data=plant_correlation)
+model_stats(lm_height_species_inter, plot_res=plot_dharma)
+
+# Observed vs predicted plot
+img_name <- paste0(output_folder, "//Height_inter_species_Predict_", output_label, ".jpg")
+plot_obs_vs_pred(mdl=lm_height_species_inter, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+
+## ==== Model comparison ====
+mdl_compare(list(lm_height, lm_height_species_only, lm_height_species, lm_height_species_inter))
 
 # ## ==== Leaf_Area ~ Cumul_Area + Species ====
 # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
