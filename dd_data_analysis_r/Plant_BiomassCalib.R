@@ -52,6 +52,10 @@ species_corresp <- c(BR= "Brassica rapa",
                      SL="Solanum lycopersicum",
                      TA="Thlaspi arvense")
 #plant_correlation$species <- species_corresp[species_label]
+
+# Some Hordeum spontaneum and vulgare got mixed up, update the legend to encompass both
+species_label[species_label == "HV" | species_label == "HS"] <- "H"
+
 plant_volume$species <- species_label
 plant_volume$species <- as.factor(plant_volume$species)
 

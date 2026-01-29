@@ -122,11 +122,12 @@ plant_correlation <- plant_correlation[plant_correlation$Dim_X > 0 & plant_corre
 plant_correlation <- plant_correlation[!is.na(plant_correlation$biomass_g),]
 
 ## ==== Convert to factors ====
+# Plants labeled Hordeum vulgare are actually Hordeum spontaneum of a different cultivar, fix it in legend
 species_corresp <- c("Arabidopsis thaliana"="AT",
                      "Brachypodium distachyon"="BD",
                      "Brassica rapa"="BR",
-                     "Hordeum spontaneum"="HS",
-                     "Hordeum vulgare"="HV",
+                     "Hordeum spontaneum"="HVa",
+                     "Hordeum vulgare"="HVgp",
                      "Nicotiana benthamiana"="NB",
                      "Solanum dulcamara"="SD",
                      "Solanum lycopersicum"="SL",
