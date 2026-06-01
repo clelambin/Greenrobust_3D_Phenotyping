@@ -8,7 +8,7 @@ from mathutils import Vector
 # User Literal type
 Cartesian = Literal["X", "Y", "Z"]
 BooleanOperator = Literal["DIFFERENCE", "INTERSECT"]
-ConfigOptions = Literal["POT_OFFSET", "HAS_STICK"]
+ConfigOptions = Literal["POT_OFFSET", "HAS_STICK", "POT_WIDTH", "POT_HEIGHT"]
 
 # Complex type anotation
 BMEntry = types.BMVert | types.BMEdge | types.BMFace

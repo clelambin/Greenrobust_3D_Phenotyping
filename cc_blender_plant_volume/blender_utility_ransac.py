@@ -265,3 +265,19 @@ def ransac_fit(model:PotSection,
     # Reach max number of iteration
     print(f"Reaching max {ransac_param.max_iter} iterations")
     return best_model
+
+def preset_pot(width:float, height:float) -> PotSection:
+    """Set predefined PotSection parameters based on input pot height and width"""
+    # Initialise pot section
+    pot_section = PotSection()
+
+    # Manually set the parameters based on input values
+    (pot_width, pot_height, soil_width, soil_height) = pot_section.params
+    pot_width.values = (0.45*width, 0.5*width)
+    pot_height.values = (1.05*height, 1.05*height)
+    soil_width.values = (0, 0.45*width)
+    soil_height.values = (0.9*height, 0.9*height)
+
+    # Update value in PotSection object and return object
+    pot_section.params = [pot_width, pot_height, soil_width, soil_height]
+    return pot_section

@@ -32,15 +32,15 @@ from cc_blender_plant_volume.blender_user_types import Cartesian, BooleanOperato
 # Script function
 FILE_PREFIX = "Metashape_"
 SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
-    "AT":{"POT_OFFSET": 0.002, "HAS_STICK":False},
-    "BD":{"POT_OFFSET": 0.002, "HAS_STICK":True},
-    "BR":{"POT_OFFSET": 0.003, "HAS_STICK":True},
-    "HS":{"POT_OFFSET": 0.003, "HAS_STICK":True},
-    "HV":{"POT_OFFSET": 0.003, "HAS_STICK":True},
-    "NB":{"POT_OFFSET": 0.005, "HAS_STICK":False},
-    "SD":{"POT_OFFSET": 0.005, "HAS_STICK":True},
-    "SL":{"POT_OFFSET": 0.005, "HAS_STICK":False},
-    "TA":{"POT_OFFSET": 0.003, "HAS_STICK":True},
+    "AT":{"POT_OFFSET": 0.002, "HAS_STICK":False, "POT_WIDTH": 0.07, "POT_HEIGHT": 0.08},
+    "BD":{"POT_OFFSET": 0.002, "HAS_STICK":True,  "POT_WIDTH": 0.07, "POT_HEIGHT": 0.08},
+    "BR":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
+    "HS":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
+    "HV":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
+    "NB":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.11, "POT_HEIGHT": 0.12},
+    "SD":{"POT_OFFSET": 0.005, "HAS_STICK":True,  "POT_WIDTH": 0.13, "POT_HEIGHT": 0.13},
+    "SL":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.13, "POT_HEIGHT": 0.13},
+    "TA":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
 }
 CONFIG_DEFAULT:dict[ConfigOptions, float|bool] = {"POT_OFFSET": 0.003, "HAS_STICK":True}
 
@@ -472,11 +472,11 @@ def draw_stick(tree_structure:TreeStructure,
 
 def reshape_section(sections:dict[Cartesian, FaceNode]) -> list[Vector]:
     """Extract point coordinate from section and reshape the points to the XY quadrant
-    Align section to Y and apply symetry to shift points with X<0 to X>0
+    Align section to Y and apply symmetry to shift points with X<0 to X>0
     """
     # Initialise list containing all points from processed section
     all_points:list[Vector] = []
-    # Loop through sections and reshape points if alligned to X
+    # Loop through sections and reshape points if aligned to X
     for (axis, section) in sections.items():
         point_coords = section.coords_2d
         # If coordinate not provided for section, skip it
@@ -485,7 +485,7 @@ def reshape_section(sections:dict[Cartesian, FaceNode]) -> list[Vector]:
         # If aligned to X, invert the coordinates
         if axis == "X":
             point_coords = [Vector((pt.y, pt.x)) for pt in point_coords]
-        # Apply symetry to all points with X<0
+        # Apply symmetry to all points with X<0
         point_coords =  [Vector((abs(pt.x), pt.y)) for pt in point_coords]
         # Append processed points to the list of all points
         all_points.extend(point_coords)
@@ -494,6 +494,7 @@ def reshape_section(sections:dict[Cartesian, FaceNode]) -> list[Vector]:
 # TODO: not very clean way to extract parameter from PotSection
 def create_pot(pot_section:ransac.PotSection,
                offset:float=0.005,
+               top_tickness:float=0.001,
                name:str="Simplified_pot") -> bpy.types.Object:
     """Create simplified pot model based on fitted pot section"""
     # Extract all parameters from fitted model and convert to dictionary
@@ -526,6 +527,12 @@ def create_pot(pot_section:ransac.PotSection,
         # Inset top face to translate downward to fit soil height
         top_face = utility.extract_face_from_verts(top_verts)
         assert top_face is not None, "No faces connected to input vertices"
+        # If specify top_thickness, add initial inset to create a thickness at the pot top
+        # The top face remain the middle one after inset,
+        # so can use the same face over multiple operations
+        if top_tickness>0:
+            bmesh.ops.inset_individual(cube_mesh, faces=[top_face], thickness=top_tickness)
+        # Second inset used to create the soil face (translated downward)
         bmesh.ops.inset_individual(cube_mesh, faces=[top_face], thickness=pot_width_top-soil_width)
         bmesh.ops.translate(cube_mesh,
                             vec=Vector((0, 0, soil_height-pot_height)),
@@ -629,7 +636,8 @@ def vert_crosssection(obj:bpy.types.Object,
 
 def plant_cleanup(plant:bpy.types.Object,
                   pot_offset:float=0.005,
-                  remove_stick:bool=True) -> tuple[Vector, int]:
+                  remove_stick:bool=True,
+                  pot_dim:None|tuple[float, float]=None) -> tuple[Vector, int]:
     """Extract green plant from 3D model, remove support and ouput model attribute"""
     # Initialise code error
     # If no error, code error remain at 0, otherwise, each error adds up to it
@@ -667,18 +675,24 @@ def plant_cleanup(plant:bpy.types.Object,
         # Remove vertices below ground
         remove_ground(plant)
 
-    # Create vertical section, used to extract the pot
-    pot_section = vert_crosssection(plant, pot_criteria)
-#    print(f"{pot_section=}")
-#    for (axis, section) in pot_section.items():
-#        section_curve = utility.create_curve(section.coords_2d, name=f"Section_{str(axis)}")
-#        section_mesh  = utility.curve_to_mesh(section_curve)
-#        utility.from_z_to_axis(section_mesh, axis)
-    pot, pot_param = fit_pot(pot_section, pot_offset=pot_offset)
+    # If not input pot dimension, fit pot
+    if pot_dim is None:
+        # Create vertical section, used to extract the pot
+        pot_section = vert_crosssection(plant, pot_criteria)
+    #    print(f"{pot_section=}")
+    #    for (axis, section) in pot_section.items():
+    #        section_curve = utility.create_curve(section.coords_2d, name=f"Section_{str(axis)}")
+    #        section_mesh  = utility.curve_to_mesh(section_curve)
+    #        utility.from_z_to_axis(section_mesh, axis)
+        pot, pot_param = fit_pot(pot_section, pot_offset=pot_offset)
 
-    # If did not fit defined fitted ratio, update code error
-    if not pot_param.reach_fit:
-        code_error += 4
+        # If did not fit defined fitted ratio, update code error
+        if not pot_param.reach_fit:
+            code_error += 4
+    else:
+        # Use input pot dimensions
+        pot_param = ransac.preset_pot(pot_dim[0], pot_dim[1])
+        pot = create_pot(pot_param, offset=pot_offset)
 
     # Define plant reference point at Z=soil_height
     plant_ref = Vector((0, 0, pot_param.get_param()["soil_height"][0]))
@@ -687,7 +701,7 @@ def plant_cleanup(plant:bpy.types.Object,
     pot_vert_ratio = boolean_modifier(plant,
                                       pot,
                                       operation="DIFFERENCE",
-                                      vertex_ratio_range=(0.3, 0.8))
+                                      vertex_ratio_range=(0.3, 0.9))
     # If vertex ratio is -1, boolean not applied, update code error
     if pot_vert_ratio == -1:
         code_error += 1
@@ -817,8 +831,21 @@ def main() -> None:
     plant = bpy.context.active_object
     # If no active object alert the user
     assert plant is not None, "No active object"
+
+    # Extract species from object name
+    file_name = plant.name
+    species_short = file_name.replace(FILE_PREFIX, "")[0:2]
+    species_config = SPECIES_CONFIG.get(species_short, CONFIG_DEFAULT)
+
+    # Extract pot dimensions if found
+    pot_dim = (species_config.get("POT_WIDTH", None), species_config.get("POT_HEIGHT", None))
+    pot_dim = None if any(dim is None for dim in pot_dim) else pot_dim
+
     # Cleanup plant model
-    plant_ref, code_error = plant_cleanup(plant)
+    plant_ref, code_error = plant_cleanup(plant,
+                                          species_config["POT_OFFSET"],
+                                          species_config["HAS_STICK"],
+                                          pot_dim=pot_dim)
     # Read plant metrics
     plant_metrics(plant, plant_ref=plant_ref)
     # Display code error
