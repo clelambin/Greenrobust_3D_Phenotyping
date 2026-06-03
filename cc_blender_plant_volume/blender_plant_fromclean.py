@@ -32,6 +32,7 @@ from cc_blender_plant_volume.blender_user_types import Cartesian, BooleanOperato
 # Script function
 FILE_PREFIX = "Metashape_"
 SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
+    # Individual pot
     "AT":{"POT_OFFSET": 0.002, "HAS_STICK":False, "POT_WIDTH": 0.07, "POT_HEIGHT": 0.08},
     "BD":{"POT_OFFSET": 0.002, "HAS_STICK":True,  "POT_WIDTH": 0.07, "POT_HEIGHT": 0.08},
     "BR":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
@@ -41,6 +42,16 @@ SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
     "SD":{"POT_OFFSET": 0.005, "HAS_STICK":True,  "POT_WIDTH": 0.13, "POT_HEIGHT": 0.13},
     "SL":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.13, "POT_HEIGHT": 0.13},
     "TA":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
+    # Population pots
+    "ATp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.20, "POT_HEIGHT": 0.10},
+    "BDp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.20, "POT_HEIGHT": 0.10},
+    "BRp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
+    "HSp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
+    "HVp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
+    "NBp":{"POT_OFFSET": 0.010, "HAS_STICK":False, "POT_WIDTH": 0.35, "POT_HEIGHT": 0.12},
+    "SDp":{"POT_OFFSET": 0.010, "HAS_STICK":False, "POT_WIDTH": 0.38, "POT_HEIGHT": 0.15},
+    "SLp":{"POT_OFFSET": 0.010, "HAS_STICK":False, "POT_WIDTH": 0.38, "POT_HEIGHT": 0.15},
+    "TAp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
 }
 CONFIG_DEFAULT:dict[ConfigOptions, float|bool] = {"POT_OFFSET": 0.003, "HAS_STICK":True}
 
@@ -835,6 +846,14 @@ def main() -> None:
     # Extract species from object name
     file_name = plant.name
     species_short = file_name.replace(FILE_PREFIX, "")[0:2]
+
+    # Check if pot is individual or population pot
+    species_orga = file_name.replace(FILE_PREFIX, "")[3:4]
+    # If population pot, append p at end of species short to indicate it
+    if species_orga == "P":
+        species_short = species_short + "p"
+
+    # Find configuration for corresponding species
     species_config = SPECIES_CONFIG.get(species_short, CONFIG_DEFAULT)
 
     # Extract pot dimensions if found
