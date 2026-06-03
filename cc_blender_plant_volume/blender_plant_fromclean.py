@@ -767,22 +767,48 @@ def plant_metrics(plant:bpy.types.Object,
     # Return computed metrics
     return metrics_dict
 
-def single_model_prep(obj_path:str,
+def single_model_prep(obj_path:str|None=None,
                       output_path:str|None=None,
                       file_ext:str="obj") -> dict[str, float]:
     """Single model preparation: import the model, compute the volume and save output blend file"""
-    # Read species label from path and extract relevant species config
-    file_name = os.path.basename(obj_path)
-    species_short = file_name.replace(FILE_PREFIX, "")[0:2]
-    species_config = SPECIES_CONFIG.get(species_short, CONFIG_DEFAULT)
+
     # Prepare working environment
-    utility.cleanup_env()
-    model = utility.import_file(obj_path, file_ext)
+    # If input obj_path, import it, otherwise, work on selected object
+    if obj_path is not None:
+        utility.cleanup_env()
+        model = utility.import_file(obj_path, file_ext)
+        # Read species label from path
+        file_name = os.path.basename(obj_path)
+    else:
+        model = bpy.context.active_object
+        # If no active object alert the user
+        assert model is not None, "No active object"
+        # Read species from object name
+        file_name = model.name
+
+    # Extract relevant species config from model name
+    species_short = file_name.replace(FILE_PREFIX, "")[0:2]
+
+    # Check if pot is individual or population pot
+    species_orga = file_name.replace(FILE_PREFIX, "")[3:4]
+    # If population pot, append p at end of species short to indicate it
+    if species_orga == "P":
+        species_short = species_short + "p"
+
+    # Find configuration for corresponding species
+    species_config = SPECIES_CONFIG.get(species_short, CONFIG_DEFAULT)
+
     # Prepare the model and compute all plant metrics
+    # Extract pot dimensions if found
+    pot_dim = (species_config.get("POT_WIDTH", None), species_config.get("POT_HEIGHT", None))
+    pot_dim = None if any(dim is None for dim in pot_dim) else pot_dim
+
     # Cleanup plant model
     plant_ref, code_error = plant_cleanup(model,
                                           species_config["POT_OFFSET"],
-                                          species_config["HAS_STICK"])
+                                          species_config["HAS_STICK"],
+                                          pot_dim=pot_dim)
+
     # Read plant metrics
     model_metrics = plant_metrics(model, output_dir=output_path, plant_ref=plant_ref)
     # Update metrics code error to output from plant_cleanup function
@@ -838,37 +864,9 @@ def loop_through_folders(working_path:str,
                                  metrics_keys=metrics_keys)
 
 def main() -> None:
-    """Main function, cleanup selected object and output attributes"""
-    plant = bpy.context.active_object
-    # If no active object alert the user
-    assert plant is not None, "No active object"
-
-    # Extract species from object name
-    file_name = plant.name
-    species_short = file_name.replace(FILE_PREFIX, "")[0:2]
-
-    # Check if pot is individual or population pot
-    species_orga = file_name.replace(FILE_PREFIX, "")[3:4]
-    # If population pot, append p at end of species short to indicate it
-    if species_orga == "P":
-        species_short = species_short + "p"
-
-    # Find configuration for corresponding species
-    species_config = SPECIES_CONFIG.get(species_short, CONFIG_DEFAULT)
-
-    # Extract pot dimensions if found
-    pot_dim = (species_config.get("POT_WIDTH", None), species_config.get("POT_HEIGHT", None))
-    pot_dim = None if any(dim is None for dim in pot_dim) else pot_dim
-
-    # Cleanup plant model
-    plant_ref, code_error = plant_cleanup(plant,
-                                          species_config["POT_OFFSET"],
-                                          species_config["HAS_STICK"],
-                                          pot_dim=pot_dim)
-    # Read plant metrics
-    plant_metrics(plant, plant_ref=plant_ref)
-    # Display code error
-    print(f"{code_error=}")
+    """Main function, prepare model for selected model on the 3D view"""
+    model_metrics = single_model_prep()
+    print(f"{model_metrics=}")
 
 if __name__ == "__main__":
     # Test model preparation on active object
