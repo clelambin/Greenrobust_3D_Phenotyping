@@ -1,4 +1,4 @@
-"""Main script for the model processing from already alligned and scaled model
+"""Main script for the model processing from already aligned and scaled model
 
 Note:
 - require digitisation with marker for allignment
@@ -43,15 +43,15 @@ SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
     "SL":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.13, "POT_HEIGHT": 0.13},
     "TA":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
     # Population pots
-    "ATp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.20, "POT_HEIGHT": 0.10},
-    "BDp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.20, "POT_HEIGHT": 0.10},
-    "BRp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
-    "HSp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
-    "HVp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
-    "NBp":{"POT_OFFSET": 0.010, "HAS_STICK":False, "POT_WIDTH": 0.35, "POT_HEIGHT": 0.12},
-    "SDp":{"POT_OFFSET": 0.010, "HAS_STICK":False, "POT_WIDTH": 0.38, "POT_HEIGHT": 0.15},
-    "SLp":{"POT_OFFSET": 0.010, "HAS_STICK":False, "POT_WIDTH": 0.38, "POT_HEIGHT": 0.15},
-    "TAp":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
+    "ATp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.20, "POT_HEIGHT": 0.10},
+    "BDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.20, "POT_HEIGHT": 0.10},
+    "BRp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
+    "HSp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
+    "HVp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
+    "NBp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.35, "POT_HEIGHT": 0.12},
+    "SDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.38, "POT_HEIGHT": 0.15},
+    "SLp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.38, "POT_HEIGHT": 0.15},
+    "TAp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
 }
 CONFIG_DEFAULT:dict[ConfigOptions, float|bool] = {"POT_OFFSET": 0.003, "HAS_STICK":True}
 
