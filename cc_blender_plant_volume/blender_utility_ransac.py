@@ -165,7 +165,7 @@ class PotSection:
             if dist < min_dist:
                 min_dist = dist
                 min_index = index
-        # Return minium distance and matching segment index
+        # Return minimum distance and matching segment index
         return (min_dist, min_index)
 
     def init_points_cluster(self) -> list[list[Vector]]:
@@ -273,7 +273,7 @@ def preset_pot(width:float, height:float) -> PotSection:
 
     # Define soil height as a delta to pot height based on the type of pot
     # For population pot (height>15), distance between pot and soil height higher
-    soil_delta = 0.15 if height < 15 else 0.25
+    soil_delta = 0.005 if height < 15 else 0.020
 
     # Manually set the parameters based on input values
     (pot_width, pot_height, soil_width, soil_height) = pot_section.params
