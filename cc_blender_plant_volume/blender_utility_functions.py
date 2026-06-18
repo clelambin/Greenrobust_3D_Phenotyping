@@ -1,4 +1,4 @@
-"""Utilitiy functions used for the plant_volume modules"""
+"""Utility functions used for the plant_volume modules"""
 
 # Import libraries
 import os                # File manager
@@ -107,6 +107,37 @@ def get_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> BMF
     # If at least one group found return biggest set of connected elements
     return connected_groups[-1]
 
+def get_bbox(obj:bpy.types.Object) -> tuple[Vector, Vector]:
+    """Return bounding box coordinates of input object"""
+    # Update object to get updated coordinated
+    obj.data.update()
+    # Get bounding box from input object and X, Y and Z coords of its corner
+    bbox_coord_min = []
+    bbox_coord_max = []
+    for coord in range(0, 3):
+        bbox_coord_min.append(min(vert.co[coord] for vert in obj.data.vertices))
+        bbox_coord_max.append(max(vert.co[coord] for vert in obj.data.vertices))
+    # Return min and max coordinate for all 3 dimensions
+    return (Vector(bbox_coord_min), Vector(bbox_coord_max))
+
+def is_vert_in_range(vert:bmesh.types.BMVert,
+                     range_min:Vector,
+                     range_max:Vector) -> bool:
+    """Return true if vertex in bounding box, otherwise false"""
+    return all(range_min[coord] < vert.co[coord] < range_max[coord] for coord in range(0, 3))
+
+def get_verts_in_bbox(vert_list:list[bmesh.types.BMVert],
+                      obj:bpy.types.Object) -> list[bmesh.types.BMVert]:
+    """Return list of vertices contained within the object's bounding box"""
+    # Extract bounding box min and max coord from input object
+    bbox_min, bbox_max = get_bbox(obj)
+    # Loop through all vertices and append once included in bounding box range
+    vert_in_bbox = []
+    for vert in vert_list:
+        if is_vert_in_range(vert, bbox_min, bbox_max):
+            vert_in_bbox.append(vert)
+    # Return list of vertices within range
+    return vert_in_bbox
 
 def keep_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> int:
     """Extract biggest mesh cluster from given object and delete vertices not part of the cluster"""

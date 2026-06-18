@@ -13,8 +13,10 @@ Workflow:
 """
 
 # Import libraries
+import operator
 from collections.abc import Iterable, Callable
 from dataclasses import dataclass, field
+from typing import Literal
 import os
 import numpy as np              # Array manipulation
 import bpy                      # Blender python
@@ -27,7 +29,7 @@ from cc_blender_plant_volume import blender_point_clustering as cluster
 from cc_blender_plant_volume import blender_utility_ransac as ransac
 from cc_blender_plant_volume import blender_plant_metrics as metrics
 from cc_blender_plant_volume import blender_plant_rendering as render
-from cc_blender_plant_volume.blender_user_types import Cartesian, BooleanOperator, ConfigOptions
+from cc_blender_plant_volume.blender_user_types import Cartesian, ConfigOptions
 
 # Script function
 FILE_PREFIX = "Metashape_"
@@ -124,6 +126,15 @@ class BranchCriteria:
         """Check if horizontal and vertical distance (between faces) in range"""
         return (xy_dist < self.max_xy_dist
                 and z_dist < self.max_z_dist)
+
+@dataclass
+class ModifierParam:
+    """Boolean Operator setting to apply via boolean_modifier function"""
+    operator:Literal["DIFFERENCE", "INTERSECT"] = "INTERSECT"
+    vertex_criteria:Literal["RANGE", "BBOX", "NONE"] = "NONE"
+    vertex_ratio_range:tuple[float, float]|None=None
+    thresh:float=0.00001
+    apply:bool=True
 
 
 class FaceNode:
@@ -310,7 +321,9 @@ def remove_ground(obj:bpy.types.Object, ground_height:float=0.005) -> None:
     ground = utility.get_active_obj()
     ground.name = "Ground"
     # Apply difference boolean to remove anything inside the ground object
-    boolean_modifier(source_obj=obj, target_obj=ground, operation="DIFFERENCE", thresh=0)
+    boolean_modifier(source_obj=obj,
+                     target_obj=ground,
+                     param=ModifierParam(operator="DIFFERENCE", thresh=0))
     # Hide Ground
     utility.hide_object(ground)
 
@@ -327,10 +340,7 @@ def is_in_range(value:float, range_tuple:tuple[float, float]) -> bool:
 
 def boolean_modifier(source_obj:bpy.types.Object,
                      target_obj:bpy.types.Object,
-                     thresh:float=0.00001,
-                     operation:BooleanOperator="INTERSECT",
-                     apply:bool=True,
-                     vertex_ratio_range:tuple[float, float]|None=None) -> float:
+                     param:ModifierParam=ModifierParam()) -> float:
     """Create intersection between object to intersect and plane
     Using boolean mesh operator, return vertex ratio (modified/initial vertex count)
     """
@@ -343,26 +353,49 @@ def boolean_modifier(source_obj:bpy.types.Object,
     modifier = source_obj.modifiers.new(name="Section", type="BOOLEAN")
     assert isinstance(modifier, bpy.types.BooleanModifier)
     modifier.solver = "FAST"
-    modifier.operation = operation
-    modifier.double_threshold = thresh
+    modifier.operation = param.operator
+    modifier.double_threshold = param.thresh
     # Set object to intersect
     modifier.object = target_obj
+
+    # If using auto vertex criteria, define vertex ratio range
+    # based number of source vertices in target object bounding box
+    if param.vertex_criteria == "BBOX":
+        # Count vertices from source in bounding box of target
+        source_verts = source_obj.data.vertices
+        vertex_in_bbox = len(utility.get_verts_in_bbox(source_verts, target_obj))
+        # Update vertex ratio range based on vertex count in target object and operator type
+        if param.operator == "INTERSECT":
+            # In intersection, expect target vertices to be around
+            # number of vertices in target object (+/- 20%)
+            param.vertex_ratio_range = (
+                    vertex_in_bbox / vertex_init * 0.8,
+                    vertex_in_bbox / vertex_init * 1.2
+                    )
+        elif param.operator == "DIFFERENCE":
+            # In difference, expect target vertices to be all but the ones in target object
+            param.vertex_ratio_range = (
+                    (vertex_init - vertex_in_bbox) / vertex_init * 0.8,
+                    (vertex_init - vertex_in_bbox) / vertex_init * 1.2
+                    )
+
     # If vertex_ratio_range specified, only apply modifier if within range
-    if vertex_ratio_range is not None:
+    if param.vertex_ratio_range is not None:
         # Evaluate the vertex count after modifier modification
         vertex_out = modified_vertex_count(source_obj)
-        if not is_in_range(vertex_out/vertex_init, vertex_ratio_range):
+        if not is_in_range(vertex_out/vertex_init, param.vertex_ratio_range):
             # Switch to Exact solver and allow self intersection
             modifier.solver = "EXACT"
             modifier.use_self = True
         # If the vertex range is still not in range, return -1 and disable modification
         vertex_out = modified_vertex_count(source_obj)
-        if not is_in_range(vertex_out/vertex_init, vertex_ratio_range):
+        if not is_in_range(vertex_out/vertex_init, param.vertex_ratio_range):
             modifier.show_viewport = False
             modifier.show_render = False
             return -1
+
     # Apply modifier
-    if apply:
+    if param.apply:
         bpy.ops.object.modifier_apply(modifier=modifier.name)
     # Return vertex ratio
     return modified_vertex_count(source_obj) / vertex_init
@@ -634,7 +667,7 @@ def vert_crosssection(obj:bpy.types.Object,
         while faces is None and section_dist < 0.02:
             plane = utility.create_plane(direction, section_dist, name_digits=0, hide=hide_plane)
             # Apply section modifier to plane
-            boolean_modifier(source_obj=plane, target_obj=obj, thresh=0)
+            boolean_modifier(source_obj=plane, target_obj=obj, param=ModifierParam(thresh=0))
             # Cleanup cross-section and save list of all faces within section
             faces = section_faces(plane, 0, face_criteria, save_coords=True)
             section_dist += 0.001
@@ -711,8 +744,9 @@ def plant_cleanup(plant:bpy.types.Object,
     # Remove pot from plant
     pot_vert_ratio = boolean_modifier(plant,
                                       pot,
-                                      operation="DIFFERENCE",
-                                      vertex_ratio_range=(0.3, 0.9))
+                                      param=ModifierParam(
+                                          operator="DIFFERENCE",
+                                          vertex_criteria="BBOX"))
     # If vertex ratio is -1, boolean not applied, update code error
     if pot_vert_ratio == -1:
         code_error += 1
@@ -728,7 +762,11 @@ def plant_cleanup(plant:bpy.types.Object,
         stick = draw_stick(tree_structure) if tree_structure is not None else None
         # Remove stick from the plant (if stick detected)
         if stick is not None:
-            stick_vert_ratio = boolean_modifier(plant, stick, operation="DIFFERENCE", vertex_ratio_range=(0.3, 1))
+            stick_vert_ratio = boolean_modifier(plant,
+                                                stick,
+                                                param=ModifierParam(
+                                                    operator="DIFFERENCE",
+                                                    vertex_ratio_range=(0.3, 1)))
             # If vertex ratio is -1, boolean not applied, update code error
             if stick_vert_ratio == -1:
                 code_error += 2
