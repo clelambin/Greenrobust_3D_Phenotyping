@@ -1,7 +1,7 @@
 """Main script for the model processing from already aligned and scaled model
 
 Note:
-- require digitisation with marker for allignment
+- require digitisation with marker for alignment
 - replace model_prep from blender_plant_modelprep.py
 
 Workflow:
@@ -88,7 +88,7 @@ class FaceInfo:
 
     def __post_init__(self) -> None:
         """Compute face roundness
-        Roundess computed using the Polsby–Popper applied to a plannar face
+        using the Polsby–Popper applied to a planar face
         """
         self.roundness = (4 * np.pi * self.area) / (self.perimeter**2)
 
@@ -121,7 +121,7 @@ class BranchCriteria:
                 and calc_ratio(source.area, target.area) < self.max_area_ratio)
 
     def distance_in_range(self, xy_dist:float, z_dist:float) -> float|None:
-        """Check if horizontal and veritical distance (between faces) in range"""
+        """Check if horizontal and vertical distance (between faces) in range"""
         return (xy_dist < self.max_xy_dist
                 and z_dist < self.max_z_dist)
 
@@ -140,8 +140,8 @@ class FaceNode:
             center=face.calc_center_median_weighted(),
             axis_position=axis_position
         )
-        # If ask to save the cooridnate from the face, extract them from the BMFace
-        # Because point coordinate is from a plane initialy normal to Z, the Z coordinate is 0
+        # If ask to save the coordinate from the face, extract them from the BMFace
+        # Because point coordinate is from a plane initially normal to Z, the Z coordinate is 0
         # extract only x and y coordinate
         self.coords_2d = [vert.co.xy for vert in face.verts] if save_coords else None
         # At first, parent and children of face node are unknown
@@ -156,7 +156,7 @@ class FaceNode:
     def get_closest_face(self,
                          face_list:Iterable["FaceNode"],
                          branch_criteria:BranchCriteria) -> "FaceNode|None":
-        """Return the face whose center is closest to current face and with similar roundness"""
+        """Return the face whose centre is closest to current face and with similar roundness"""
         # Initialise closest face index and distance
         closest_dist  = float("inf")
         closest_face: "FaceNode|None" = None
@@ -165,7 +165,7 @@ class FaceNode:
             # Check that faces match ratio criterion
             if not branch_criteria.face_in_range(self.info, face.info):
                 continue
-            # Compute distance between center and save face if closer than current closest
+            # Compute distance between centre and save face if closer than current closest
             xy_dist = projected_dist(self.info.center, face.info.center)
             z_dist  = abs(self.info.axis_position - face.info.axis_position)
             if branch_criteria.distance_in_range(xy_dist, z_dist) and xy_dist < closest_dist:
@@ -191,7 +191,7 @@ class FaceNode:
 
 
 class TreeStructure:
-    """Create tree data structure of face accross multiple sections.
+    """Create tree data structure of face across multiple sections.
 
     Using modified vocabulary for the tree data structure:
     - heads : current node without parents
@@ -199,7 +199,7 @@ class TreeStructure:
     - leafs : nodes without childres (extremity of tree datastructure)
     - roots : nodes without parents (once all sections have been processed)
 
-    Additionaly, save characteristics for each branches (path from a leaf to a root)
+    Additionally, save characteristics for each branches (path from a leaf to a root)
     - branches_xy_dist : sum of horizontal distance between each node of the branch
     """
 
@@ -271,7 +271,7 @@ class TreeStructure:
         # Initialise branch info
         nb_nodes  = 0
         branch_xy_dist:float = 0.0
-        # Walk to the root, increamenting the horizontal distance
+        # Walk to the root, incrementing the horizontal distance
         for node in self.walk_back(leaf):
             # If node has no parent, means it is a root node, so no need to compute distance
             if node.parent is None:
@@ -293,7 +293,7 @@ class TreeStructure:
             # Save the branch distance to the class instance
             branch_xy_dist, nb_nodes = self.branch_straightness(leaf)
             self.branches_xy_dist.append(branch_xy_dist)
-            # Compare with smalled branch
+            # Compare with smaller branch
             if nb_nodes >= min_nodes and branch_xy_dist/nb_nodes < min_dist_ratio:
                 min_dist_ratio  = branch_xy_dist/nb_nodes
                 min_index = index
@@ -315,7 +315,7 @@ def remove_ground(obj:bpy.types.Object, ground_height:float=0.005) -> None:
     utility.hide_object(ground)
 
 def modified_vertex_count(obj:bpy.types.Object) -> int:
-    """Return the number of vertex after modifier are applied to input opbject"""
+    """Return the number of vertex after modifier are applied to input object"""
     depsgraph = bpy.context.evaluated_depsgraph_get()
     evaluated_obj = obj.evaluated_get(depsgraph)
     assert isinstance(evaluated_obj.data, bpy.types.Mesh)
@@ -373,7 +373,7 @@ def section_faces(obj:bpy.types.Object,
                   min_faces:int=1,
                   save_coords:bool=False) -> list[FaceNode]|None:
     """Remove vertices not connected to any faces from current object mesh,
-    Return a list containing the roundness and center of each face in the section
+    Return a list containing the roundness and centre of each face in the section
     """
     # Check that input object contain a mesh
     assert isinstance(obj.data, bpy.types.Mesh), f"Object {obj.name} does not contain a mesh"
@@ -386,7 +386,7 @@ def section_faces(obj:bpy.types.Object,
         connected_verts = set()
         for (index, face) in enumerate(mesh.faces):
             connected_verts.update(face.verts)
-            # Save roundness and center of current face
+            # Save roundness and centre of current face
             face_node = FaceNode(face,
                                  name = f"{obj.name}-{index}",
                                  axis_position = axis_position,
@@ -409,8 +409,8 @@ def section_faces(obj:bpy.types.Object,
 
 def section_skeleton(section_detail: list[list[FaceNode]],
                      branch_criteria:BranchCriteria) -> TreeStructure|None:
-    """Link face accross sections based on closest projection"""
-    # If section_detail is empty, return None to prevert script to stop
+    """Link face across sections based on closest projection"""
+    # If section_detail is empty, return None to prevent script to stop
     if len(section_detail) == 0:
         return None
     # Initialise TreeStructure object containing the link between faces
@@ -455,7 +455,7 @@ def draw_stick(tree_structure:TreeStructure,
     # Get coordinates for each node of the branch
     nodes_coord = []
     for node in tree_structure.walk_back(straight_branch):
-        # Extract x and y coordinate from the center coordinate and replace z by the section height
+        # Extract x and y coordinate from the centre coordinate and replace z by the section height
         x, y, _ = node.info.center
         nodes_coord.append(Vector([x, y, node.info.axis_position]))
     # If last coordinate higher than ground height, add point using last x, y coordinate
@@ -599,7 +599,7 @@ def multi_crosssection(obj:bpy.types.Object,
                        face_criteria:FaceCriteria,
                        z_delta:float=0.1,
                        hide_plane:bool=True) -> list[list[FaceNode]]:
-    """Create crosssection of input object spaced by z_delta"""
+    """Create cross-section of input object spaced by z_delta"""
     # Initialise list which will contain the face information for each section
     section_detail = []
     # Get the highest point in Z to define number of cross-sections
@@ -623,7 +623,7 @@ def vert_crosssection(obj:bpy.types.Object,
                       face_criteria:FaceCriteria,
                       select:Callable=lambda face:face.info.area,
                       hide_plane:bool=True) -> dict[Cartesian, FaceNode]:
-    """Create vertical crosssection of input object for X and Y direction"""
+    """Create vertical cross-section of input object for X and Y direction"""
     # Create a section normal to X and normal to Y
     direction_list:list[Cartesian] = ["X", "Y"]
     face_list = {}
@@ -649,7 +649,7 @@ def plant_cleanup(plant:bpy.types.Object,
                   pot_offset:float=0.005,
                   remove_stick:bool=True,
                   pot_dim:None|tuple[float, float]=None) -> tuple[Vector, int]:
-    """Extract green plant from 3D model, remove support and ouput model attribute"""
+    """Extract green plant from 3D model, remove support and output model attribute"""
     # Initialise code error
     # If no error, code error remain at 0, otherwise, each error adds up to it
     # (similar to chmod ownership code)
@@ -718,13 +718,13 @@ def plant_cleanup(plant:bpy.types.Object,
         code_error += 1
 
     if remove_stick:
-        # Detecte=ing the wood stick from the plant by creating horizontal sections
+        # Detecting the wood stick from the plant by creating horizontal sections
         # and looking at section structure
         section_detail = multi_crosssection(plant, stick_criteria, z_delta=0.01)
         tree_structure = section_skeleton(section_detail, branch_criteria)
 #       draw_tree(tree_structure)
 
-        # Find stick (straightest branch) and draw cordesponding cylinder
+        # Find stick (straightest branch) and draw corresponding cylinder
         stick = draw_stick(tree_structure) if tree_structure is not None else None
         # Remove stick from the plant (if stick detected)
         if stick is not None:
@@ -747,7 +747,7 @@ def plant_metrics(plant:bpy.types.Object,
     """Extract metrics from input plant model and save rendered images for quality control
     Model attribute: plant volume, plant height, area projection
     """
-    # If reference point specified, convert it to numpy array
+    # If reference point specified, convert it to NumPy array
     plant_ref_array = np.array(plant_ref) if plant_ref is not None else None
     # Compute plant metrics (volume, surface and dimensions)
     # (If output dir specified, add temp image in output dir for area project)
@@ -757,7 +757,7 @@ def plant_metrics(plant:bpy.types.Object,
     # Return computed metrics
     print(f"{metrics_dict = }")
 
-    # If ouput_dir specified, save rendered image of prepared model in output directory
+    # If output_dir specified, save rendered image of prepared model in output directory
     if output_dir is not None:
         render.model_rendering(output_dir, plant.name)
 

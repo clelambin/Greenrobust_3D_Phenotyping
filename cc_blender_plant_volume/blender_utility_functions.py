@@ -13,7 +13,7 @@ from mathutils import Vector, Matrix    # Blender object type
 from cc_blender_plant_volume.blender_user_types import BMEntry, BMFaceList, Cartesian
 
 def edit_active_object(name:(str|None)=None) -> tuple[bpy.types.Object, bmesh.types.BMesh]:
-    """Extract object and mesh from active object and swtich to edit mode"""
+    """Extract object and mesh from active object and switch to edit mode"""
     obj = bpy.context.active_object
     # If no active object, alert the user
     assert obj is not None, "No active object"
@@ -83,7 +83,7 @@ def get_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> BMF
     connected_groups = []
     work_list = list(getattr(mesh, cluster_type))
     while work_list:
-        # Create worker for parrallel computation
+        # Create worker for parallel computation
         frontier = Queue()
         frontier.put( work_list[0] )
         this_group = [work_list[0]]
@@ -116,7 +116,7 @@ def keep_biggest_cluster(mesh:bmesh.types.BMesh, cluster_type:str="faces") -> in
     if cluster is None:
         return 0
     # Extract set of all vertices included in mesh cluster
-    # (Use double list comprehension: element.verts return a containing containing both vertices)
+    # (use double list comprehension: element.verts return a containing containing both vertices)
     vert_cluster = { vertex for element in cluster for vertex in element.verts }
     vert_all     = set(mesh.verts)
     # Use difference to get non included vertices
@@ -148,14 +148,14 @@ def get_active_obj() -> bpy.types.Object:
     return obj
 
 def hide_object(obj:bpy.types.Object, hide_bool:bool=True):
-    """Set viewport and render visibility (if boolean set to True, hide, otherwide, show)"""
+    """Set viewport and render visibility (if boolean set to True, hide, otherwise, show)"""
     obj.hide_set(hide_bool)
     obj.hide_render = hide_bool
     # hide_viewport hide in all viewport, not only in the current one
 #    obj.hide_viewport = False
 
 def from_z_to_axis(obj:bpy.types.Object, axis:Cartesian) -> None:
-    """Rotate object to allign to given axis (starting from Z axis)"""
+    """Rotate object to align to given axis (starting from Z axis)"""
     # Define rotation matrix for each axis
     rotation_mat = {
         "X": Matrix([[0,0,-1],[0,1,0],[1,0,0]]),
@@ -173,7 +173,7 @@ def create_curve(point_list:list[Vector], name:str="Curve") -> bpy.types.Curve:
     curve_poly = curve_data.splines.new("POLY")
     curve_poly.points.add(len(point_list) - 1)
     for (index, coord) in enumerate(point_list):
-        # Polyline coodinate is composed of 4 components: x, y, z (part of coord) and the weight
+        # Polyline coordinate is composed of 4 components: x, y, z (part of coord) and the weight
         curve_poly.points[index].co = coord.to_4d()
     return curve_data
 
@@ -182,14 +182,14 @@ def create_plane(normal_axis:Cartesian="Z",
                  name_digits:int=3,
                  hide:bool=False) -> bpy.types.Object:
     """Create a plane normal to given axis and passing by normal axis as input position"""
-    # Define unit vetor used to define position for each axis
+    # Define unit vector used to define position for each axis
     unit_vect = {
         "X": Vector([1,0,0]),
         "Y": Vector([0,1,0]),
         "Z": Vector([0,0,1]),
     }
     # Create plane at given location
-    # (by default the plane is alligned with z)
+    # (by default the plane is aligned with z)
     location = axis_position*unit_vect[normal_axis]
     bpy.ops.mesh.primitive_plane_add(size=10, align='WORLD', location=location)
     plane = get_active_obj()
@@ -206,7 +206,7 @@ def create_plane(normal_axis:Cartesian="Z",
     return plane
 
 def curve_to_mesh(curve:bpy.types.Curve, del_curve:bool=True) -> bpy.types.Object:
-    """Convert input curve into an mesh object and delete input curve (if requested)"""
+    """Convert input curve into a mesh object and delete input curve (if requested)"""
     # Create object and link to scene
     curve_obj  = bpy.data.objects.new(curve.name, curve)
     curve_mesh = bpy.data.meshes.new_from_object(curve_obj)
@@ -235,7 +235,7 @@ def extract_face_from_verts(verts:list[bmesh.types.BMVert]) -> bmesh.types.BMFac
 def offset_faces(mesh:bmesh.types.BMesh, dist:float=0.001) -> None:
     """Offset faces of mesh by input distance"""
     for face in mesh.faces:
-        # Renormalise the face normal
+        # Re-normalise the face normal
         offset_dist = face.normal.normalized()*dist
         bmesh.ops.translate(mesh, vec=offset_dist, verts = list(face.verts))
 
@@ -262,7 +262,7 @@ def import_file(filepath:str, file_ext:str="obj") -> bpy.types.Object:
     # Apply rotation to consider for the imported axis transformation
     bpy.ops.object.transform_apply(location=False, rotation=True, scale=False)
 
-    # Imported object is marked aas active, return it
+    # Imported object is marked as active, return it
     return get_active_obj()
 
 def save_blend(obj_path:str, output_path:str, include_external:bool=True) -> None:

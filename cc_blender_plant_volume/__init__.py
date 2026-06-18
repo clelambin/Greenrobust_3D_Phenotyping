@@ -32,7 +32,7 @@ MODEL_FILE     = None
 # (Registering operators to be callable in Blender)
 class PlantModelPrep(bpy.types.Operator):
     """Operator for single plant model preparation.
-    Allign plant model, apply scaling and compute volume.
+    Align plant model, apply scaling and compute volume.
     """
     # Blender identifiers
     bl_idname  = "object.plant_model_prep"
