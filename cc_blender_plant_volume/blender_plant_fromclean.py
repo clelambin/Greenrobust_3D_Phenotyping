@@ -35,25 +35,41 @@ from cc_blender_plant_volume.blender_user_types import Cartesian, ConfigOptions
 FILE_PREFIX = "Metashape_"
 SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
     # Individual pot
-    "AT":{"POT_OFFSET": 0.002, "HAS_STICK":False, "POT_WIDTH": 0.07, "POT_HEIGHT": 0.08},
-    "BD":{"POT_OFFSET": 0.002, "HAS_STICK":True,  "POT_WIDTH": 0.07, "POT_HEIGHT": 0.08},
-    "BR":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
-    "HS":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
-    "HV":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
-    "NB":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.11, "POT_HEIGHT": 0.12},
-    "SD":{"POT_OFFSET": 0.005, "HAS_STICK":True,  "POT_WIDTH": 0.13, "POT_HEIGHT": 0.13},
-    "SL":{"POT_OFFSET": 0.005, "HAS_STICK":False, "POT_WIDTH": 0.13, "POT_HEIGHT": 0.13},
-    "TA":{"POT_OFFSET": 0.003, "HAS_STICK":True,  "POT_WIDTH": 0.09, "POT_HEIGHT": 0.095},
+    "AT":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.075, "POT_HEIGHT": 0.086, "POT_THICK": 0.005},
+    "BD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.075, "POT_HEIGHT": 0.086, "POT_THICK": 0.005},
+    "BR":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.005},
+    "HS":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.005},
+    "HV":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.005},
+    "NB":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.12,  "POT_HEIGHT": 0.13,  "POT_THICK": 0.005},
+    "SD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.14,  "POT_HEIGHT": 0.14,  "POT_THICK": 0.005},
+    "SL":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.14,  "POT_HEIGHT": 0.14,  "POT_THICK": 0.005},
+    "TA":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.005},
     # Population pots
-    "ATp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.20, "POT_HEIGHT": 0.10},
-    "BDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.20, "POT_HEIGHT": 0.10},
-    "BRp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
-    "HSp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
-    "HVp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
-    "NBp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.35, "POT_HEIGHT": 0.12},
-    "SDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.38, "POT_HEIGHT": 0.15},
-    "SLp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.38, "POT_HEIGHT": 0.15},
-    "TAp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12},
+    "ATp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.10, "POT_THICK": 0.025},
+    "BDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.10, "POT_THICK": 0.025},
+    "BRp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.13, "POT_THICK": 0.025},
+    "HSp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.13, "POT_THICK": 0.025},
+    "HVp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.13, "POT_THICK": 0.025},
+    "NBp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.35, "POT_HEIGHT": 0.13, "POT_THICK": 0.025},
+    "SDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.4,  "POT_HEIGHT": 0.15, "POT_THICK": 0.025},
+    "SLp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.4,  "POT_HEIGHT": 0.15, "POT_THICK": 0.025},
+    "TAp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12, "POT_THICK": 0.025},
+}
+SPECIES_OVERWRITE: dict[str, dict[ConfigOptions, float|bool]] = {
+    # Square pots (higher pot height)
+    "BR03IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
+    "BR07IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
+    "BR08IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
+    "BR16ID": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
+    "BR17ID": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
+    "BR18ID": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
+    "BR21IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
+    "BR22IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
+    "BR23IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
+    "NB23IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.007},
+    "NB26IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.007},
+    "NB29IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.007},
+    "SD09IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.007},
 }
 CONFIG_DEFAULT:dict[ConfigOptions, float|bool] = {"POT_OFFSET": 0.003, "HAS_STICK":True}
 
@@ -374,9 +390,11 @@ def boolean_modifier(source_obj:bpy.types.Object,
                     )
         elif param.operator == "DIFFERENCE":
             # In difference, expect target vertices to be all but the ones in target object
+            # (in general, expect more remaining vertices than present in bounding box
+            # since bounding box bigger than actual object)
             param.vertex_ratio_range = (
-                    (vertex_init - vertex_in_bbox) / vertex_init * 0.8,
-                    (vertex_init - vertex_in_bbox) / vertex_init * 1.2
+                    (vertex_init - vertex_in_bbox) / vertex_init * 0.9,
+                    (vertex_init - vertex_in_bbox) / vertex_init * 1.3
                     )
 
     # If vertex_ratio_range specified, only apply modifier if within range
@@ -681,6 +699,7 @@ def vert_crosssection(obj:bpy.types.Object,
 def plant_cleanup(plant:bpy.types.Object,
                   pot_offset:float=0.005,
                   remove_stick:bool=True,
+                  pot_thickness:float=0.001,
                   pot_dim:None|tuple[float, float]=None) -> tuple[Vector, int]:
     """Extract green plant from 3D model, remove support and output model attribute"""
     # Initialise code error
@@ -736,7 +755,7 @@ def plant_cleanup(plant:bpy.types.Object,
     else:
         # Use input pot dimensions
         pot_param = ransac.preset_pot(pot_dim[0], pot_dim[1])
-        pot = create_pot(pot_param, offset=pot_offset)
+        pot = create_pot(pot_param, offset=pot_offset, top_tickness=pot_thickness)
 
     # Define plant reference point at Z=soil_height
     plant_ref = Vector((0, 0, pot_param.get_param()["soil_height"][0]))
@@ -836,6 +855,12 @@ def single_model_prep(obj_path:str|None=None,
     # Find configuration for corresponding species
     species_config = SPECIES_CONFIG.get(species_short, CONFIG_DEFAULT)
 
+    # If plant listed in overwrite, overwrite defined values
+    plant_label = file_name.replace(FILE_PREFIX, "")[0:6]
+    plant_overwrite = SPECIES_OVERWRITE.get(plant_label, {})
+    for param, value in plant_overwrite.items():
+        species_config[param] = value
+
     # Prepare the model and compute all plant metrics
     # Extract pot dimensions if found
     pot_dim = (species_config.get("POT_WIDTH", None), species_config.get("POT_HEIGHT", None))
@@ -845,6 +870,7 @@ def single_model_prep(obj_path:str|None=None,
     plant_ref, code_error = plant_cleanup(model,
                                           species_config["POT_OFFSET"],
                                           species_config["HAS_STICK"],
+                                          pot_thickness=species_config["POT_THICK"],
                                           pot_dim=pot_dim)
 
     # Read plant metrics

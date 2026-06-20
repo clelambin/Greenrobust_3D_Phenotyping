@@ -7,7 +7,7 @@ from mathutils import Vector
 
 # User Literal type
 Cartesian = Literal["X", "Y", "Z"]
-ConfigOptions = Literal["POT_OFFSET", "HAS_STICK", "POT_WIDTH", "POT_HEIGHT"]
+ConfigOptions = Literal["POT_OFFSET", "HAS_STICK", "POT_WIDTH", "POT_HEIGHT", "POT_THICK"]
 
 # Complex type anotation
 BMEntry = types.BMVert | types.BMEdge | types.BMFace
