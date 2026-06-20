@@ -31,30 +31,30 @@ def assign_attribute(obj:bpy.types.Object, labels:np.ndarray) -> None:
     vertices_attribute = obj.data.attributes.new(name="dbscan_label", type="INT", domain="POINT")
     vertices_attribute.data.foreach_set("value", labels)
 
-def get_biggest_cluster(label:np.ndarray) -> np.intp:
+def get_biggest_cluster(label:np.ndarray, nb_cluster:int = 1) -> list[np.intp]:
     """Return integer of the cluster containing the most amount of points"""
     # Remove all -1 values from label (represent isolated point)
     label_noneg = np.delete(label, np.where(label == -1)[0])
     # If no negative value found, return -1 and alert the user
     if len(label_noneg) == 0:
         print("Warning, empty sequence, only isolated points found")
-        return np.intp(-1)
+        return np.intp([-1])
     # Count the frequency of each remaining cluster label
     label_count = np.bincount(label_noneg)
     # Return most frequent value
-    return np.argmax(label_count)
+    return np.argpartition(label_count, -nb_cluster)[-nb_cluster:]
 
 def exclude_label(mesh:bmesh.types.BMesh,
-                  target_label:np.intp) -> list[bmesh.types.BMVert]:
+                  target_label:list[np.intp]) -> list[bmesh.types.BMVert]:
     """Return list of vertices not including given label"""
     # Load vertex list and saved attribute
     vertex_list = mesh.verts
     attribute   = mesh.verts.layers.int["dbscan_label"]
     # Return vertex whose attribute does not match the target
-    return [vertex for vertex in vertex_list if vertex[attribute] != target_label]
+    return [vertex for vertex in vertex_list if not vertex[attribute] in target_label]
 
-def dbscan_filter(obj:bpy.types.Object, dbscan_eps=0.1) -> int:
-    """Apply dbscan clustering on input object and keep biggest cluster.
+def dbscan_filter(obj:bpy.types.Object, dbscan_eps=0.1, nb_cluster:int = 1) -> int:
+    """Apply dbscan clustering on input object and keep input number of biggest cluster.
     Return number of deleted vertices
     """
     utility.make_active(obj)
@@ -68,9 +68,10 @@ def dbscan_filter(obj:bpy.types.Object, dbscan_eps=0.1) -> int:
     print(f"{len(cluster_label)=}")
     assign_attribute(obj, cluster_label)
     # Get label of biggest cluster
-    biggest_cluster = get_biggest_cluster(cluster_label)
-    # If no cluster found, return -1 to indicate that no cluster found
-    if biggest_cluster == -1: return -1
+    biggest_cluster = get_biggest_cluster(cluster_label, nb_cluster)
+    # If not enough cluster found, return -1 to indicate issue
+    if any(cluster == -1 for cluster in biggest_cluster):
+        return -1
     # Switch to edit mesh and load bmesh
     utility.make_active(obj)
     bpy.ops.object.mode_set(mode='EDIT', toggle=False)

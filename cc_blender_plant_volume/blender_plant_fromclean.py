@@ -700,6 +700,7 @@ def plant_cleanup(plant:bpy.types.Object,
                   pot_offset:float=0.005,
                   remove_stick:bool=True,
                   pot_thickness:float=0.001,
+                  population:bool=False,
                   pot_dim:None|tuple[float, float]=None) -> tuple[Vector, int]:
     """Extract green plant from 3D model, remove support and output model attribute"""
     # Initialise code error
@@ -791,9 +792,11 @@ def plant_cleanup(plant:bpy.types.Object,
                 code_error += 2
 
     # Run DBScan clustering on vertex to remove vertex cluster further from given distance
-    deleted_vertices = cluster.dbscan_filter(plant, dbscan_eps=0.02)
+    # Number of cluster depend on population vs individual pot
+    nb_cluster = 9 if population else 1
+    deleted_vertices = cluster.dbscan_filter(plant, dbscan_eps=0.02, nb_cluster=nb_cluster)
     # If -1 returned as number of deleted vertices, no cluster detected, raise an error
-    assert deleted_vertices != -1, f"No cluster detected for {plant.name}"
+    assert deleted_vertices != -1, f"Not enough cluster detected for {plant.name}"
 
     # Return plant reference points and code error (used for metrics)
     return plant_ref, code_error
@@ -871,7 +874,8 @@ def single_model_prep(obj_path:str|None=None,
                                           species_config["POT_OFFSET"],
                                           species_config["HAS_STICK"],
                                           pot_thickness=species_config["POT_THICK"],
-                                          pot_dim=pot_dim)
+                                          pot_dim=pot_dim,
+                                          population=species_orga=="P")
 
     # Read plant metrics
     model_metrics = plant_metrics(model, output_dir=output_path, plant_ref=plant_ref)
