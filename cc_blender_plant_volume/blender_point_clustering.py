@@ -31,16 +31,19 @@ def assign_attribute(obj:bpy.types.Object, labels:np.ndarray) -> None:
     vertices_attribute = obj.data.attributes.new(name="dbscan_label", type="INT", domain="POINT")
     vertices_attribute.data.foreach_set("value", labels)
 
-def get_biggest_cluster(label:np.ndarray, nb_cluster:int = 1) -> list[np.intp]:
-    """Return integer of the cluster containing the most amount of points"""
+def get_biggest_cluster(label:np.ndarray, nb_cluster:int = 1) -> np.ndarray:
+    """Return integer of the cluster containing the most points"""
     # Remove all -1 values from label (represent isolated point)
     label_noneg = np.delete(label, np.where(label == -1)[0])
     # If no negative value found, return -1 and alert the user
     if len(label_noneg) == 0:
         print("Warning, empty sequence, only isolated points found")
-        return np.intp([-1])
+        return np.array([-1])
     # Count the frequency of each remaining cluster label
     label_count = np.bincount(label_noneg)
+    # If less label than expected cluster, return every non isolated cluster
+    if len(label_count) <= nb_cluster:
+        return np.array(range(0, np.max(label + 1)))
     # Return most frequent value
     return np.argpartition(label_count, -nb_cluster)[-nb_cluster:]
 
@@ -65,7 +68,6 @@ def dbscan_filter(obj:bpy.types.Object, dbscan_eps=0.1, nb_cluster:int = 1) -> i
     if len(vertices_coord) == 0: return -1
     # Run dbscan clustering
     cluster_label = dbscan_clustering(vertices_coord, dbscan_eps)
-    print(f"{len(cluster_label)=}")
     assign_attribute(obj, cluster_label)
     # Get label of biggest cluster
     biggest_cluster = get_biggest_cluster(cluster_label, nb_cluster)

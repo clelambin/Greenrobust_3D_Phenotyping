@@ -35,25 +35,25 @@ from cc_blender_plant_volume.blender_user_types import Cartesian, ConfigOptions
 FILE_PREFIX = "Metashape_"
 SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
     # Individual pot
-    "AT":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.075, "POT_HEIGHT": 0.086, "POT_THICK": 0.005},
-    "BD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.075, "POT_HEIGHT": 0.086, "POT_THICK": 0.005},
-    "BR":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.005},
-    "HS":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.005},
-    "HV":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.005},
-    "NB":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.12,  "POT_HEIGHT": 0.13,  "POT_THICK": 0.005},
-    "SD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.14,  "POT_HEIGHT": 0.14,  "POT_THICK": 0.005},
-    "SL":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.14,  "POT_HEIGHT": 0.14,  "POT_THICK": 0.005},
-    "TA":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.005},
+    "AT":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.075, "POT_HEIGHT": 0.086, "POT_THICK": 0.013},
+    "BD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.075, "POT_HEIGHT": 0.086, "POT_THICK": 0.013},
+    "BR":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.013},
+    "HS":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.013},
+    "HV":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.013},
+    "NB":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.12,  "POT_HEIGHT": 0.13,  "POT_THICK": 0.013},
+    "SD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.14,  "POT_HEIGHT": 0.14,  "POT_THICK": 0.013},
+    "SL":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.14,  "POT_HEIGHT": 0.14,  "POT_THICK": 0.013},
+    "TA":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.013},
     # Population pots
-    "ATp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.10, "POT_THICK": 0.025},
-    "BDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.10, "POT_THICK": 0.025},
-    "BRp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.13, "POT_THICK": 0.025},
-    "HSp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.13, "POT_THICK": 0.025},
-    "HVp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.13, "POT_THICK": 0.025},
-    "NBp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.35, "POT_HEIGHT": 0.13, "POT_THICK": 0.025},
-    "SDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.4,  "POT_HEIGHT": 0.15, "POT_THICK": 0.025},
-    "SLp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.4,  "POT_HEIGHT": 0.15, "POT_THICK": 0.025},
-    "TAp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.29, "POT_HEIGHT": 0.12, "POT_THICK": 0.025},
+    "ATp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.10, "POT_THICK": 0.05},
+    "BDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.10, "POT_THICK": 0.05},
+    "BRp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
+    "HSp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
+    "HVp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
+    "NBp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.36, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
+    "SDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.41, "POT_HEIGHT": 0.15, "POT_THICK": 0.05},
+    "SLp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.41, "POT_HEIGHT": 0.15, "POT_THICK": 0.05},
+    "TAp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
 }
 SPECIES_OVERWRITE: dict[str, dict[ConfigOptions, float|bool]] = {
     # Square pots (higher pot height)
@@ -394,7 +394,7 @@ def boolean_modifier(source_obj:bpy.types.Object,
             # since bounding box bigger than actual object)
             param.vertex_ratio_range = (
                     (vertex_init - vertex_in_bbox) / vertex_init * 0.9,
-                    (vertex_init - vertex_in_bbox) / vertex_init * 1.3
+                    (vertex_init - vertex_in_bbox) / vertex_init * 1.35
                     )
 
     # If vertex_ratio_range specified, only apply modifier if within range
@@ -567,6 +567,10 @@ def create_pot(pot_section:ransac.PotSection,
     pot_height = param_dict["pot_height"][0]
     soil_width = param_dict["soil_width"][1]
     soil_height = param_dict["soil_height"][0]
+
+    # DEBUG
+    print(f"{pot_height=}")
+    print(f"{soil_height=}")
 
     # Start from a primitive cube
     bpy.ops.mesh.primitive_cube_add()

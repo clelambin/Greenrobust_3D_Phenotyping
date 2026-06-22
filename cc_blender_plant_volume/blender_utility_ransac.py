@@ -273,13 +273,18 @@ def preset_pot(width:float, height:float) -> PotSection:
 
     # Define soil height as a delta to pot height based on the type of pot
     # For population pot (width>15), distance between pot and soil height higher
-    soil_delta = 0.004 if width < 15 else 0.020
+    soil_delta = 0.01 if width < 0.15 else 0.04
+
+    # DEBUG
+    print(f"{width=}")
+    print(f"{height=}")
+    print(f"{soil_delta=}")
 
     # Manually set the parameters based on input values
     (pot_width, pot_height, soil_width, soil_height) = pot_section.params
     # Pot width parameter has two value: at base and at the top
     pot_width.values = (0.45*width, 0.5*width)
-    pot_height.values = (1.05*height, 1.05*height)
+    pot_height.values = (height, height)
     soil_width.values = (0, 0.45*width)
     soil_height.values = (height - soil_delta, height - soil_delta)
 
