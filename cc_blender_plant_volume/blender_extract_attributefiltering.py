@@ -18,7 +18,7 @@ def rgb_to_hsv(rgb:mathutils.Vector) -> mathutils.Vector:
 
 def rgb_to_grey(rgb:mathutils.Vector) -> float:
     """Convert color from RGB (values from 0 to 1 for each channel) to greyscale"""
-    # Convertion from RGB to greyscale using the Colorimetric conversion to grayscale
+    # Conversion from RGB to greyscale using the Colorimetric conversion to grayscale
     # source: https://en.wikipedia.org/wiki/Grayscale
     return 0.2125*rgb[0] + 0.7154*rgb[1] + 0.0721*rgb[2]
 
