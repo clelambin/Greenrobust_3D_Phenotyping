@@ -35,15 +35,15 @@ from cc_blender_plant_volume.blender_user_types import Cartesian, ConfigOptions
 FILE_PREFIX = "Metashape_"
 SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
     # Individual pot
-    "AT":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.075, "POT_HEIGHT": 0.086, "POT_THICK": 0.013},
-    "BD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.075, "POT_HEIGHT": 0.086, "POT_THICK": 0.013},
-    "BR":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.013},
-    "HS":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.013},
-    "HV":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.013},
-    "NB":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.12,  "POT_HEIGHT": 0.13,  "POT_THICK": 0.013},
-    "SD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.14,  "POT_HEIGHT": 0.14,  "POT_THICK": 0.013},
-    "SL":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.14,  "POT_HEIGHT": 0.14,  "POT_THICK": 0.013},
-    "TA":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.096, "POT_HEIGHT": 0.106, "POT_THICK": 0.013},
+    "AT":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.075, "POT_HEIGHT": 0.092, "POT_THICK": 0.013},
+    "BD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.075, "POT_HEIGHT": 0.092, "POT_THICK": 0.013},
+    "BR":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
+    "HS":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
+    "HV":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
+    "NB":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.12,  "POT_HEIGHT": 0.128, "POT_THICK": 0.013},
+    "SD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.138, "POT_HEIGHT": 0.138, "POT_THICK": 0.013},
+    "SL":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.138, "POT_HEIGHT": 0.142, "POT_THICK": 0.013},
+    "TA":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
     # Population pots
     "ATp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.10, "POT_THICK": 0.05},
     "BDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.10, "POT_THICK": 0.05},
@@ -57,19 +57,19 @@ SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
 }
 SPECIES_OVERWRITE: dict[str, dict[ConfigOptions, float|bool]] = {
     # Square pots (higher pot height)
-    "BR03IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
-    "BR07IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
-    "BR08IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
-    "BR16ID": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
-    "BR17ID": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
-    "BR18ID": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
-    "BR21IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
-    "BR22IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
-    "BR23IC": {"POT_WIDTH": 0.1, "POT_HEIGHT": 0.12, "POT_THICK": 0.008},
-    "NB23IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.007},
-    "NB26IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.007},
-    "NB29IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.007},
-    "SD09IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.007},
+    "BR03IC": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
+    "BR07IC": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
+    "BR08IC": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
+    "BR16ID": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
+    "BR17ID": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
+    "BR18ID": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
+    "BR21IC": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
+    "BR22IC": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
+    "BR23IC": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
+    "NB23IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
+    "NB26IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
+    "NB29IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
+    "SD09IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
 }
 CONFIG_DEFAULT:dict[ConfigOptions, float|bool] = {"POT_OFFSET": 0.003, "HAS_STICK":True}
 
@@ -567,10 +567,6 @@ def create_pot(pot_section:ransac.PotSection,
     pot_height = param_dict["pot_height"][0]
     soil_width = param_dict["soil_width"][1]
     soil_height = param_dict["soil_height"][0]
-
-    # DEBUG
-    print(f"{pot_height=}")
-    print(f"{soil_height=}")
 
     # Start from a primitive cube
     bpy.ops.mesh.primitive_cube_add()
