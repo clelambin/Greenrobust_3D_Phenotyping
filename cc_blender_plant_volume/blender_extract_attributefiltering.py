@@ -1,8 +1,8 @@
-"""Perform filtering based on model attribute values (color, confidence, ...)"""
+"""Perform filtering based on model attribute values (colour, confidence, ...)"""
 
 # Import libraries
 from collections.abc import Callable
-import colorsys          # Color convertion
+import colorsys          # Colour conversion
 import numpy as np       # Array and matrix operations
 import bpy               # Blender python
 import bmesh             # Blender mesh module
@@ -13,30 +13,38 @@ from cc_blender_plant_volume import blender_utility_functions as utility
 from cc_blender_plant_volume import blender_point_clustering as cluster
 
 def rgb_to_hsv(rgb:mathutils.Vector) -> mathutils.Vector:
-    """Convert color vector from RGB (value from 0 to 1 for each channel) to HSV"""
+    """Convert colour vector from RGB (value from 0 to 1 for each channel) to HSV"""
     return mathutils.Vector(colorsys.rgb_to_hsv(rgb[0], rgb[1], rgb[2]))
 
 def rgb_to_grey(rgb:mathutils.Vector) -> float:
-    """Convert color from RGB (values from 0 to 1 for each channel) to greyscale"""
-    # Conversion from RGB to greyscale using the Colorimetric conversion to grayscale
+    """Convert colour from RGB (values from 0 to 1 for each channel) to greyscale"""
+    # Conversion from RGB to greyscale using the colorimetric conversion to greyscale
     # source: https://en.wikipedia.org/wiki/Grayscale
     return 0.2125*rgb[0] + 0.7154*rgb[1] + 0.0721*rgb[2]
 
+def calc_exg_index(rgb:mathutils.Vector) -> float:
+    """Convert colour from RGB (values from 0 to 1 for each channel) to excess green index"""
+    # Extract and normalise the colours
+    # (here using * to unpack all remaining variable (if any) in _, for alpha channel)
+    r, g, b, *_ = [c / sum(rgb) for c in rgb]
+    # Extract Excess green index
+    return 2 * g - r - b
+
 def filter_hue(rgb:mathutils.Vector) -> float:
-    """Return hue value of rgb color"""
+    """Return hue value of rgb colour"""
     # Convert rgb to hsv
     hsv = rgb_to_hsv(rgb)
     return hsv[0]
 
 def filter_saturated_hue(rgb:mathutils.Vector) -> float:
-    """Return sum of hue and inverse of saturation from rgb color"""
+    """Return sum of hue and inverse of saturation from rgb colour"""
     # Convert rgb to hsv
     hsv = rgb_to_hsv(rgb)
     return hsv[0] + (1-hsv[1])
 
 def is_in_range(value:float, min_:float, max_:float, transf:(None|Callable)=None) -> bool:
     """Return true if value is within [min_, max_]"""
-    # (min_ and max_ are named with trailing _ to differenciate from the min and max function))
+    # (min_ and max_ are named with trailing _ to differentiate from the min and max function))
     # If a transformation function is specified, apply it to the value before checking if in range
     if transf is not None:
         value = transf(value)
@@ -73,15 +81,15 @@ def remesh_block_modifier(obj:bpy.types.Object, octree_depth:int=8) -> None:
 # Using https://stackoverflow.com/questions/15688232/check-which-side-of-a-plane-points-are-on
 def filter_from_plane_normal(obj:bpy.types.Object,
                              plane_equation:np.ndarray) -> bpy.types.Object:
-    """Delte points from input object if not in oriented toward the plane normal
+    """Delete points from input object if not in oriented toward the plane normal
     Check point orientation by computing dot product between plane equation and point
     """
-    # Loop through vetices and check on which side of the plane it stand
+    # Loop through vertices and check on which side of the plane it stand
     with utility.bmesh_edit(obj) as obj_mesh:
         for vertex in obj_mesh.verts:
             # Use to.4d to add 1 as extra dimension(to match with plane equation)
             vertex_coord = np.array(vertex.co.to_4d())
-            # Delete points which are not alligned with plane normal
+            # Delete points which are not aligned with plane normal
             if plane_equation.dot(vertex_coord) < 0:
                 obj_mesh.verts.remove(vertex)
     return obj
@@ -92,13 +100,13 @@ def extract_component(name:str="Pot",
                       delete_max:float=float("Inf"),
                       filtering_mth:str|None=None,
                       remesh_octree:int=8) -> bpy.types.Object:
-    """Duplicate active object and keep only selected component (selected by color range)"""
+    """Duplicate active object and keep only selected component (selected by colour range)"""
     # Duplicate active object
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     bpy.ops.object.duplicate()
     # Rename duplicated object and switch to edit mode
     (obj, obj_mesh) = utility.edit_active_object(name=name)
-    # Get list of non-pot vertices (with non-dark color)
+    # Get list of non-pot vertices (with non-dark colour)
     vertices_nonpot = vertex_by_attribute(obj_mesh, 0,
                                           min_=delete_min,
                                           max_=delete_max,
@@ -126,7 +134,7 @@ def extract_component(name:str="Pot",
 def copy_pot(pot_thresh:float=0.05,
              cup_thresh:float=0.3,
              clip_pot:bool=True) -> tuple[bpy.types.Object, bpy.types.Object]:
-    """Extract pot and cup from active object (selected by color range)"""
+    """Extract pot and cup from active object (selected by colour range)"""
     # Keep active object in memory (for second duplication)
     source_obj = bpy.context.active_object
     # Extract pot
@@ -134,7 +142,7 @@ def copy_pot(pot_thresh:float=0.05,
                             color_selection=rgb_to_grey,
                             delete_min=pot_thresh,
                             filtering_mth="cluster")
-    # Marke original active object as active and perform second copy
+    # Mark original active object as active and perform second copy
     utility.select_all(select=False)
     bpy.context.view_layer.objects.active = source_obj
     source_obj.select_set(True)
@@ -144,9 +152,9 @@ def copy_pot(pot_thresh:float=0.05,
                             filtering_mth="remesh",
                             remesh_octree=8)
     # If clip_pot, intersect pot object with plane fitted on cup
-    # (Used to remove unnecessary feature under the cup, leading to uncontrolled pot center)
+    # (Used to remove unnecessary feature under the cup, leading to uncontrolled pot centre)
     if clip_pot and len(cup.data.vertices) > 3:
-        # Reset pot location and rotoation to origin so cup and pot have the same reference
+        # Reset pot location and rotation to origin so cup and pot have the same reference
         utility.make_active(pot)
         bpy.context.scene.cursor.location = mathutils.Vector((0, 0, 0))
         bpy.ops.object.origin_set(type = 'ORIGIN_CURSOR')
@@ -184,9 +192,10 @@ def delete_low_confidence() -> None:
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
 
 if __name__ == "__main__":
-#    # Test removing low confidence
-#    delete_low_confidence()
-    # Test pot detection
-    copy_pot()
-#    obj = bpy.context.active_object
-#    exclude_pot(obj)
+    # Test extract component
+    obj = bpy.context.active_object
+    assert obj is not None, "No object selected"
+    extract_component(name="GreenExcess",
+                      color_selection=calc_exg_index,
+                      delete_min=float("-Inf"),
+                      delete_max=0.1)
