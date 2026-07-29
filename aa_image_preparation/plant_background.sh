@@ -8,6 +8,19 @@ BACKGROUND_FOLDER="Background"
 # Set bash to stop when facing an error
 set -euo pipefail
 
+# Script functions
+exif_datetime () {
+  # Script which extract created datetime from input picture EXIF data
+  echo $(exif -t 0x9003 -m $1)
+}
+
+exif_timestamp () {
+  # Script which extract datetime from input picture and convert to timestamp
+  local datetime=$(exif_datetime $1)
+  local dateconv=$(echo "$datetime" | sed 's/:/-/;s/:/-/')
+  echo $(date -d "${dateconv}Z" "+%s")
+}
+
 # Backup previous background timestamp file
 if [ -f timestamp_info.txt ]; then
   mv timestamp_info.txt timestamp_info_backup.txt
@@ -27,7 +40,7 @@ for folder in $(ls -d ${BACKGROUND_FOLDER}*); do
     background_file="$BACKGROUND_RENAME"
   fi
   # Append timestamp into separate file
-  background_timestamp=$(stat --format="%Y" "$folder/$background_file")
+  background_timestamp=$(exif_timestamp "$folder/$background_file")
   echo "$background_timestamp,$folder/$background_file" >> timestamp_info.txt
 done
 
@@ -38,7 +51,7 @@ sort -n timestamp_info.txt -o timestamp_info.txt
 for folder in $(ls --ignore="${BACKGROUND_FOLDER}*" --ignore="*.*"); do
   # Check timestamp of one picture within processing folder
   sample_picture=$(ls -c1 $folder | head -n 1)
-  sample_timestamp=$(stat --format="%Y" $folder/$sample_picture)
+  sample_timestamp=$(exif_timestamp $folder/$sample_picture)
   # Find matching background file: last background file with timestamp smaller than sample picture
   matching_background=$(awk -v target="$sample_timestamp" -F , '$1 < target { var = $2 } END {print var}' timestamp_info.txt)
   # If matching background file exist, copy it into current folder

@@ -5,7 +5,7 @@
 RENAME_FILE="$1"
 BACKGROUND_FOLDER="Background"
 BACKGROUND_THRESH=5
-PROCESSING_FOLDER="2026*"
+PROCESSING_FOLDER="*"
 
 # Set bash to stop when facing an error
 set -euo pipefail
@@ -13,7 +13,7 @@ set -euo pipefail
 # Compare number of folder to content of input file
 nb_folder=$(ls -d -c1 $PROCESSING_FOLDER/ | wc -l)
 nb_input=$(cat "$RENAME_FILE" | wc -l)
-processed_count=$(ls --ignore="2026*" --ignore="*.*" -c1 | wc -l)
+processed_count=$(ls --ignore="${PROCESSING_FOLDER}*" --ignore="*.*" -c1 | wc -l)
 if [ $nb_folder -ne $((nb_input-processed_count)) ]; then
   echo "Error, different file count in input file than working directory"
   echo "Number of folder in working directory: $nb_folder"
