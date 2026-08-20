@@ -47,7 +47,9 @@ class metashape_proc:
     # Setting variables
     img_format = "jpg"
     # List of possible folder to process: the last folder in the list has precedence
-    img_possible_folder  = ["jpg", "jpg_filtered", "Camera_high", "Camera_mid", "Camera_low"]
+    img_possible_folder  = ["jpg", "jpg_filtered",
+                            "Camera_high", "Camera_mid", "Camera_low",
+                            "Camera_1", "Camera_2", "Camera_3"]
     mask_possible_folder = ["jpg_mask", "jpg_mask_erode"]
 
     def __init__(self,

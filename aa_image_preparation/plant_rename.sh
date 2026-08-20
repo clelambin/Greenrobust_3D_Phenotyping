@@ -5,7 +5,7 @@
 RENAME_FILE="$1"
 BACKGROUND_FOLDER="Background"
 BACKGROUND_THRESH=5
-PROCESSING_FOLDER="*"
+PROCESSING_FOLDER="2026*"
 
 # Set bash to stop when facing an error
 set -euo pipefail
@@ -23,6 +23,9 @@ fi
 
 # Initialise count of processed folder and start from next folder
 folder_count=$((processed_count+1))
+if [ $folder_count -ne 1 ]; then
+  echo "Starting from line ${folder_count} in input file"
+fi
 # Look through folder and rename based on input folder name
 for folder in $(ls -d $PROCESSING_FOLDER/); do
   # Count number of file in folder, compare with expected folder name
