@@ -2,16 +2,16 @@
 # Metashape script to prepare 3D digitisation from different image set
 
 # Libraries
-import os
-import re
-import math
+import os           # Path manipulation
+import re           # Regular expression
+import sys          # Access to command line arguments
+import math         # Trigonometry
 from datetime import datetime
 import Metashape
 
 # User variables
 WORKING_DIR = r"."
 OUTPUT_DIR  = r"03_Metashape_BatchProc_withMarkers"
-#OUTPUT_DIR  = r"03_Metashape_BatchProc_withMarkers"
 SPECIES_INIT = ("AT", "BD", "BR", "HS", "HV", "NB", "SD", "SL", "TA")
 
 # Script function
@@ -21,13 +21,13 @@ def create_folder(path):
         os.makedirs(path)
 
 def cart2cyl(x:float, y:float, z:float=0):
-    """Convert cartesian coordinate to cylindrical coordinate"""
+    """Convert Cartesian coordinate to cylindrical coordinate"""
     rho = math.sqrt(x**2 + y**2)
     phi = math.atan2(y, x)
     return(rho, phi, z)
 
 def cyl2cart(rho:float, phi:float, z:float=0):
-    """Convert cylindrical coordinate to cartesian coordinate"""
+    """Convert cylindrical coordinate to Cartesian coordinate"""
     x = rho * math.cos(phi)
     y = rho * math.sin(phi)
     return(x, y, z)
@@ -40,6 +40,33 @@ def available_folder(working_dir:str, folder_list:list[str]):
         if os.path.isdir(folder):
             path_list.append(folder)
     return path_list
+
+def read_path_arguments():
+    """Read input argument from command line and return list of existing path to process"""
+    # Access input arguments
+    input_args = sys.argv
+
+    # If list smaller than 2, no input argument, return current directory instead
+    if len(input_args) < 2:
+        return [os.getcwd()]
+
+    # For each input argument, check if correspond to an existing path
+    existing_path = []
+    for path in input_args:
+        if os.path.isdir(path):
+            existing_path.append(os.path.abspath(path))
+        else:
+            # Not an existing path, alert the user
+            print(f"The path {path} does not exist in {os.getcwd()}, skipping.")
+
+    # If no existing path, return working directory
+    if len(existing_path) == 0:
+        print("No listed directory exist, use working directory instead")
+        return [os.getcwd()]
+
+    # Return list of path
+    return existing_path
+
 
 ## Metashape processing class
 class metashape_proc:
@@ -85,7 +112,7 @@ class metashape_proc:
         self.init_input_folder()
 
     def init_input_folder(self):
-        """Setup input folders used to import photos"""
+        """Set up input folders used to import photos"""
         # Look for existing folder to process
         self.img_folders  = available_folder(self.working_dir, self.img_possible_folder)
         self.mask_folders = available_folder(self.working_dir, self.mask_possible_folder)
@@ -166,7 +193,7 @@ class metashape_proc:
         marker_index:int   = start_index
         marker_label:int   = start_index + 1
         while marker_angle-start_angle < 2*math.pi:
-            # Compute marker location in cartesian coordinate
+            # Compute marker location in Cartesian coordinate
             marker_polar = (radius, marker_angle)
             marker_coord = Metashape.Vector(cyl2cart(*marker_polar))
             # If attempt to access a marker which does not exist, stop and return the current index
@@ -195,7 +222,7 @@ class metashape_proc:
         marker_target = getattr(Metashape.TargetType, target_type)
         self.chunk.detectMarkers(target_type=marker_target, tolerance=50)
         # Update marker reference location
-        # - The 12 first markers are equi distance in a circule of radius 0.18m
+        # - The 12 first markers are equidistance in a circle of radius 0.18m
         #   separated by an angle of pi/6 rad
         self.marker_ref_circular(radius=0.18, angle=math.pi/6)
 #        next_marker = self.marker_ref_circular(radius=0.18, angle=math.pi/6)
@@ -206,7 +233,7 @@ class metashape_proc:
 #                                 start_angle=math.pi/2)
 
     def align_photos(self):
-        """Allign photo operation"""
+        """Align photo operation"""
         self.chunk.matchPhotos(downscale = 1,            # High image alignment accuracy
                                generic_preselection = True,
                                reference_preselection = False,
@@ -270,11 +297,11 @@ class metashape_proc:
             self.doc.save(os.path.join(self.output_dir, project_file_psx))
             self.doc.save(os.path.join(self.output_dir, project_file_psz))
 
-# Code block: run if script called directly)
-if __name__ == "__main__":
-    # Move to yorking directory
-    os.chdir(WORKING_DIR)
 
+def process_folder(working_dir):
+    """Process image folders in working directory"""
+    # Move to input directory
+    os.chdir(working_dir)
     # Create ouput directory if it does not exists
     create_folder(OUTPUT_DIR)
 
@@ -299,3 +326,18 @@ if __name__ == "__main__":
             current_process.import_photos()
             current_process.model_from_pictures()
             current_process.save_output()
+
+
+def main():
+    """Main function, called when script is called directly"""
+    # Move to working directory
+    os.chdir(WORKING_DIR)
+
+    # Extract path to process from input arguments and process each folder
+    path_to_process = read_path_arguments()
+    for path in path_to_process:
+        process_folder(path)
+
+# Code block: run if script called directly)
+if __name__ == "__main__":
+    main()
