@@ -5,11 +5,11 @@ Note:
 - replace model_prep from blender_plant_modelprep.py
 
 Workflow:
-- Import obj
-- Create vertical section to detect pot shape and horizontal section to detect stick shape
-- Create simplified pot shape based on the section and remove it from the plant model
-- Create cylinder at location of wood stick and remove it from the plant model
-- Extract model attribute (volume, ...)
+- Import obj.
+- Create vertical section to detect pot shape and horizontal section to detect stick shape.
+- Create simplified pot shape based on the section and remove it from the plant model.
+- Create cylinder at location of wood stick and remove it from the plant model.
+- Extract model attribute (volume, ...).
 """
 
 # Import libraries
@@ -221,10 +221,10 @@ class TreeStructure:
     """Create tree data structure of face across multiple sections.
 
     Using modified vocabulary for the tree data structure:
-    - heads : current node without parents
+    - heads : current node without parents.
               (once a parent is added to a head, it is removed from this list)
-    - leafs : nodes without childres (extremity of tree datastructure)
-    - roots : nodes without parents (once all sections have been processed)
+    - leafs : nodes without children (extremity of tree data structure).
+    - roots : nodes without parents (once all sections have been processed).
 
     Additionally, save characteristics for each branches (path from a leaf to a root)
     - branches_xy_dist : sum of horizontal distance between each node of the branch

@@ -1,17 +1,17 @@
 """Blender volume computation for digitised 3D plant model.
-Can be called on a signle model (by defining MODEL_FILE) or on a whole folder.
+Can be called on a single model (by defining MODEL_FILE) or on a whole folder.
 Position and align plant model to the origin, scale the plant based on the plant pot dimension,
 then compute the volume of the green part of the plant.
 
 Workflow:
-- Import obj
-- Remove background noise
-- Use color attribute to detect pot and cup
-- Position pot center to global center
-- Allign object center to +Z axis
-- Intersect obj with XY plane to get pot cross-section
-- Use pot cross-section to scale model
-- Compute volume of green plant
+- Import obj.
+- Remove background noise.
+- Use colour attribute to detect pot and cup.
+- Position pot centre to global centre.
+- Align object centre to +Z axis.
+- Intersect obj with XY plane to get pot cross-section.
+- Use pot cross-section to scale model.
+- Compute volume of green plant.
 """
 
 # Libraries
@@ -19,6 +19,7 @@ import os             # File manager
 import bpy            # Blender python
 # User module
 from cc_blender_plant_volume import blender_plant_fromclean as modelprep
+from cc_blender_plant_volume import blender_utility_functions as utility
 
 # User variables
 WORKING_PATH   = r""
@@ -66,7 +67,7 @@ class PlantModelPrep(bpy.types.Operator):
 
 class PlantFolderLookup(bpy.types.Operator):
     """Operator running plant model preparation for all folders in input path.
-    Allign plant model, apply scaling and compute volume.
+    Align plant model, apply scaling and compute volume.
     """
     # Blender identifiers
     bl_idname  = "object.plant_folder_lookup"

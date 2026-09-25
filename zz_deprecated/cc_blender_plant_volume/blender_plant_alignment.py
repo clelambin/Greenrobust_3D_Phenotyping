@@ -1,11 +1,11 @@
-"""Main script for the model processing, allign model and compute volume of green plant.
+"""Main script for the model processing, align model and compute volume of green plant.
 
 Workflow:
 - Import obj
 - Remove background noise
 - Use color attribute to detect pot and cup
-- Position pot center to global center
-- Allign object center to +Z axis
+- Position pot centre to global centre
+- Align object centre to +Z axis
 - Intersect obj with XY plane to get pot cross-section
 - Use pot cross-section to scale model
 - Compute volume of green plant
@@ -28,8 +28,8 @@ from cc_blender_plant_volume import blender_plant_rendering as render
 from cc_blender_plant_volume import blender_plant_metrics as metrics
 
 def get_location(obj:(bpy.types.Object|None)=None, center_ref:str="surface") -> mathutils.Vector:
-    """Reset center and get location of active object or sepified object"""
-    # Set the origine reference based on input
+    """Reset centre and get location of active object or specified object"""
+    # Set the origin reference based on input
     origin_def = {"surface":"ORIGIN_CENTER_OF_MASS",
                   "volume":"ORIGIN_CENTER_OF_VOLUME",}
     # If no input object, work on active object, otherwise, select input object
@@ -44,7 +44,7 @@ def get_location(obj:(bpy.types.Object|None)=None, center_ref:str="surface") -> 
     return obj.location
 
 def translate_to_center(ref_obj:bpy.types.Object) -> None:
-    """Move all mesh objects to center reference object"""
+    """Move all mesh objects to centre reference object"""
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     # Set reference object as active
     utility.select_all(select=False)
@@ -58,10 +58,10 @@ def translate_to_center(ref_obj:bpy.types.Object) -> None:
             obj.location -= ref_location
 
 def get_rotation_to_z(ref_obj:bpy.types.Object, plane_normal:bool=False) -> mathutils.Matrix:
-    """Compute rotation matrix vector to allign center of reference object to Z axis"""
+    """Compute rotation matrix vector to align centre of reference object to Z axis"""
     center = get_location(ref_obj)
     if plane_normal:
-        # Fit plane to object and allign z axis to plane normal
+        # Fit plane to object and align z axis to plane normal
         plane = cluster.ransac_plane(ref_obj)
         center = mathutils.Vector(plane[0:3])
     # Compute rotation vector (using Euler rotation), then convert to Matrix
@@ -70,19 +70,19 @@ def get_rotation_to_z(ref_obj:bpy.types.Object, plane_normal:bool=False) -> math
     rotation_y = mathutils.Euler((0, np.pi - np.arctan2(center.x, center.z), 0), "XYZ")
     matrix_y   = rotation_y.to_matrix()
     # Transformation by first rotation in Y, then in X
-    # (with numpy library @ act as matrix mulitplication operator)
+    # (with NumPy library @ act as matrix multiplication operator)
     return matrix_y @ matrix_x
 
 # And https://iquilezles.org/articles/noacos/
 def get_rotation_to_axis(ref_obj: bpy.types.Object,
                          target:np.ndarray=np.array([0., 0., 1.])) -> mathutils.Matrix:
-    """Compute rotation matrix from normal of reference object to terget vector"""
-    # Fit plane to object and allign z axis to plane normal
+    """Compute rotation matrix from normal of reference object to target vector"""
+    # Fit plane to object and align z axis to plane normal
     ref_vector = cluster.ransac_plane(ref_obj)[0:3]
     # Normalise both vectors
     ref_vector = ref_vector/np.linalg.norm(ref_vector)
     target     = target/np.linalg.norm(target)
-    # Compute skew symetric matrix and cos of angle
+    # Compute skew symmetric matrix and cos of angle
     cross_vect = np.cross(ref_vector, target)
     cos  = np.dot(ref_vector, target)
     # Rotation matrix can be decomposed into 2 parts (here named mat_base and mat_comp):
@@ -111,17 +111,17 @@ def apply_rotation(obj:bpy.types.Object, rotation_matrix:mathutils.Matrix) -> No
     obj.location = mathutils.Vector((0, 0, 0))
     obj.rotation_euler.rotate(rotation_matrix)
     # To revert object location, need to multiply the initial location with the rotation matrix
-    # (with numpy library @ act as matrix mulitplication operator)
+    # (with NumPy library @ act as matrix multiplication operator)
     obj.location = rotation_matrix @ init_location
 
 def allign_to_z(ref_obj:bpy.types.Object, plane_normal=True) ->  int:
-    """Rotate object around 2 axis to allign center of ref object to Z axis
-    Return 1 if an error happen during allignment (otherwise, return 0)
+    """Rotate object around 2 axis to align centre of ref object to Z axis
+    Return 1 if an error happen during alignment (otherwise, return 0)
     """
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     # If reference object does not contain any vertices, return 1 and alert the user
     if len(ref_obj.data.vertices) == 0:
-        print(f"Warning {ref_obj.name} is empty, cannot be used to for allignment")
+        print(f"Warning {ref_obj.name} is empty, cannot be used to for alignment")
         return 1
     # Mark reference object as active
     utility.select_all(select=False)
@@ -136,7 +136,7 @@ def allign_to_z(ref_obj:bpy.types.Object, plane_normal=True) ->  int:
         ref_obj = bpy.data.objects[ref_obj.name]
         rotation_matrix = get_rotation_to_axis(ref_obj)
     else:
-        # Set pivot point to center of grid
+        # Set pivot point to centre of grid
         bpy.context.scene.cursor.location = mathutils.Vector((0, 0, 0))
         bpy.context.scene.tool_settings.transform_pivot_point = 'CURSOR'
         rotation_matrix = get_rotation_to_z(ref_obj)
@@ -186,7 +186,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     # If no error, code error remain at 0, otherwise, each error adds up to it
     # (similar to chmod ownership code)
     # code error and corresponding function
-    # +1 : allign_to_z
+    # +1 : align_to_z
     # +2 : section.get_section_dimension (section not computed)
     # +4 : section.get_section_dimension (section missplaced)
     # +8 : cluster.dbscan_filter
@@ -201,7 +201,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
 #    Skeleton.keep_biggest_cluster()
     (pot, cup) = attribute.copy_pot()
 
-    # Align Object based on pot and cup center
+    # Align Object based on pot and cup centre
     translate_to_center(ref_obj = pot)
     # Align cup normal to Z axis, if error encounter, return 1
     # (used as multiplicator on volume to indicate something wrong in the process)
@@ -215,7 +215,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     if section_dim.size > 1:
         ratio = calc_scale_ratio(section_dim, pot_size, method="min")
         scale_to_ref(ratio)
-        # if section_center not closed to center, add to code error
+        # if section_center not closed to centre, add to code error
         # to alert that cross-section might be missplaced
         ratio_to_center = np.linalg.norm(section_center) / np.linalg.norm(section_dim)
         if ratio_to_center > 0.1:
@@ -228,7 +228,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
 
     # Create copy of plant excluding pot
     plant_green = attribute.exclude_pot(plant)
-    # Use clusting to only keep biggest cluster
+    # Use clustering to only keep biggest cluster
     deleted_vertices = cluster.dbscan_filter(plant_green)
     # If -1 returned as number of deleted vertices, no cluster detected, add to code error
     if deleted_vertices == -1:
@@ -245,7 +245,7 @@ def model_prep(pot_size:float=0.13, output_dir:str|None=None) -> dict:
     # Return computed metrics
     print(f"{plant_metrics = }")
 
-    # If ouput_dir specified, save rendered image of prepared model in output directory
+    # If output_dir specified, save rendered image of prepared model in output directory
     if output_dir is not None:
         render.model_rendering(output_dir, plant.name)
 
