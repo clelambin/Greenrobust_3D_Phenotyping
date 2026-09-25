@@ -2,7 +2,8 @@
 
 # Import libraries
 import os                # File manager
-from queue import Queue  # Multi-threading
+import json              # Load config file
+from queue import Queue  # Multithreading
 from contextlib import contextmanager
 from collections.abc import Generator
 import bpy               # Blender python
@@ -277,12 +278,12 @@ def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = 
         if obj.type in type_to_remove or obj.name in obj_to_remove:
             bpy.data.objects.remove(obj)
 
-def import_file(filepath:str, file_ext:str="obj") -> bpy.types.Object:
+def import_file(filepath:str, file_ext:str|None=None) -> bpy.types.Object:
     """Import obj or ply file and return as an object"""
     # Check if file exist and is obj
     if not os.path.isfile(filepath):
         raise OSError(f"File {filepath} not found")
-    if not filepath.endswith(file_ext):
+    if file_ext is not None and not filepath.endswith(file_ext):
         raise OSError(f"File {filepath} is not a {file_ext}")
 
     # Import file (based on the file_ext)
@@ -295,6 +296,22 @@ def import_file(filepath:str, file_ext:str="obj") -> bpy.types.Object:
 
     # Imported object is marked as active, return it
     return get_active_obj()
+
+def import_config(config_file:str, config_dir:str|None = None) -> dict:
+    """Import config JSON file, if no directory specified, read path from script path"""
+    # If no config dir specified, use script path
+    if config_dir is None:
+        try:
+            config_dir = os.path.dirname(bpy.context.space_data.text.filepath)
+        except AttributeError:
+            config_dir = os.path.dirname(os.path.abspath(__file__))
+    # Import JSON and save as dictionary
+    config_path = os.path.join(config_dir, config_file)
+    with open(config_path, 'r', encoding='utf-8') as file:
+        config = json.load(file)
+    # Return dictionary
+    return config
+
 
 def save_blend(obj_path:str, output_path:str, include_external:bool=True) -> None:
     """Save the prepared model as blend file in output file"""

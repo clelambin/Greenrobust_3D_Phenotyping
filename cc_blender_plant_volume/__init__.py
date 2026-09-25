@@ -21,39 +21,17 @@ import bpy            # Blender python
 from cc_blender_plant_volume import blender_plant_fromclean as modelprep
 from cc_blender_plant_volume import blender_utility_functions as utility
 
-# User variables
-WORKING_PATH   = r""
-OUTPUT_PATH    = r""
-OUTPUT_TABLE   = "Plant_data.csv"
-MODEL_FOLDER   = "03_Metashape_BatchProc_withMarkers"
-MODEL_FILE_EXT = "obj"
-MODEL_FILE     = None
-
 # Operator classes
 # (Registering operators to be callable in Blender)
 class PlantModelPrep(bpy.types.Operator):
-    """Operator for single plant model preparation.
+    """Operator for plant model preparation.
     Align plant model, apply scaling and compute volume.
+    If no MODEL_FILE specified in input config, loop through all folders in input path.
     """
     # Blender identifiers
     bl_idname  = "object.plant_model_prep"
-    bl_label   = "Model preparation for single plant"
+    bl_label   = "Plant model preparation"
     bl_options = {"REGISTER", "UNDO"}
-
-    # Class properties
-    model_file_ext: bpy.props.EnumProperty(
-        name = "File extension type",
-        description = "File extension type",
-        items = (
-            # name, value, description
-            ("ply", "ply", "Standford PLY (.ply)"),
-            ("obj", "obj", "Wavefront (.obj)"),
-        ),
-        default = "ply",
-    )
-    working_path  : bpy.props.StringProperty(default=".")
-    model_folder  : bpy.props.StringProperty()
-    model_file    : bpy.props.StringProperty()
 
     def pool(self, context):
         """Check if context suitable to call the function"""
@@ -61,53 +39,13 @@ class PlantModelPrep(bpy.types.Operator):
 
     def execute(self, context):
         """Execute operator"""
-        model_path = os.path.join(self.working_path, self.model_folder, self.model_file)
-        modelprep.single_model_prep(model_path, file_ext=self.model_file_ext)
-        return {"FINISHED"}
-
-class PlantFolderLookup(bpy.types.Operator):
-    """Operator running plant model preparation for all folders in input path.
-    Align plant model, apply scaling and compute volume.
-    """
-    # Blender identifiers
-    bl_idname  = "object.plant_folder_lookup"
-    bl_label   = "Model preparation for whole folder"
-    bl_options = {"REGISTER", "UNDO"}
-
-    # Class properties
-    model_file_ext: bpy.props.EnumProperty(
-        name = "File extension type",
-        description = "File extension type",
-        items = (
-            # name, value, description
-            ("ply", "ply", "Standford PLY (.ply)"),
-            ("obj", "obj", "Wavefront (.obj)"),
-        ),
-        default = "ply",
-    )
-    working_path  : bpy.props.StringProperty(default=".")
-    model_folder  : bpy.props.StringProperty()
-    output_path   : bpy.props.StringProperty()
-    output_table  : bpy.props.StringProperty()
-
-    def pool(self, context):
-        """Check if context suitable to call the function"""
-        return bpy.context.object.mode == "OBJECT"
-
-    def execute(self, context):
-        """Execute operator"""
-        modelprep.loop_through_folders(self.working_path,
-                                       self.model_folder,
-                                       self.model_file_ext,
-                                       self.output_path,
-                                       self.output_table)
+        modelprep.process_from_config()
         return {"FINISHED"}
 
 
 # Register full classes
 classes = (
     PlantModelPrep,
-    PlantFolderLookup,
 )
 
 def register():
@@ -123,19 +61,5 @@ def unregister():
 if __name__ == "__main__":
     register()
 
-    # If MODEL_FILE is None, loop through whole folder, otherwise, process only specified file
-    if MODEL_FILE is None:
-        bpy.ops.object.plant_folder_lookup(
-            working_path   = WORKING_PATH,
-            model_folder   = MODEL_FOLDER,
-            model_file_ext = MODEL_FILE_EXT,
-            output_path    = OUTPUT_PATH,
-            output_table   = OUTPUT_TABLE,
-        )
-    else:
-        bpy.ops.object.plant_model_prep(
-            working_path   = WORKING_PATH,
-            model_folder   = MODEL_FOLDER,
-            model_file     = MODEL_FILE,
-            model_file_ext = MODEL_FILE_EXT,
-        )
+    # Load config file and run model preparation
+    bpy.ops.object.plant_model_prep()

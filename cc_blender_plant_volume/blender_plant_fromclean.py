@@ -13,11 +13,11 @@ Workflow:
 """
 
 # Import libraries
-import operator
 from collections.abc import Iterable, Callable
 from dataclasses import dataclass, field
 from typing import Literal
 import os
+import json
 import numpy as np              # Array manipulation
 import bpy                      # Blender python
 import bmesh                    # Blender mesh module
@@ -32,46 +32,7 @@ from cc_blender_plant_volume import blender_plant_rendering as render
 from cc_blender_plant_volume.blender_user_types import Cartesian, ConfigOptions
 
 # Script function
-FILE_PREFIX = "Metashape_"
-SPECIES_CONFIG: dict[str, dict[ConfigOptions, float|bool]] = {
-    # Individual pot
-    "AT":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.075, "POT_HEIGHT": 0.092, "POT_THICK": 0.013},
-    "BD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.075, "POT_HEIGHT": 0.092, "POT_THICK": 0.013},
-    "BR":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
-    "HS":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
-    "HV":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
-    "NB":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.12,  "POT_HEIGHT": 0.133, "POT_THICK": 0.02},
-    "SD":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.138, "POT_HEIGHT": 0.138, "POT_THICK": 0.013},
-    "SL":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.138, "POT_HEIGHT": 0.142, "POT_THICK": 0.013},
-    "TA":{"POT_OFFSET": 0, "HAS_STICK":True,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
-    # Population pots
-    "ATp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.11, "POT_THICK": 0.03},
-    "BDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.11, "POT_THICK": 0.03},
-    "BRp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
-    "HSp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
-    "HVp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
-    "NBp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.36, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
-    "SDp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.41, "POT_HEIGHT": 0.15, "POT_THICK": 0.05},
-    "SLp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.41, "POT_HEIGHT": 0.15, "POT_THICK": 0.05},
-    "TAp":{"POT_OFFSET": 0, "HAS_STICK":False, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
-}
-SPECIES_OVERWRITE: dict[str, dict[ConfigOptions, float|bool]] = {
-    # Square pots (higher pot height)
-    "BR03IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-    "BR07IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-    "BR08IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-    "BR16ID": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-    "BR17ID": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-    "BR18ID": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-    "BR21IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-    "BR22IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-    "BR23IC": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
-    "NB23IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
-    "NB26IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
-    "NB29IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
-    "SD09IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
-}
-CONFIG_DEFAULT:dict[ConfigOptions, float|bool] = {"POT_OFFSET": 0.003, "HAS_STICK":True}
+CONFIG_FILE = "config.json"
 
 
 # Utility functions
@@ -94,6 +55,44 @@ def calc_ratio(nb1:float, nb2:float) -> float:
 
 
 # Classes
+@dataclass
+class SpeciesConfig:
+    """Species related configuration data"""
+    species_config: dict
+    species_overwrite: dict
+    config_default: dict
+
+    def __init__(self, config_file):
+        """Load config from external JSON file"""
+        config = utility.import_config(config_file)
+        # Save config info into the data class
+        self.species_config: dict = config["SPECIES_CONFIG"]
+        self.species_overwrite: dict = config["SPECIES_OVERWRITE"]
+        self.config_default: dict = config["CONFIG_DEFAULT"]
+
+@dataclass
+class ProcessConfig:
+    """Configuration data for overall process"""
+    working_path: str|None
+    output_path: str|None
+    output_table: str
+    model_folder: str
+    model_file_ext: str
+    model_file:str | None
+    file_prefix:str
+
+    def __init__(self, config_file):
+        """Load config from external JSON file"""
+        config = utility.import_config(config_file)
+        # Save config info into the data class
+        self.working_path = config["WORKING_PATH"]
+        self.output_path = config["OUTPUT_PATH"]
+        self.output_table = config["OUTPUT_TABLE"]
+        self.model_folder = config["MODEL_FOLDER"]
+        self.model_file_ext = config["MODEL_FILE_EXT"]
+        self.model_file = config["MODEL_FILE"]
+        self.file_prefix = config["FILE_PREFIX"]
+
 @dataclass
 class FaceInfo:
     """Geometric characteristic of the current face"""
@@ -368,7 +367,11 @@ def boolean_modifier(source_obj:bpy.types.Object,
     # Boolean modifier using fast intersection mode
     modifier = source_obj.modifiers.new(name="Section", type="BOOLEAN")
     assert isinstance(modifier, bpy.types.BooleanModifier)
-    modifier.solver = "FAST"
+    # On Blender 4.X, boolean solver named Fast, on 5.X, named Float
+    try:
+        modifier.solver = "FAST"
+    except TypeError:
+        modifier.solver = "FLOAT"
     modifier.operation = param.operator
     modifier.double_threshold = param.thresh
     # Set object to intersect
@@ -628,17 +631,6 @@ def fit_pot(sections:dict[Cartesian, FaceNode],
     print(f"{fitted_model=}")
     print(f"Ratio of fitted points: {fitted_model.fit_ratio:.3f}")
 
-#    # Draw segments
-#    pot_segments = fitted_model.segments
-#    for (index, param) in enumerate(fitted_model.params):
-#        pot_curve    = utility.create_curve(list(pot_segments[index]), name=param.name)
-#        pot_section  = utility.curve_to_mesh(pot_curve)
-#        utility.from_z_to_axis(pot_section, "Y")
-#
-#    point_cluster = fitted_model.cluster_points(all_points, ransac_param.dist_thresh)
-#    print(f"Points per segments: {[len(cluster) for cluster in point_cluster]}")
-#    print(f"Segments: {pot_segments}")
-
     # Draw create pot object based on fitted pot section
     pot = create_pot(fitted_model, offset=pot_offset)
 
@@ -713,11 +705,6 @@ def plant_cleanup(plant:bpy.types.Object,
     code_error:int = 0
 
     # Set criterion requirement for face and branch
-#    plant_criteria = FaceCriteria(
-#           min_area = 1e-6,
-#           max_area = 1e-3,
-#           min_roundness = 0.5
-#    )
     pot_criteria = FaceCriteria(
             min_area = 1e-4,
             max_area = 1e-1
@@ -743,11 +730,6 @@ def plant_cleanup(plant:bpy.types.Object,
     if pot_dim is None:
         # Create vertical section, used to extract the pot
         pot_section = vert_crosssection(plant, pot_criteria)
-    #    print(f"{pot_section=}")
-    #    for (axis, section) in pot_section.items():
-    #        section_curve = utility.create_curve(section.coords_2d, name=f"Section_{str(axis)}")
-    #        section_mesh  = utility.curve_to_mesh(section_curve)
-    #        utility.from_z_to_axis(section_mesh, axis)
         pot, pot_param = fit_pot(pot_section, pot_offset=pot_offset)
 
         # If did not fit defined fitted ratio, update code error
@@ -827,16 +809,16 @@ def plant_metrics(plant:bpy.types.Object,
     # Return computed metrics
     return metrics_dict
 
-def single_model_prep(obj_path:str|None=None,
-                      output_path:str|None=None,
-                      file_ext:str="obj") -> dict[str, float]:
+def single_model_prep(process_config: ProcessConfig,
+                      species_config: SpeciesConfig,
+                      obj_path:str|None=None) -> dict[str, float]:
     """Single model preparation: import the model, compute the volume and save output blend file"""
 
     # Prepare working environment
     # If input obj_path, import it, otherwise, work on selected object
     if obj_path is not None:
         utility.cleanup_env()
-        model = utility.import_file(obj_path, file_ext)
+        model = utility.import_file(obj_path)
         # Read species label from path
         file_name = os.path.basename(obj_path)
     else:
@@ -847,93 +829,114 @@ def single_model_prep(obj_path:str|None=None,
         file_name = model.name
 
     # Extract relevant species config from model name
-    species_short = file_name.replace(FILE_PREFIX, "")[0:2]
+    species_short = file_name.replace(process_config.file_prefix, "")[0:2]
 
     # Check if pot is individual or population pot
-    species_orga = file_name.replace(FILE_PREFIX, "")[3:4]
+    species_orga = file_name.replace(process_config.file_prefix, "")[3:4]
     # If population pot, append p at end of species short to indicate it
     if species_orga == "P":
         species_short = species_short + "p"
 
     # Find configuration for corresponding species
-    species_config = SPECIES_CONFIG.get(species_short, CONFIG_DEFAULT)
+    species_dict = species_config.species_config.get(species_short, species_config.config_default)
 
     # If plant listed in overwrite, overwrite defined values
-    plant_label = file_name.replace(FILE_PREFIX, "")[0:6]
-    plant_overwrite = SPECIES_OVERWRITE.get(plant_label, {})
+    plant_label = file_name.replace(process_config.file_prefix, "")[0:6]
+    plant_overwrite = species_config.species_overwrite.get(plant_label, {})
     for param, value in plant_overwrite.items():
-        species_config[param] = value
+        species_dict[param] = value
 
     # Prepare the model and compute all plant metrics
     # Extract pot dimensions if found
-    pot_dim = (species_config.get("POT_WIDTH", None), species_config.get("POT_HEIGHT", None))
+    pot_dim = (species_dict.get("POT_WIDTH", None), species_dict.get("POT_HEIGHT", None))
     pot_dim = None if any(dim is None for dim in pot_dim) else pot_dim
 
     # Cleanup plant model
     plant_ref, code_error = plant_cleanup(model,
-                                          species_config["POT_OFFSET"],
-                                          species_config["HAS_STICK"],
-                                          pot_thickness=species_config["POT_THICK"],
-                                          pot_dim=pot_dim,
+                                          pot_offset = species_dict["POT_OFFSET"],
+                                          remove_stick = species_dict["HAS_STICK"],
+                                          pot_thickness = species_dict["POT_THICK"],
+                                          pot_dim = pot_dim,
                                           population=species_orga=="P")
 
     # Read plant metrics
-    model_metrics = plant_metrics(model, output_dir=output_path, plant_ref=plant_ref)
+    model_metrics = plant_metrics(model, output_dir=process_config.output_path, plant_ref=plant_ref)
     # Update metrics code error to output from plant_cleanup function
     model_metrics["Code_Error"] = code_error
     # Save blend file in output folder
-    if output_path is not None:
-        utility.save_blend(obj_path, output_path)
+    if process_config.output_path is not None:
+        utility.save_blend(obj_path, process_config.output_path)
     # Return plant metrics
     return model_metrics
 
 def process_model_folder(file_list:list[str],
                          working_path:str,
                          volume_path:str,
-                         output_path:str="",
-                         file_ext:str="obj",
+                         process_config: ProcessConfig,
+                         species_config: SpeciesConfig,
                          metrics_keys:list[str]=["Volume"]) -> None:
     """Loop through file list and process all model files"""
     for name in file_list:
-        if not name.lower().endswith(file_ext) or "ptscloud" in name.lower():
+        if not name.lower().endswith(process_config.model_file_ext) or "ptscloud" in name.lower():
             continue
         # Process plant model
         model_path = os.path.join(working_path, name)
-        model_metrics = single_model_prep(model_path, output_path=output_path, file_ext=file_ext)
-        # Save all plant metrics to csv file
+        model_metrics = single_model_prep(process_config, species_config, model_path)
+        # Save all plant metrics to CSV file
         plant_info = [working_path, name]
         for key in metrics_keys:
             plant_info.append(str(model_metrics.get(key, 0)))
         with open(volume_path, "a", encoding="utf-8") as volume_file:
             volume_file.write(f"{','.join(plant_info)}\n")
 
-def loop_through_folders(working_path:str,
-                         model_folder:str,
-                         model_file_ext:str,
-                         output_path:str,
-                         output_table:str) -> None:
+def loop_through_folders(process_config: ProcessConfig, species_config: SpeciesConfig) -> None:
     """Loop through the folders and process folders matching input name"""
     # Loop through all files and process plant model
-    volume_path = os.path.join(output_path, output_table)
+    volume_path = os.path.join(process_config.output_path, process_config.output_table)
     plant_header = ["Path", "Plant name"]
     metrics_keys = list(metrics.calc_metrics().keys())
+
     with open(volume_path, "w", encoding="utf-8") as volume_file:
         volume_file.write(f"{','.join(plant_header)},{','.join(metrics_keys)}\n")
-    for root, _, files in os.walk(working_path):
+
+    for root, _, files in os.walk(process_config.working_path):
         # Check if last folder in root matches with specified model folder
         last_folder = root.split(os.sep)[-1]
-        if model_folder == last_folder:
+        if process_config.model_folder == last_folder:
             print(f"Processing {root}")
-            process_model_folder(files,
-                                 root,
-                                 volume_path,
-                                 output_path,
-                                 model_file_ext,
-                                 metrics_keys=metrics_keys)
+            process_model_folder(files, root, volume_path, process_config, species_config, metrics_keys=metrics_keys)
+
+def process_from_config() -> dict[str, float] | None:
+    """Main process function, load config file and call model preparation scripts"""
+    # Load config file
+    process_config = ProcessConfig(CONFIG_FILE)
+    species_config = SpeciesConfig(CONFIG_FILE)
+
+    # If working directory defined but not model file, loop through all file in working dir
+    if process_config.working_path is not None and process_config.model_file is None:
+        # Loop through all folders in working path
+        loop_through_folders(process_config, species_config)
+        return None
+
+    # If working path defined, import specified model
+    if process_config.working_path is not None:
+        assert process_config.model_file is not None
+        model_path = os.path.join(process_config.working_path,
+                                  process_config.model_folder,
+                                  process_config.model_file)
+    # Work on active model
+    else:
+        model_path = None
+    print(f"Processing {model_path}")
+    return single_model_prep(process_config, species_config, model_path)
+
+    # Otherwise loop through all folders in working path
+    loop_through_folders(process_config, species_config)
+    return None
 
 def main() -> None:
     """Main function, prepare model for selected model on the 3D view"""
-    model_metrics = single_model_prep()
+    model_metrics = process_from_config()
     print(f"{model_metrics=}")
 
 if __name__ == "__main__":
