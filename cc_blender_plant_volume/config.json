@@ -16,7 +16,7 @@
       "NB":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.12,  "POT_HEIGHT": 0.133, "POT_THICK": 0.02},
       "SD":{"POT_OFFSET": 0, "HAS_STICK":true,  "POT_WIDTH": 0.138, "POT_HEIGHT": 0.138, "POT_THICK": 0.013},
       "SL":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.138, "POT_HEIGHT": 0.142, "POT_THICK": 0.013},
-      "TA":{"POT_OFFSET": 0, "HAS_STICK":true,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
+      "TA":{"POT_OFFSET": 0, "HAS_STICK":true,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013, "POT_SHIFT": 0.018},
       "__comment__": "Population pots",
       "ATp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.11, "POT_THICK": 0.03},
       "BDp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.11, "POT_THICK": 0.03},
@@ -29,20 +29,7 @@
       "TAp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05}
   },
   "SPECIES_OVERWRITE": {
-      "__comment__": "Overwrite for square pots (higher pot height)",
-      "BR03IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-      "BR07IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-      "BR08IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-      "BR16ID": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-      "BR17ID": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-      "BR18ID": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-      "BR21IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-      "BR22IC": {"POT_HEIGHT": 0.125, "POT_THICK": 0.015},
-      "BR23IC": {"POT_HEIGHT": 0.123, "POT_THICK": 0.015},
-      "NB23IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
-      "NB26IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
-      "NB29IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015},
-      "SD09IC": {"POT_HEIGHT": 0.152, "POT_THICK": 0.015}
+      "__comment__": "Overwrite for plant specific parameters"
   },
   "CONFIG_DEFAULT": {"POT_OFFSET": 0.003, "HAS_STICK":true}
 }
