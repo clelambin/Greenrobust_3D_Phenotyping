@@ -56,24 +56,26 @@ def calc_ratio(nb1:float, nb2:float) -> float:
 
 # Classes
 @dataclass
-class PotConfig:
+class PlantConfig:
     """Pot related configuration data"""
     pot_offset: float
     has_stick: bool
     pot_thick: float
     pot_dim: tuple[float, float]|None
+    cluster_dist: float
     pot_width: float|None = None
     pot_height: float|None = None
     pot_shift: float = 0
 
-    def __init__(self, pot_dict:dict):
+    def __init__(self, plant_dict:dict):
         """Extract pot configuration from dictionary"""
-        self.pot_offset = pot_dict.get("POT_OFFSET", 0)
-        self.pot_thick  = pot_dict.get("POT_THICK", 0)
-        self.has_stick  = pot_dict.get("HAS_STICK", False)
-        self.pot_width  = pot_dict.get("POT_WIDTH")
-        self.pot_height = pot_dict.get("POT_HEIGHT")
-        self.pot_shift  = pot_dict.get("POT_SHIFT", 0)
+        self.pot_offset = plant_dict.get("POT_OFFSET", 0)
+        self.pot_thick  = plant_dict.get("POT_THICK", 0)
+        self.has_stick  = plant_dict.get("HAS_STICK", False)
+        self.pot_width  = plant_dict.get("POT_WIDTH")
+        self.pot_height = plant_dict.get("POT_HEIGHT")
+        self.pot_shift  = plant_dict.get("POT_SHIFT", 0)
+        self.cluster_dist = plant_dict.get("CLUSTER_DIST", 0.02)
 
         # Set pot dimension based on height and width
         if self.pot_width is None or self.pot_height is None:
@@ -96,7 +98,7 @@ class SpeciesConfig:
         self.species_overwrite: dict = config["SPECIES_OVERWRITE"]
         self.config_default: dict = config["CONFIG_DEFAULT"]
 
-    def apply_config(self, plant_label: str) -> PotConfig:
+    def apply_config(self, plant_label: str) -> PlantConfig:
         """Apply relevant species config based on plant label"""
 
         # Look for corresponding species code
@@ -116,7 +118,7 @@ class SpeciesConfig:
         for param, value in plant_overwrite.items():
             species_dict[param] = value
 
-        return PotConfig(species_dict)
+        return PlantConfig(species_dict)
 
 @dataclass
 class ProcessConfig:
@@ -606,7 +608,7 @@ def reshape_section(sections:dict[Cartesian, FaceNode]) -> list[Vector]:
 
 # TODO: not very clean way to extract parameter from PotSection
 def create_pot(pot_section:ransac.PotSection,
-               pot_config:PotConfig,
+               plant_config:PlantConfig,
                name:str="Simplified_pot") -> bpy.types.Object:
     """Create simplified pot model based on fitted pot section"""
     # Extract all parameters from fitted model and convert to dictionary
@@ -619,7 +621,7 @@ def create_pot(pot_section:ransac.PotSection,
     soil_height = param_dict["soil_height"][0]
 
     # Start from a primitive cube
-    bpy.ops.mesh.primitive_cube_add(location = (0, -pot_config.pot_shift, 0))
+    bpy.ops.mesh.primitive_cube_add(location = (0, -plant_config.pot_shift, 0))
     # Save primitive cube as object
     cube = bpy.context.active_object
     assert cube is not None, "Could not create primitive cube"
@@ -642,8 +644,8 @@ def create_pot(pot_section:ransac.PotSection,
         # If specify top_thickness, add initial inset to create a thickness at the pot top
         # The top face remain the middle one after inset,
         # so can use the same face over multiple operations
-        if pot_config.pot_thick > 0:
-            bmesh.ops.inset_individual(cube_mesh, faces=[top_face], thickness=pot_config.pot_thick)
+        if plant_config.pot_thick > 0:
+            bmesh.ops.inset_individual(cube_mesh, faces=[top_face], thickness=plant_config.pot_thick)
         # Second inset used to create the soil face (translated downward)
         bmesh.ops.inset_individual(cube_mesh, faces=[top_face], thickness=pot_width_top-soil_width)
         bmesh.ops.translate(cube_mesh,
@@ -651,7 +653,7 @@ def create_pot(pot_section:ransac.PotSection,
                             verts=list(top_face.verts))
 
         # Offset all faces
-        utility.offset_faces(cube_mesh, dist=pot_config.pot_offset)
+        utility.offset_faces(cube_mesh, dist=plant_config.pot_offset)
     # Return modified cube
     return cube
 
@@ -679,7 +681,7 @@ def fit_pot(sections:dict[Cartesian, FaceNode],
     print(f"Ratio of fitted points: {fitted_model.fit_ratio:.3f}")
 
     # Draw create pot object based on fitted pot section
-    pot = create_pot(fitted_model, PotConfig({"POT_OFFSET": pot_offset}))
+    pot = create_pot(fitted_model, PlantConfig({"POT_OFFSET": pot_offset}))
 
     if hide_pot:
         utility.hide_object(pot)
@@ -736,7 +738,7 @@ def vert_crosssection(obj:bpy.types.Object,
 
 
 def plant_cleanup(plant:bpy.types.Object,
-                  pot_config:PotConfig,
+                  config:PlantConfig,
                   population:bool=False) -> tuple[Vector, int]:
     """Extract green plant from 3D model, remove support and output model attribute"""
     # Initialise code error
@@ -771,18 +773,18 @@ def plant_cleanup(plant:bpy.types.Object,
         remove_ground(plant)
 
     # If not input pot dimension, fit pot
-    if pot_config.pot_dim is None:
+    if config.pot_dim is None:
         # Create vertical section, used to extract the pot
         pot_section = vert_crosssection(plant, pot_criteria)
-        pot, pot_param = fit_pot(pot_section, pot_offset=pot_config.pot_offset)
+        pot, pot_param = fit_pot(pot_section, pot_offset=config.pot_offset)
 
         # If did not fit defined fitted ratio, update code error
         if not pot_param.reach_fit:
             code_error += 4
     else:
         # Use input pot dimensions
-        pot_param = ransac.preset_pot(pot_config.pot_dim[0], pot_config.pot_dim[1])
-        pot = create_pot(pot_param, pot_config)
+        pot_param = ransac.preset_pot(config.pot_dim[0], config.pot_dim[1])
+        pot = create_pot(pot_param, config)
 
     # Define plant reference point at Z=soil_height
     plant_ref = Vector((0, 0, pot_param.get_param()["soil_height"][0]))
@@ -797,7 +799,7 @@ def plant_cleanup(plant:bpy.types.Object,
     if pot_vert_ratio == -1:
         code_error += 1
 
-    if pot_config.has_stick:
+    if config.has_stick:
         # Detecting the wood stick from the plant by creating horizontal sections
         # and looking at section structure
         section_detail = multi_crosssection(plant, stick_criteria, z_delta=0.01)
@@ -820,7 +822,7 @@ def plant_cleanup(plant:bpy.types.Object,
     # Run DBScan clustering on vertex to remove vertex cluster further from given distance
     # Number of cluster depend on population vs individual pot
     nb_cluster = 9 if population else 1
-    deleted_vertices = cluster.dbscan_filter(plant, dbscan_eps=0.02, nb_cluster=nb_cluster)
+    deleted_vertices = cluster.dbscan_filter(plant, dbscan_eps=config.cluster_dist, nb_cluster=nb_cluster)
     # If -1 returned as number of deleted vertices, no cluster detected, raise an error
     assert deleted_vertices != -1, f"Not enough cluster detected for {plant.name}"
 
@@ -874,11 +876,11 @@ def single_model_prep(process_config: ProcessConfig,
 
     # Extract relevant species config from model name
     species_label = file_name.replace(process_config.file_prefix, "")[0:11]
-    pot_config = species_config.apply_config(species_label)
+    plant_config = species_config.apply_config(species_label)
 
     # Cleanup plant model
     plant_ref, code_error = plant_cleanup(model,
-                                          pot_config = pot_config,
+                                          config = plant_config,
                                           population=species_label[4:5]=="P")
 
     # Read plant metrics
