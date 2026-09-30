@@ -61,7 +61,6 @@ class PlantConfig:
     pot_offset: float
     has_stick: bool
     pot_thick: float
-    pot_dim: tuple[float, float]|None
     cluster_dist: float
     pot_width: float|None = None
     pot_height: float|None = None
@@ -76,12 +75,6 @@ class PlantConfig:
         self.pot_height = plant_dict.get("POT_HEIGHT")
         self.pot_shift  = plant_dict.get("POT_SHIFT", 0)
         self.cluster_dist = plant_dict.get("CLUSTER_DIST", 0.02)
-
-        # Set pot dimension based on height and width
-        if self.pot_width is None or self.pot_height is None:
-            self.pot_dim = None
-        else:
-            self.pot_dim = (self.pot_width, self.pot_width)
 
 @dataclass
 class SpeciesConfig:
@@ -793,7 +786,7 @@ def plant_cleanup(plant:bpy.types.Object,
         remove_ground(plant)
 
     # If not input pot dimension, fit pot
-    if config.pot_dim is None:
+    if config.pot_height is None or config.pot_width is None:
         # Create vertical section, used to extract the pot
         pot_section = vert_crosssection(plant, pot_criteria)
         pot, pot_param = fit_pot(pot_section, pot_offset=config.pot_offset)
@@ -803,7 +796,7 @@ def plant_cleanup(plant:bpy.types.Object,
             code_error += 4
     else:
         # Use input pot dimensions
-        pot_param = ransac.preset_pot(config.pot_dim[0], config.pot_dim[1])
+        pot_param = ransac.preset_pot(config.pot_width, config.pot_height)
         pot = create_pot(pot_param, config)
 
     # Define plant reference point at Z=soil_height
