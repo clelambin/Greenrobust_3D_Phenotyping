@@ -120,6 +120,16 @@ class SpeciesConfig:
 
         return PlantConfig(species_dict)
 
+    def overwrite(self, config_dict: dict):
+        """Overwrite specific attributes based on input dictionary"""
+        # For each value in dictionary, overwrite attribute of current class
+        for key, value in config_dict.items():
+            try:
+                setattr(self, key, value)
+            except AttributeError:
+                # If attribute does not exist, alert the user
+                print(f"Warning, SpeciesConfig does not have any {key} attribute, skipping")
+
 @dataclass
 class ProcessConfig:
     """Configuration data for overall process"""
@@ -142,6 +152,16 @@ class ProcessConfig:
         self.model_file_ext = config["MODEL_FILE_EXT"]
         self.model_file = config["MODEL_FILE"]
         self.file_prefix = config["FILE_PREFIX"]
+
+    def overwrite(self, config_dict: dict):
+        """Overwrite specific attributes based on input dictionary"""
+        # For each value in dictionary, overwrite attribute of current class
+        for key, value in config_dict.items():
+            try:
+                setattr(self, key, value)
+            except AttributeError:
+                # If attribute does not exist, alert the user
+                print(f"Warning, ProcessConfig does not have any {key} attribute, skipping")
 
 @dataclass
 class FaceInfo:
@@ -915,6 +935,8 @@ def process_model_folder(file_list:list[str],
 
 def loop_through_folders(process_config: ProcessConfig, species_config: SpeciesConfig) -> None:
     """Loop through the folders and process folders matching input name"""
+    # Current function requires output path to be defined
+    assert process_config.output_path is not None, "Missing OUTPUT_PATH in config file"
     # Loop through all files and process plant model
     volume_path = os.path.join(process_config.output_path, process_config.output_table)
     plant_header = ["Path", "Plant name"]
@@ -930,11 +952,18 @@ def loop_through_folders(process_config: ProcessConfig, species_config: SpeciesC
             print(f"Processing {root}")
             process_model_folder(files, root, volume_path, process_config, species_config, metrics_keys=metrics_keys)
 
-def process_from_config() -> dict[str, float] | None:
+def process_from_config(process_overwrite:dict|None=None,
+                        species_overwrite:dict|None=None) -> dict[str, float] | None:
     """Main process function, load config file and call model preparation scripts"""
     # Load config file
     process_config = ProcessConfig(CONFIG_FILE)
     species_config = SpeciesConfig(CONFIG_FILE)
+
+    # If any overwrite specified, apply on respective config
+    if process_overwrite is not None:
+        process_config.overwrite(process_overwrite)
+    if species_overwrite is not None:
+        species_config.overwrite(species_overwrite)
 
     # If working directory defined but not model file, loop through all file in working dir
     if process_config.working_path is not None and process_config.model_file is None:
@@ -948,19 +977,16 @@ def process_from_config() -> dict[str, float] | None:
         model_path = os.path.join(process_config.working_path,
                                   process_config.model_folder,
                                   process_config.model_file)
+        print(f"Processing {model_path}")
     # Work on active model
     else:
         model_path = None
-    print(f"Processing {model_path}")
+        print("Processing active model")
     return single_model_prep(process_config, species_config, model_path)
-
-    # Otherwise loop through all folders in working path
-    loop_through_folders(process_config, species_config)
-    return None
 
 def main() -> None:
     """Main function, prepare model for selected model on the 3D view"""
-    model_metrics = process_from_config()
+    model_metrics = process_from_config(process_overwrite={"working_path": None})
     print(f"{model_metrics=}")
 
 if __name__ == "__main__":
