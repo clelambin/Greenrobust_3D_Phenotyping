@@ -8,28 +8,28 @@
   "FILE_PREFIX"   : "Metashape_",
   "SPECIES_CONFIG": {
       "__comment__": "Individual pots",
-      "AT":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.075, "POT_HEIGHT": 0.092, "POT_THICK": 0.013, "CLUSTER_DIST": 0.025},
-      "BD":{"POT_OFFSET": 0, "HAS_STICK":true,  "POT_WIDTH": 0.075, "POT_HEIGHT": 0.092, "POT_THICK": 0.013},
-      "BR":{"POT_OFFSET": 0, "HAS_STICK":true,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
-      "HS":{"POT_OFFSET": 0, "HAS_STICK":true,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
-      "HV":{"POT_OFFSET": 0, "HAS_STICK":true,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013},
-      "NB":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.12,  "POT_HEIGHT": 0.133, "POT_THICK": 0.02, "POT_SHIFT": 0.01},
-      "SD":{"POT_OFFSET": 0, "HAS_STICK":true,  "POT_WIDTH": 0.138, "POT_HEIGHT": 0.138, "POT_THICK": 0.013},
-      "SL":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.138, "POT_HEIGHT": 0.142, "POT_THICK": 0.013},
-      "TA":{"POT_OFFSET": 0, "HAS_STICK":true,  "POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_THICK": 0.013, "POT_SHIFT": 0.018},
+      "AT":{"POT_WIDTH": 0.075, "POT_HEIGHT": 0.092, "CLUSTER_DIST": 0.025, "DIFF_CONF_RATIO": [0.9, 1.8]},
+      "BD":{"POT_WIDTH": 0.075, "POT_HEIGHT": 0.092},
+      "BR":{"POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_SHIFT": 0.021},
+      "HS":{"POT_WIDTH": 0.095, "POT_HEIGHT": 0.11},
+      "HV":{"POT_WIDTH": 0.095, "POT_HEIGHT": 0.11},
+      "NB":{"POT_WIDTH": 0.12,  "POT_HEIGHT": 0.133, "POT_THICK": 0.02, "POT_SHIFT": 0.01},
+      "SD":{"POT_WIDTH": 0.138, "POT_HEIGHT": 0.138},
+      "SL":{"POT_WIDTH": 0.138, "POT_HEIGHT": 0.142, "DIFF_CONF_RATIO": [0.85, 1.1]},
+      "TA":{"POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_SHIFT": 0.018, "DIFF_CONF_RATIO": [0.9, 1.8]},
       "__comment__": "Population pots",
-      "ATp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.11, "POT_THICK": 0.03, "CLUSTER_DIST": 0.025},
-      "BDp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.21, "POT_HEIGHT": 0.11, "POT_THICK": 0.03},
-      "BRp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
-      "HSp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
-      "HVp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
-      "NBp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.36, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
-      "SDp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.41, "POT_HEIGHT": 0.15, "POT_THICK": 0.05},
-      "SLp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.41, "POT_HEIGHT": 0.15, "POT_THICK": 0.05},
-      "TAp":{"POT_OFFSET": 0, "HAS_STICK":false, "POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05}
+      "ATp":{"POT_WIDTH": 0.21, "POT_HEIGHT": 0.11, "POT_THICK": 0.03, "CLUSTER_DIST": 0.025},
+      "BDp":{"POT_WIDTH": 0.21, "POT_HEIGHT": 0.11, "POT_THICK": 0.03},
+      "BRp":{"POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
+      "HSp":{"POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
+      "HVp":{"POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
+      "NBp":{"POT_WIDTH": 0.36, "POT_HEIGHT": 0.13, "POT_THICK": 0.05},
+      "SDp":{"POT_WIDTH": 0.41, "POT_HEIGHT": 0.15, "POT_THICK": 0.05},
+      "SLp":{"POT_WIDTH": 0.41, "POT_HEIGHT": 0.15, "POT_THICK": 0.05},
+      "TAp":{"POT_WIDTH": 0.30, "POT_HEIGHT": 0.13, "POT_THICK": 0.05}
   },
   "SPECIES_OVERWRITE": {
       "__comment__": "Overwrite for plant specific parameters"
   },
-  "CONFIG_DEFAULT": {"POT_OFFSET": 0.003, "HAS_STICK":true, "CLUSTER_DIST": 0.02}
+  "CONFIG_DEFAULT": {"POT_OFFSET": 0, "HAS_STICK":false, "CLUSTER_DIST": 0.02, "POT_THICK": 0.013}
 }

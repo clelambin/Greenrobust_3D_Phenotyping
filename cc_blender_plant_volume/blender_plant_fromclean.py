@@ -17,7 +17,6 @@ from collections.abc import Iterable, Callable
 from dataclasses import dataclass, field
 from typing import Literal
 import os
-import json
 import numpy as np              # Array manipulation
 import bpy                      # Blender python
 import bmesh                    # Blender mesh module
@@ -56,7 +55,27 @@ def calc_ratio(nb1:float, nb2:float) -> float:
 
 # Classes
 @dataclass
-class PlantConfig:
+class Config:
+    """Generic configuration dataclass, define generic configuration methods"""
+
+    def overwrite(self, config_dict: dict):
+        """Overwrite specific attributes based on input dictionary"""
+        # For each value in dictionary, overwrite attribute of current class
+        for key, value in config_dict.items():
+            # Attempt to set attribute based on key value
+            try:
+                setattr(self, key, value)
+            except AttributeError:
+                # If attribute does not exist, alert the user
+                print(f"Warning, {type(self).__name__} does not have any {key} attribute, skipping")
+
+    def __repr__(self):
+        """Print all class attributes"""
+        class_attr = vars(self)
+        return ", ".join(f"{key}: {value}" for key, value in class_attr.items())
+
+@dataclass(kw_only=True)
+class PlantConfig(Config):
     """Pot related configuration data"""
     pot_offset: float
     has_stick: bool
@@ -65,6 +84,7 @@ class PlantConfig:
     pot_width: float|None = None
     pot_height: float|None = None
     pot_shift: float = 0
+    diff_conf_ratio: tuple|None = None
 
     def __init__(self, plant_dict:dict):
         """Extract pot configuration from dictionary"""
@@ -75,9 +95,12 @@ class PlantConfig:
         self.pot_height = plant_dict.get("POT_HEIGHT")
         self.pot_shift  = plant_dict.get("POT_SHIFT", 0)
         self.cluster_dist = plant_dict.get("CLUSTER_DIST", 0.02)
+        diff_conf_ratio = plant_dict.get("DIFF_CONF_RATIO")
+        self.diff_conf_ratio = None if diff_conf_ratio is None else tuple(diff_conf_ratio)
 
-@dataclass
-class SpeciesConfig:
+# Use keyword only to solve inheritance issue on dataclass
+@dataclass(kw_only=True)
+class SpeciesConfig(Config):
     """Species related configuration data"""
     species_config: dict
     species_overwrite: dict
@@ -104,7 +127,16 @@ class SpeciesConfig:
             species_code += "p"
 
         # Find configuration for corresponding species
-        species_dict = self.species_config.get(species_code, self.config_default)
+        species_dict = self.species_config.get(species_code)
+
+        # If no config found for corresponding species, apply default config
+        if species_dict is None:
+            species_dict = self.config_default
+        else:
+            # Otherwise, for every parameter not defined in species config, apply default
+            for key, value in self.config_default.items():
+                if key not in species_dict:
+                    species_dict[key] = value
 
         # If plant listed in overwrite, overwrite defined values
         plant_overwrite = self.species_overwrite.get(plant_label, {})
@@ -113,18 +145,9 @@ class SpeciesConfig:
 
         return PlantConfig(species_dict)
 
-    def overwrite(self, config_dict: dict):
-        """Overwrite specific attributes based on input dictionary"""
-        # For each value in dictionary, overwrite attribute of current class
-        for key, value in config_dict.items():
-            try:
-                setattr(self, key, value)
-            except AttributeError:
-                # If attribute does not exist, alert the user
-                print(f"Warning, SpeciesConfig does not have any {key} attribute, skipping")
-
-@dataclass
-class ProcessConfig:
+# Use keyword only to solve inheritance issue on dataclass
+@dataclass(kw_only=True)
+class ProcessConfig(Config):
     """Configuration data for overall process"""
     working_path: str|None
     output_path: str|None
@@ -145,16 +168,6 @@ class ProcessConfig:
         self.model_file_ext = config["MODEL_FILE_EXT"]
         self.model_file = config["MODEL_FILE"]
         self.file_prefix = config["FILE_PREFIX"]
-
-    def overwrite(self, config_dict: dict):
-        """Overwrite specific attributes based on input dictionary"""
-        # For each value in dictionary, overwrite attribute of current class
-        for key, value in config_dict.items():
-            try:
-                setattr(self, key, value)
-            except AttributeError:
-                # If attribute does not exist, alert the user
-                print(f"Warning, ProcessConfig does not have any {key} attribute, skipping")
 
 @dataclass
 class FaceInfo:
@@ -205,14 +218,24 @@ class BranchCriteria:
         return (xy_dist < self.max_xy_dist
                 and z_dist < self.max_z_dist)
 
-@dataclass
-class ModifierParam:
+
+@dataclass(kw_only=True)
+class ModifierParam(Config):
     """Boolean Operator setting to apply via boolean_modifier function"""
     operator:Literal["DIFFERENCE", "INTERSECT"] = "INTERSECT"
     vertex_criteria:Literal["RANGE", "BBOX", "NONE"] = "NONE"
-    vertex_ratio_range:tuple[float, float]|None=None
     thresh:float=0.00001
     apply:bool=True
+    vertex_ratio_range:tuple[float, float]|None=None
+    # Field computed in __post_init__
+    vertex_conf_ratio:tuple[float, float] = field(init=False)
+
+    def __post_init__(self):
+        """Set vertex confidence ratio based on applied boolean operator"""
+        if self.operator == "INTERSECT":
+            self.vertex_conf_ratio = (0.8, 1.2)
+        elif self.operator == "DIFFERENCE":
+            self.vertex_conf_ratio = (0.9, 1.35)
 
 
 class FaceNode:
@@ -418,10 +441,16 @@ def is_in_range(value:float, range_tuple:tuple[float, float]) -> bool:
 
 def boolean_modifier(source_obj:bpy.types.Object,
                      target_obj:bpy.types.Object,
-                     param:ModifierParam=ModifierParam()) -> float:
+                     param:ModifierParam=ModifierParam(),
+                     param_overwrite:dict|None=None) -> float:
     """Create intersection between object to intersect and plane
     Using boolean mesh operator, return vertex ratio (modified/initial vertex count)
     """
+    # If overwrite parameter specified, change input param
+    if param_overwrite is not None:
+        param.overwrite(param_overwrite)
+        print(param_overwrite)
+
     # Get vertex count before modification
     assert isinstance(source_obj.data, bpy.types.Mesh)
     vertex_init = len(source_obj.data.vertices)
@@ -448,20 +477,14 @@ def boolean_modifier(source_obj:bpy.types.Object,
         vertex_in_bbox = len(utility.get_verts_in_bbox(source_verts, target_obj))
         # Update vertex ratio range based on vertex count in target object and operator type
         if param.operator == "INTERSECT":
-            # In intersection, expect target vertices to be around
-            # number of vertices in target object (+/- 20%)
-            param.vertex_ratio_range = (
-                    vertex_in_bbox / vertex_init * 0.8,
-                    vertex_in_bbox / vertex_init * 1.2
-                    )
+            # In intersection, expect a target vertices around number of vertices in target object
+            vertex_ratio = vertex_in_bbox / vertex_init
         elif param.operator == "DIFFERENCE":
-            # In difference, expect target vertices to be all but the ones in target object
-            # (in general, expect more remaining vertices than present in bounding box
-            # since bounding box bigger than actual object)
-            param.vertex_ratio_range = (
-                    (vertex_init - vertex_in_bbox) / vertex_init * 0.9,
-                    (vertex_init - vertex_in_bbox) / vertex_init * 1.35
-                    )
+            # In difference, expect a target vertices to be all but the ones in target object
+            vertex_ratio = (vertex_init - vertex_in_bbox) / vertex_init
+        # Compute vertex ratio range
+        param.vertex_ratio_range = (vertex_ratio * param.vertex_conf_ratio[0],
+                                    vertex_ratio * param.vertex_conf_ratio[1])
 
     # If vertex_ratio_range specified, only apply modifier if within range
     if param.vertex_ratio_range is not None:
@@ -763,6 +786,8 @@ def plant_cleanup(plant:bpy.types.Object,
     # +4 : pot RANSAC shape did not reach requirement
     code_error:int = 0
 
+    print(f"Plant configuration: {config}")
+
     # Set criterion requirement for face and branch
     pot_criteria = FaceCriteria(
             min_area = 1e-4,
@@ -803,11 +828,13 @@ def plant_cleanup(plant:bpy.types.Object,
     plant_ref = Vector((0, 0, pot_param.get_param()["soil_height"][0]))
 
     # Remove pot from plant
+    param_overwrite = None if config.diff_conf_ratio is None else {"vertex_conf_ratio": config.diff_conf_ratio}
     pot_vert_ratio = boolean_modifier(plant,
                                       pot,
                                       param=ModifierParam(
                                           operator="DIFFERENCE",
-                                          vertex_criteria="BBOX"))
+                                          vertex_criteria="BBOX"),
+                                      param_overwrite=param_overwrite)
     # If vertex ratio is -1, boolean not applied, update code error
     if pot_vert_ratio == -1:
         code_error += 1
@@ -901,7 +928,7 @@ def single_model_prep(process_config: ProcessConfig,
     # Update metrics code error to output from plant_cleanup function
     model_metrics["Code_Error"] = code_error
     # Save blend file in output folder
-    if process_config.output_path is not None:
+    if process_config.output_path is not None and obj_path is not None:
         utility.save_blend(obj_path, process_config.output_path)
     # Return plant metrics
     return model_metrics

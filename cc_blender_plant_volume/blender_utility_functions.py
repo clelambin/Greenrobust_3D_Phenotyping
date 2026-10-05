@@ -291,7 +291,7 @@ def import_file(file_path:str, file_ext:str|None=None) -> bpy.types.Object:
         raise OSError(f"File {file_path} is not a {file_ext}")
 
     # Import file (based on the file_ext)
-    import_command:dict[] = {"ply":"ply_import", "obj":"obj_import"}
+    import_command = {"ply":"ply_import", "obj":"obj_import"}
     getattr(bpy.ops.wm, import_command[file_ext])(filepath=file_path,
                                                   forward_axis='X',
                                                   up_axis='Z')
@@ -309,6 +309,10 @@ def import_config(config_file:str, config_dir:str|None = None) -> dict:
             config_dir = os.path.dirname(bpy.context.space_data.text.filepath)
         except AttributeError:
             config_dir = os.path.dirname(os.path.abspath(__file__))
+    # Blender uses // to indicate relative path, remove it
+    if config_dir[0:2] == "//":
+        config_dir = config_dir[2:]
+
     # Import JSON and save as dictionary
     config_path = os.path.join(config_dir, config_file)
     with open(config_path, 'r', encoding='utf-8') as file:
