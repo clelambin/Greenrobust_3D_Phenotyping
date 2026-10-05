@@ -278,17 +278,21 @@ def cleanup_env(obj_to_remove:list[str] = ["Cube",], type_to_remove:list[str] = 
         if obj.type in type_to_remove or obj.name in obj_to_remove:
             bpy.data.objects.remove(obj)
 
-def import_file(filepath:str, file_ext:str|None=None) -> bpy.types.Object:
+def import_file(file_path:str, file_ext:str|None=None) -> bpy.types.Object:
     """Import obj or ply file and return as an object"""
-    # Check if file exist and is obj
-    if not os.path.isfile(filepath):
-        raise OSError(f"File {filepath} not found")
-    if file_ext is not None and not filepath.endswith(file_ext):
-        raise OSError(f"File {filepath} is not a {file_ext}")
+    # Check if file exist
+    if not os.path.isfile(file_path):
+        raise OSError(f"File {file_path} not found")
+    # If extension not specified, read from filepath
+    if file_ext is None:
+        file_ext = file_path.split(".")[-1]
+    # If extension specified, check that file is of the correct extension
+    elif not file_path.endswith(file_ext):
+        raise OSError(f"File {file_path} is not a {file_ext}")
 
     # Import file (based on the file_ext)
-    import_command = {"ply":"ply_import", "obj":"obj_import"}
-    getattr(bpy.ops.wm, import_command[file_ext])(filepath=filepath,
+    import_command:dict[] = {"ply":"ply_import", "obj":"obj_import"}
+    getattr(bpy.ops.wm, import_command[file_ext])(filepath=file_path,
                                                   forward_axis='X',
                                                   up_axis='Z')
     # Apply rotation to consider for the imported axis transformation
