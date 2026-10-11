@@ -1,9 +1,9 @@
-# Greenrobust - A workflow for the 3D phenotyping of greenhouse plants
+# GreenRobust - a Workflow for the 3D Phenotyping of Greenhouse Plants
 
 ## Overview
 
 Set of scripts used for the automation of 3D phenotyping of greenhouse plants
-for the [Excellence Cluster Greerobust](https://greenrobust.de/).
+for the [Excellence Cluster GreenRobust](https://greenrobust.de/).
 
 The 3D phenotyping process is split into 4 steps. The scripts related to each
 steps is stored into a separate subfolder as such:
@@ -22,6 +22,44 @@ Each subfolder are independent and help the process of its respective step
 
 **Overview:**
 Bash script which group the images into folders based on file creation time
+
+**Prerequisite:**
+Linux operating system with bash.
+On Windows, can use [WSL (Windows Subsystem for Linux)](https://learn.microsoft.com/en-us/windows/wsl/install).
+
+Before using the scripts, download the pictures (as JPG) from each Camera into
+a separate folder in the same base folder:
+
+```text
+    - Camera_01/
+    - Camera_02/
+    - Camera_03/
+```
+
+While taking the picture, write down the plant label for each plant (in order),
+save it into a text file (one plant label per line).
+When taking a blank picture (for the background), write Background.
+
+**Usage:**
+
+- In each Camera subfolder:
+  - Call `plant_group.sh` to group pictures based on the relative EXIF time
+    between each shot
+  - Call `plant_rename.sh <plant_name_file>` to rename every folder based on
+    the plant label (see Prerequisite above).
+    - For the script to work, there should be as many folder created by
+      `plant_group` in the current folder as plant label in <plant_name_file>
+    - The script only process file which start by "2026" (edit variable in
+      script if pictures were taking in another year). This allow the script to
+      be run iteratively as it will ignore already renamed folders.
+  - Call `plant_background.sh` to copy the backgrounds images with their plant subfolder.
+    - If a folder contained more than one background, delete all but the older
+      one before running the script.
+- Once every Camera folder is process, call `invert_folder` in the folder
+  containing the Camera subfolder.
+    - This script will invert the Camera and the Plant subfolder, effectively
+      grouping all Cameras from one plant in the same subfolder.
+    - If some extra empty folders are created, remove them.
 
 ### bb_metashape_plant_digitisation
 
@@ -44,15 +82,15 @@ two structures, depending on the masking stategy:
   folder. If one background is present both, the one in the plant subfolder has
   the precedence. Here is an example of folder structure:
 
-```
-    - Species1/
+```text
+    - Plant01/
         - Camera_high/
         - Camera_mid/
         - Camera_low/
         - Camera_high_background.JPG
         - Camera_mid_backgournd.JPG
         - Camera_low_background.JPG
-    - Species2/
+    - Plant02/
         - Camera_high/
         - Camera_mid/
         - Camera_low/
@@ -95,7 +133,6 @@ blender. To install them in Linux, run the following command:
 ```bash
 <blender_path>/<version>/python/bin/python -m pip install pillow --user
 <blender_path>/<version>/python/bin/python -m pip install open3d --user
-<blender_path>/<version>/python/bin/python -m pip install pybind11-rdp --user 
 ```
 
 Once installed, replace the path in the variable `LOCAL_LIBRARY` in
@@ -137,22 +174,29 @@ Upload csv table with harvest and 3D model data and run the R script.
 
 ## Deprecated Script Packages
 
-### aa_image_preparation
+### Old aa_image_preparation
 
 **Overview:**
 Create mask of images based on Otsu and Adaptive threshold. Running this script
 is optional and only recommended if no background images *(image without the
 plant, matching the camera position)* have been taken.
 
-**Reson for deprecation:**
+**Reason for deprecation:**
 Image mask performed in Metashape by comparing image to background image.
 
 **Usage:**
 Open batchthreshold_with_exif_extract.ipynb with Jupyter lab, edit the working
 directory and run the Batch thresholding cell.
 
+### Old cc_blender_plant_volume
 
-## Software/library version
+**Overview:**
+Sets of older scripts used for plant alignment, or rewritten in a different format.
+
+**Reason for deprecation:**
+Alignment managed in Metashape using markers.
+
+## Software/Library Version
 
 This package have been written and tested using the following software/library
 version:
@@ -163,7 +207,7 @@ version:
   - Agrisoft Metashape Professional 2.2.0
   - python 3.9 (packaged in Metashape)
 - cc_blender_plant_volume
-  - Blender 3.6 to 4.4
+  - Blender 3.6 to 5.2
   - python 3.11 (packaged in Blender)
 - dd_data_analysis_r
   - R 4.5.0
