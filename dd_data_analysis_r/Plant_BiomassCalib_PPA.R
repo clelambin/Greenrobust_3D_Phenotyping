@@ -133,7 +133,12 @@ plant_correlation$Top_Area   <- plant_correlation$Top_BBox   * plant_correlation
 plant_init        <- plant_correlation
 # Remove outliers
 # (To check why outliers occurs in script)
-plant_correlation <- plant_correlation[plant_correlation$Dim_X > 0 & plant_correlation$Dim_Y > 0 & plant_correlation$Dim_Z > 0 & plant_correlation$Height > 0,]
+plant_correlation <- plant_correlation[
+  plant_correlation$Dim_X > 0 &
+    plant_correlation$Dim_Y > 0 &
+    plant_correlation$Dim_Z > 0 &
+    plant_correlation$Height > 0,
+]
 
 ## ==== Convert to factors ====
 species_corresp <- c("Arabidopsis thaliana" = "AT",
@@ -195,13 +200,17 @@ correlation_mat <- rcorr(correlation_data, type = "pearson")
 diag(correlation_mat$P) <- 0
 # Plot correlation table
 img_name <- paste0(output_folder, "//Correlation_matrix_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
 # Reset graphic
 par(par_init)
-corrplot(correlation_mat$r, type = "upper", order = "hclust", 
+corrplot(correlation_mat$r, type = "upper", order = "hclust",
          p.mat = correlation_mat$P, sig.level = 0.01, insig = "blank",
          tl.col = "Black")
-if(save_plot){dev.off()}
+if (save_plot) {
+  dev.off()
+}
 
 ## ==== Graph settings ====
 # Set Species color
@@ -211,125 +220,195 @@ species_color <- color_palette(length(species_level))
 
 # Save legend as a separate plot
 img_name <- paste0(output_folder, "//Legend_species_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
 plot.new()
-legend("bottomright", legend=species_level, col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
-if(save_plot){dev.off()}
+legend("bottomright", legend = species_level, horiz = FALSE,
+       col = species_color, pch = 16, bty = "y", cex = 0.8)
+if (save_plot) {
+  dev.off()
+}
 
 ## ==== Plant trait distribution ====
 # Plot distribution of the different plant traits per species
 img_name <- paste0(output_folder, "//Trait_distribution_per_species_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(2, 2), mar=c(2, 3, 1, 1)), par_args))
-boxplot(plant_height_cm ~ species, data=plant_correlation, col=species_color, xlab="", ylab="Height (cm)")
-boxplot(log(freshweight) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Fresh weight (g))")
-boxplot(log(nb_leaves) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Leaf count)")
-boxplot(log(nb_flowers) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Flower count)")
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(2, 2), mar = c(2, 3, 1, 1)), par_args))
+boxplot(plant_height_cm ~ species, data = plant_correlation,
+        col = species_color, xlab = "", ylab = "Height (cm)")
+boxplot(log(freshweight) ~ species, data = plant_correlation,
+        col = species_color, xlab = "", ylab = "log(Fresh weight (g))")
+boxplot(log(nb_leaves) ~ species, data = plant_correlation,
+        col = species_color, xlab = "", ylab = "log(Leaf count)")
+boxplot(log(nb_flowers) ~ species, data = plant_correlation,
+        col = species_color, xlab = "", ylab = "log(Flower count)")
+if (save_plot) {
+  dev.off()
+}
 
 img_name <- paste0(output_folder, "//Trait_distribution_per_treatment_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(2, 2), mar=c(2, 3, 1, 1)), par_args))
-boxplot(plant_height_cm ~ drought_level, data=plant_correlation, col=c("lightblue", "orangered"),
-        xlab="", ylab="Height (cm)", names=c("Control", "Drought"))
-boxplot(log(freshweight) ~ drought_level, data=plant_correlation, col=c("lightblue", "orangered"),
-        xlab="", ylab="log(Fresh weight (g))", names=c("Control", "Drought"))
-boxplot(log(nb_leaves) ~ drought_level, data=plant_correlation, col=c("lightblue", "orangered"),
-        xlab="", ylab="log(Leaf count)", names=c("Control", "Drought"))
-boxplot(log(nb_flowers) ~ drought_level, data=plant_correlation, col=c("lightblue", "orangered"),
-        xlab="", ylab="log(Flower count)", names=c("Control", "Drought"))
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(2, 2), mar = c(2, 3, 1, 1)), par_args))
+boxplot(plant_height_cm ~ drought_level, data = plant_correlation,
+        col = c("lightblue", "orangered"),
+        xlab = "", ylab = "Height (cm)", names = c("Control", "Drought"))
+boxplot(log(freshweight) ~ drought_level, data = plant_correlation,
+        col = c("lightblue", "orangered"),
+        xlab = "", ylab = "log(Fresh weight (g))", names = c("Control", "Drought"))
+boxplot(log(nb_leaves) ~ drought_level, data = plant_correlation,
+        col = c("lightblue", "orangered"),
+        xlab = "", ylab = "log(Leaf count)", names = c("Control", "Drought"))
+boxplot(log(nb_flowers) ~ drought_level, data = plant_correlation,
+        col = c("lightblue", "orangered"),
+        xlab = "", ylab = "log(Flower count)", names = c("Control", "Drought"))
+if (save_plot) {
+  dev.off()
+}
 
 # Individual plots
 # Plot distribution of the different plant traits per species
 img_name <- paste0(output_folder, "//Height_distribution_per_species_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
-boxplot(plant_height_cm ~ species, data=plant_correlation, col=species_color, xlab="", ylab="Height (cm)")
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(1, 1), mar = c(2, 3, 1, 1)), par_args))
+boxplot(plant_height_cm ~ species, data = plant_correlation,
+        col = species_color, xlab = "", ylab = "Height (cm)")
+if (save_plot) {
+  dev.off()
+}
 
 img_name <- paste0(output_folder, "//Fresh_weight_distribution_per_species_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
-boxplot(log(freshweight) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Fresh weight (g))")
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(1, 1), mar = c(2, 3, 1, 1)), par_args))
+boxplot(log(freshweight) ~ species, data = plant_correlation,
+        col = species_color, xlab = "", ylab = "log(Fresh weight (g))")
+if (save_plot) {
+  dev.off()
+}
 
 img_name <- paste0(output_folder, "//NbLeaves_distribution_per_species_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
-boxplot(log(nb_leaves) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Leaf count)")
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(1, 1), mar = c(2, 3, 1, 1)), par_args))
+boxplot(log(nb_leaves) ~ species, data = plant_correlation,
+        col = species_color, xlab = "", ylab = "log(Leaf count)")
+if (save_plot) {
+  dev.off()
+}
 
 img_name <- paste0(output_folder, "//NbFlowers_distribution_per_species_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
-boxplot(log(nb_flowers) ~ species, data=plant_correlation, col=species_color, xlab="", ylab="log(Flower count)")
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(1, 1), mar = c(2, 3, 1, 1)), par_args))
+boxplot(log(nb_flowers) ~ species, data = plant_correlation,
+        col = species_color, xlab = "", ylab = "log(Flower count)")
+if (save_plot) {
+  dev.off()
+}
 
 # Plot distribution of the different plant traits per treatment
 img_name <- paste0(output_folder, "//Height_distribution_per_treatment_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
-boxplot(plant_height_cm ~ drought_level, data=plant_correlation, col=c("lightblue", "orangered"),
-        xlab="", ylab="Height (cm)", names=c("Control", "Drought"))
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(1, 1), mar = c(2, 3, 1, 1)), par_args))
+boxplot(plant_height_cm ~ drought_level, data = plant_correlation,
+        col = c("lightblue", "orangered"), names = c("Control", "Drought"),
+        xlab = "", ylab = "Height (cm)")
+if (save_plot) {
+  dev.off()
+}
 
 img_name <- paste0(output_folder, "//FreshWeight_distribution_per_treatment_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
-boxplot(log(freshweight) ~ drought_level, data=plant_correlation, col=c("lightblue", "orangered"),
-        xlab="", ylab="log(Fresh weight (g))", names=c("Control", "Drought"))
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(1, 1), mar = c(2, 3, 1, 1)), par_args))
+boxplot(log(freshweight) ~ drought_level, data = plant_correlation,
+        col = c("lightblue", "orangered"), names = c("Control", "Drought"),
+        xlab = "", ylab = "log(Fresh weight (g))")
+if (save_plot) {
+  dev.off()
+}
 
 img_name <- paste0(output_folder, "//NbLeaves_distribution_per_treatment_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
-boxplot(log(nb_leaves) ~ drought_level, data=plant_correlation, col=c("lightblue", "orangered"),
-        xlab="", ylab="log(Leaf count)", names=c("Control", "Drought"))
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(1, 1), mar = c(2, 3, 1, 1)), par_args))
+boxplot(log(nb_leaves) ~ drought_level, data = plant_correlation,
+        col = c("lightblue", "orangered"), names = c("Control", "Drought"),
+        xlab = "", ylab = "log(Leaf count)")
+if (save_plot) {
+  dev.off()
+}
 
 img_name <- paste0(output_folder, "//NbFlowers_distribution_per_treatment_", output_label, ".jpg")
-if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-par(c(list(mfrow=c(1, 1), mar=c(2, 3, 1, 1)), par_args))
-boxplot(log(nb_flowers) ~ drought_level, data=plant_correlation, col=c("lightblue", "orangered"),
-        xlab="", ylab="log(Flower count)", names=c("Control", "Drought"))
-if(save_plot){dev.off()}
+if (save_plot) {
+  do.call(jpeg, c(filename = img_name, jpeg_args))
+}
+par(c(list(mfrow = c(1, 1), mar = c(2, 3, 1, 1)), par_args))
+boxplot(log(nb_flowers) ~ drought_level, data = plant_correlation,
+        col = c("lightblue", "orangered"), names = c("Control", "Drought"),
+        xlab = "", ylab = "log(Flower count)")
+if (save_plot) {
+  dev.off()
+}
 
 # ---- Data analysis height ----
 ## ==== Height ~ Species ====
-lm_height_species_only <- lm(plant_height_cm ~ species , data=plant_correlation)
-model_stats(lm_height_species_only, plot_res=plot_dharma)
+lm_height_species_only <- lm(plant_height_cm ~ species, data = plant_correlation)
+model_stats(lm_height_species_only, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Height_Species_only_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_height_species_only, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+plot_obs_vs_pred(mdl = lm_height_species_only, img_name = img_name,
+                 xlab = "Predicted height(cm)", ylab = "Measured height(cm)")
 
 ## ==== Height ~ Height ====
-lm_height <- lm(plant_height_cm ~ Height, data=plant_correlation)
-model_stats(lm_height, plot_res=plot_dharma)
+lm_height <- lm(plant_height_cm ~ Height, data = plant_correlation)
+model_stats(lm_height, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Height_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_height, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+plot_obs_vs_pred(mdl = lm_height, img_name = img_name,
+                 xlab = "Predicted height(cm)", ylab = "Measured height(cm)")
 
 ## ==== Height ~ Height + species ====
-lm_height_species <- lm(plant_height_cm ~ Height+species, data=plant_correlation)
-model_stats(lm_height_species, plot_res=plot_dharma)
+lm_height_species <- lm(plant_height_cm ~ Height + species, data = plant_correlation)
+model_stats(lm_height_species, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Height_species_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_height_species, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+plot_obs_vs_pred(mdl = lm_height_species, img_name = img_name,
+                 xlab = "Predicted height(cm)", ylab = "Measured height(cm)")
 
 ## ==== Height ~ Height * species ====
-lm_height_species_inter <- lm(plant_height_cm ~ Height*species, data=plant_correlation)
-model_stats(lm_height_species_inter, plot_res=plot_dharma)
+lm_height_species_inter <- lm(plant_height_cm ~ Height*species, data = plant_correlation)
+model_stats(lm_height_species_inter, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Height_inter_species_Predict_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_height_species_inter, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+plot_obs_vs_pred(mdl = lm_height_species_inter, img_name = img_name,
+                 xlab = "Predicted height(cm)", ylab = "Measured height(cm)")
 
 ## ==== Model comparison ====
-mdl_compare(list(lm_height, lm_height_species_only, lm_height_species, lm_height_species_inter))
+mdl_compare(list(
+  lm_height,
+  lm_height_species_only,
+  lm_height_species,
+  lm_height_species_inter
+))
 
 # ## ==== Leaf_Area ~ Cumul_Area + Species ====
 # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
@@ -338,13 +417,13 @@ mdl_compare(list(lm_height, lm_height_species_only, lm_height_species, lm_height
 # lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area + species, data=plant_lf_area)
 # # lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area, data=plant_lf_area)
 # model_stats(lm_area_log, plot_res=plot_dharma)
-# 
+#
 # # Observed vs predicted plot
 # img_name <- paste0(output_folder, "//Leaf_Area_Species_Predict_", output_label, ".jpg")
 # plot_obs_vs_pred(obs=plant_lf_area$Leaf.area..cm2., mdl=lm_area_log, data=plant_lf_area,
 #                  img_name=img_name, xlab="Predicted leaf area(cm2)", ylab="Measured leaf area(cm2)")
-# 
-# 
+#
+#
 # ## ==== Leaf_Area ~ Cumul_Area + Species ====
 # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.),])
 # # plant_lf_area <- droplevels(plant_correlation[!is.na(plant_correlation$Leaf.area..cm2.) & plant_correlation$species=="Nicotiana benthamiana",])
@@ -352,7 +431,7 @@ mdl_compare(list(lm_height, lm_height_species_only, lm_height_species, lm_height
 # lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area * species, data=plant_lf_area)
 # # lm_area_log <- lm(Leaf.area..cm2. ~ Cumul_Area, data=plant_lf_area)
 # model_stats(lm_area_log, plot_res=plot_dharma)
-# 
+#
 # # Observed vs predicted plot
 # img_name <- paste0(output_folder, "//Leaf_Area_Species_Predict_", output_label, ".jpg")
 # plot_obs_vs_pred(obs=plant_lf_area$Leaf.area..cm2., mdl=lm_area_log, data=plant_lf_area,
@@ -360,53 +439,66 @@ mdl_compare(list(lm_height, lm_height_species_only, lm_height_species, lm_height
 
 # ---- Data analysis fresh weight ----
 ## ==== (log) Biomass ~ Species ====
-lm_freshweight_spec_log <- lm(log(freshweight) ~ species, data=plant_correlation)
-model_stats(lm_freshweight_spec_log, plot_res=plot_dharma)
+lm_freshweight_spec_log <- lm(log(freshweight) ~ species, data = plant_correlation)
+model_stats(lm_freshweight_spec_log, plot_res = plot_dharma)
 img_name <- paste0(output_folder, "//FreshWeight_Species_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_freshweight_spec_log, img_name=img_name, xlab="Predicted log(freshweight (g))", ylab="Measured log(freshweight(g))")
+plot_obs_vs_pred(mdl = lm_freshweight_spec_log, img_name = img_name,
+                 xlab = "Predicted log(freshweight (g))", ylab = "Measured log(freshweight(g))")
 
 ## ==== (log) Fresh weight ~ Volume + Species ====
-lm_freshweight_vol_log <- lm(log(freshweight) ~ log(Volume) + species, data=plant_correlation)
-model_stats(lm_freshweight_vol_log, plot_res=plot_dharma)
+lm_freshweight_vol_log <- lm(log(freshweight) ~ log(Volume) + species, data = plant_correlation)
+model_stats(lm_freshweight_vol_log, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//FreshWeight_Volume_Species_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_freshweight_vol_log, img_name=img_name, xlab="Predicted log(freshweight(g))", ylab="Measured log(freshweight(g))")
+plot_obs_vs_pred(mdl = lm_freshweight_vol_log, img_name = img_name,
+                 xlab = "Predicted log(freshweight(g))", ylab = "Measured log(freshweight(g))")
 
 ## ==== (log) Fresh Weight ~ Height + Top_Area + Species ====
-lm_freshweight_z_top_log <- lm(log(freshweight) ~ log(Height) + log(Top_Area) + species, data=plant_correlation)
-model_stats(lm_freshweight_z_top_log, plot_res=plot_dharma)
+lm_freshweight_z_top_log <- lm(log(freshweight) ~ log(Height) + log(Top_Area) + species, data = plant_correlation)
+model_stats(lm_freshweight_z_top_log, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//FreshWeight_Heigth_TopArea_Species_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_freshweight_z_top_log, img_name=img_name, xlab="Predicted log(freshweight(g))", ylab="Measured log(freshweight(g))")
+plot_obs_vs_pred(mdl = lm_freshweight_z_top_log, img_name = img_name,
+                 xlab = "Predicted log(freshweight(g))", ylab = "Measured log(freshweight(g))")
 
 ## ==== (log) Fresh Weight ~ (Height + Top_Area) * Species ====
-lm_freshweight_z_top_inter_log <- lm(log(freshweight) ~ (log(Height) + log(Top_Area)) * species, data=plant_correlation)
-model_stats(lm_freshweight_z_top_inter_log, plot_res=plot_dharma)
+lm_freshweight_z_top_inter_log <- lm(log(freshweight) ~ (log(Height) + log(Top_Area)) * species, data = plant_correlation)
+model_stats(lm_freshweight_z_top_inter_log, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//FreshWeight_Heigth_TopArea_inter_Species_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_freshweight_z_top_inter_log, img_name=img_name, xlab="Predicted log(freshweight(g))", ylab="Measured log(freshweight(g))")
+plot_obs_vs_pred(mdl = lm_freshweight_z_top_inter_log, img_name = img_name,
+                 xlab = "Predicted log(freshweight(g))", ylab = "Measured log(freshweight(g))")
 
 ## ==== (log) FreshWeight ~ Height + Top_Area ====
-lm_freshweight_z_top_log_nospecies <- lm(log(freshweight) ~ log(Height) + log(Top_Area), data=plant_correlation)
-model_stats(lm_freshweight_z_top_log_nospecies, plot_res=plot_dharma)
+lm_freshweight_z_top_log_nospecies <- lm(log(freshweight) ~ log(Height) + log(Top_Area), data = plant_correlation)
+model_stats(lm_freshweight_z_top_log_nospecies, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//FreshWeight_Heigth_TopArea_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_freshweight_z_top_log_nospecies, img_name=img_name, xlab="Predicted log(freshweight(g))", ylab="Measured log(freshweight(g))")
+plot_obs_vs_pred(mdl = lm_freshweight_z_top_log_nospecies, img_name = img_name,
+                 xlab = "Predicted log(freshweight(g))", ylab = "Measured log(freshweight(g))")
 
 ## ==== (log) FreshWeight ~ 60% Convex Hull * Species ====
-lm_freshweight_chull_inter_log <- lm(log(freshweight) ~ log(Convex_hull_60) * species, data=plant_correlation)
-model_stats(lm_freshweight_chull_inter_log, plot_res=plot_dharma)
+lm_freshweight_chull_inter_log <- lm(log(freshweight) ~ log(Convex_hull_60) * species, data = plant_correlation)
+model_stats(lm_freshweight_chull_inter_log, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//FreshWeight_Chull60_inter_Species_Predict_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_freshweight_chull_inter_log, img_name=img_name, xlab="Predicted log(freshweight(g))", ylab="Measured log(freshweight(g))")
+plot_obs_vs_pred(mdl = lm_freshweight_chull_inter_log, img_name = img_name,
+                 xlab = "Predicted log(freshweight(g))", ylab = "Measured log(freshweight(g))")
 
 ## ==== Model comparison ====
-mdl_compare(list(lm_freshweight_vol_log, lm_freshweight_z_top_log, lm_freshweight_z_top_inter_log, lm_freshweight_z_top_log_nospecies, lm_freshweight_chull_inter_log, lm_freshweight_spec_log))
+mdl_compare(list(
+  lm_freshweight_vol_log,
+  lm_freshweight_z_top_log,
+  lm_freshweight_z_top_inter_log,
+  lm_freshweight_z_top_log_nospecies,
+  lm_freshweight_chull_inter_log,
+  lm_freshweight_spec_log
+))
 
 # TODO: update variables below
 
@@ -422,55 +514,61 @@ plant_filtered <- droplevels(plant_filtered[height_deviation<height_filter_thres
 plant_filtered <- plant_filtered[sort(plant_filtered$deviation, decreasing=TRUE, index.return=TRUE)$ix,]
 
 ## ==== Height ~ Height ====
-lm_height_filt <- lm(plant_height_cm ~ Height, data=plant_filtered)
-model_stats(lm_height_filt, plot_res=plot_dharma)
+lm_height_filt <- lm(plant_height_cm ~ Height, data = plant_filtered)
+model_stats(lm_height_filt, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Height_Predict_Filtered_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_height_filt, img_name=img_name, xlab="Predicted height(cm)", ylab="Measured height(cm)")
+plot_obs_vs_pred(mdl = lm_height_filt, img_name = img_name,
+                 xlab = "Predicted height(cm)", ylab = "Measured height(cm)")
 
 ## ==== (log) Biomass ~ Height + Top_Area + Species ====
-lm_bmass_z_top_log_filt <- lm(log(biomass_g) ~ log(Height) + log(Top_Area) + species, data=plant_filtered)
-model_stats(lm_bmass_z_top_log_filt, plot_res=plot_dharma)
+lm_bmass_z_top_log_filt <- lm(log(biomass_g) ~ log(Height) + log(Top_Area) + species, data = plant_filtered)
+model_stats(lm_bmass_z_top_log_filt, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_Species_Predict_Filtered_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_bmass_z_top_log_filt, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+plot_obs_vs_pred(mdl = lm_bmass_z_top_log_filt, img_name = img_name,
+                 xlab = "Predicted log(biomass(g))", ylab = "Measured log(biomass(g))")
 
 
 ## ==== (log) Biomass ~ (Height + Top_Area) * Species ====
-lm_bmass_z_top_inter_log_filt <- lm(log(biomass_g) ~ (log(Height) + log(Top_Area)) * species, data=plant_filtered)
-model_stats(lm_bmass_z_top_inter_log_filt, plot_res=plot_dharma)
+lm_bmass_z_top_inter_log_filt <- lm(log(biomass_g) ~ (log(Height) + log(Top_Area)) * species, data = plant_filtered)
+model_stats(lm_bmass_z_top_inter_log_filt, plot_res = plot_dharma)
 
 # Observed vs predicted plot
 img_name <- paste0(output_folder, "//Biomass_Heigth_TopArea_inter_Species_Predict_Filtered_Log_", output_label, ".jpg")
-plot_obs_vs_pred(mdl=lm_bmass_z_top_inter_log_filt, img_name=img_name, xlab="Predicted log(biomass(g))", ylab="Measured log(biomass(g))")
+plot_obs_vs_pred(mdl = lm_bmass_z_top_inter_log_filt, img_name = img_name,
+                 xlab = "Predicted log(biomass(g))", ylab = "Measured log(biomass(g))")
 
 # ---- Data analysis leaf count ----
 ## ==== Trait distribution ====
 # Initialise variables used for plotting the different trait distribution
 dataframe <- plant_correlation
 ident <- function(x) x
-transf_fct <- c(log=log,          log=log,  log=log,    log=log)
+transf_fct <- c(log = log,        log = log, log = log, log = log)
 indep_var  <- c("Convex_hull_60", "Height", "Top_Area", "Cumul_Area")
 
 # Loop through all variable and plot distribution
-if (distrib_plot)
-{
-  for(index in 1:length(indep_var))
-  {
-    fct   <- transf_fct[[index]]
+if (distrib_plot) {
+  for (index in seq_along(length(indep_var))) {
+    fct <- transf_fct[[index]]
     var_x <- indep_var[index]
     fct_name <- names(transf_fct)[index]
     img_name <- paste0(output_folder, "//NbLeaves_", var_x, "_", fct_name, "_", output_label, ".jpg")
-    if(save_plot){do.call(jpeg, c(filename=img_name, jpeg_args))}
-    par(c(list(mar=c(4, 4, 1, 1)), par_args))
-    plot(fct(dataframe$nb_leaves)~fct(dataframe[,var_x]),
-         pch=16, col=species_color[dataframe$species],
-         xlab=paste0(fct_label[fct_name], label_var[var_x]),
-         ylab=paste0(fct_label[fct_name], "Number of leaves"))
-    legend("bottomright", legend=levels(dataframe$species), col=species_color, pch=16, bty="y", horiz=FALSE, cex=0.8)
-    if(save_plot){dev.off()}
+    if (save_plot) {
+      do.call(jpeg, c(filename = img_name, jpeg_args))
+    }
+    par(c(list(mar = c(4, 4, 1, 1)), par_args))
+    plot(fct(dataframe$nb_leaves) ~ fct(dataframe[, var_x]),
+         pch = 16, col = species_color[dataframe$species],
+         xlab = paste0(fct_label[fct_name], label_var[var_x]),
+         ylab = paste0(fct_label[fct_name], "Number of leaves"))
+    legend("bottomright", legend = levels(dataframe$species),
+           col = species_color, pch = 16, bty = "y", horiz = FALSE, cex = 0.8)
+    if (save_plot) {
+      dev.off()
+    }
   }
 }
 
