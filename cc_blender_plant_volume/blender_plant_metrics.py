@@ -14,7 +14,7 @@ import numpy as np    # Array and matrix operations
 # Import user modules
 from cc_blender_plant_volume import blender_utility_functions as utility
 
-# Complex type anotation
+# Complex type annotation
 VIEWPOINT = Literal['LEFT', 'RIGHT', 'BOTTOM', 'TOP', 'FRONT', 'BACK']
 
 def calc_area(mesh:bmesh.types.BMesh) -> float:
@@ -23,7 +23,7 @@ def calc_area(mesh:bmesh.types.BMesh) -> float:
 
 def calc_dimension(mesh: bmesh.types.BMesh, ref:np.ndarray|None = None) -> np.ndarray:
     """Return X, Y and Z dimension of the bounding box of input mesh"""
-    # Compute min and max for all 3 dimenions of the vertices coordinate
+    # Compute min and max for all 3 dimensions of the vertices coordinate
     vertex_coord = np.array([vertex.co for vertex in mesh.verts])
     # If no reference point specified, compare to min dimension
     if ref is None:
@@ -46,7 +46,7 @@ def calc_convex_hull_volume(mesh:bmesh.types.BMesh, z_min:float|None=None) -> fl
     return convex_hull_volume
 
 # From https://blender.stackexchange.com/questions/290437/set-orthographic-top-view-with-python
-# Warning: - Relying heavily on operation (context dependant, less stable, ...)
+# Warning: - Relying heavily on operation (context dependent, less stable, ...)
 def uv_project(obj:bpy.types.Object,
                tmp_path:str,
                projection_view:VIEWPOINT="TOP") -> None:
@@ -73,7 +73,7 @@ def uv_project(obj:bpy.types.Object,
                                      scale_to_bounds=True)
     # Export UV map as image
     bpy.ops.uv.export_layout(filepath=tmp_path, size=(480, 480), opacity=1)
-    # Switch back to objetc mode
+    # Switch back to object mode
     bpy.ops.object.mode_set(mode='OBJECT', toggle=False)
     # Delete duplicated object
     bpy.ops.object.delete()
@@ -87,13 +87,13 @@ def image_pixel_ratio(img:Image.Image) -> float:
     img_alpha.load()
     img_array = np.asarray(img_alpha)
     img_alpha.close()
-    # Return ration of non-zero alpha pixels
+    # Return ration of nonzero alpha pixels
     return np.count_nonzero(img_array) / img_array.size
 
 def area_project(obj: bpy.types.Object,
                  tmp_path:str,
                  projection_view:VIEWPOINT="TOP") -> float:
-    """Use UV to project object onto a projection view and cound non-transparent pixel ratio"""
+    """Use UV to project object onto a projection view and count non-transparent pixel ratio"""
     # Create UV projection of object into given viewpoint
     uv_project(obj, tmp_path, projection_view)
     # Open image and return non-transparent ratio
@@ -154,7 +154,7 @@ def calc_metrics(obj:bpy.types.Object|None=None,
         for index, view in enumerate(project_view):
             project_area[index] = area_project(obj, img_path, view)
     metrics["Font_Area_Ratio"], metrics["Left_Area_Ratio"], metrics["Top_Area_Ratio"] = project_area
-    # Return all computed metrix
+    # Return all computed metrics
     return metrics
 
 if __name__ == "__main__":

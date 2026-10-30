@@ -449,7 +449,6 @@ def boolean_modifier(source_obj:bpy.types.Object,
     # If overwrite parameter specified, change input param
     if param_overwrite is not None:
         param.overwrite(param_overwrite)
-        print(param_overwrite)
 
     # Get vertex count before modification
     assert isinstance(source_obj.data, bpy.types.Mesh)
@@ -938,8 +937,12 @@ def process_model_folder(file_list:list[str],
                          volume_path:str,
                          process_config: ProcessConfig,
                          species_config: SpeciesConfig,
-                         metrics_keys:list[str]=["Volume"]) -> None:
+                         metrics_keys:list[str]|None=None) -> None:
     """Loop through file list and process all model files"""
+    # If no metrics specified, compute volume only
+    if metrics_keys is None:
+        metrics_keys = ["Volume"]
+    # Process every file in the list with the correct file extension (as defined in process_config)
     for name in file_list:
         if not name.lower().endswith(process_config.model_file_ext) or "ptscloud" in name.lower():
             continue
@@ -970,7 +973,8 @@ def loop_through_folders(process_config: ProcessConfig, species_config: SpeciesC
         last_folder = root.split(os.sep)[-1]
         if process_config.model_folder == last_folder:
             print(f"Processing {root}")
-            process_model_folder(files, root, volume_path, process_config, species_config, metrics_keys=metrics_keys)
+            process_model_folder(files, root, volume_path, process_config,
+                                 species_config, metrics_keys=metrics_keys)
 
 def process_from_config(process_overwrite:dict|None=None,
                         species_overwrite:dict|None=None) -> dict[str, float] | None:

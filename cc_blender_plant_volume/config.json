@@ -8,7 +8,7 @@
   "FILE_PREFIX"   : "Metashape_",
   "SPECIES_CONFIG": {
       "__comment__": "Individual pots",
-      "AT":{"POT_WIDTH": 0.075, "POT_HEIGHT": 0.092, "CLUSTER_DIST": 0.025, "DIFF_CONF_RATIO": [0.9, 1.8]},
+      "AT":{"POT_WIDTH": 0.075, "POT_HEIGHT": 0.092, "CLUSTER_DIST": 0.025, "DIFF_CONF_RATIO": [0.9, 2.2]},
       "BD":{"POT_WIDTH": 0.075, "POT_HEIGHT": 0.092},
       "BR":{"POT_WIDTH": 0.095, "POT_HEIGHT": 0.11, "POT_SHIFT": 0.021},
       "HS":{"POT_WIDTH": 0.095, "POT_HEIGHT": 0.11},
