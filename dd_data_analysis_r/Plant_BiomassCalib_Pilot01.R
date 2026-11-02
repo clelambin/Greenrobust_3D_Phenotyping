@@ -1,6 +1,6 @@
 # ---- Header ----
 # Name: plant_harvestCalib_Pilot01
-# Description: Calibrate plant biomass based on data extracted from 3D model from pilot of May-June 2026
+# Description: Calibrate plant biomass based on data extracted from 3D model from pilot of May-June 2025
 # Name: Plant_BiomassCalib
 # Description: Calibrate plant biomass based on data extracted from 3D model
 

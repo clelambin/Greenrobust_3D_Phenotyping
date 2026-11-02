@@ -238,7 +238,11 @@ Fit harvest data (biomass, ...) to values extracted from the 3D model. Fit
 different linear model and evaluate model accuracy.
 
 **Usage:**
-Upload CSV table with harvest and 3D model data and run the R script.
+Upload CSV table with harvest and 3D model data and run the R script matching with the processed data:
+
+- Plant_BiomassCalib_PPA.R for PPA round 1 data (June to July 2026)
+- Plant_BiomassCalib_Pilot01.R for PPA Pilot of May to June 2025
+- Plant_BiomassCalib_Pilot02.R for PPA Pilot of October to Nuvember 2025
 
 ## Deprecated Script Packages
 
