@@ -1,4 +1,6 @@
 # ---- Header ----
+# Name: plant_harvestCalib_Pilot01
+# Description: Calibrate plant biomass based on data extracted from 3D model from pilot of May-June 2026
 # Name: Plant_BiomassCalib
 # Description: Calibrate plant biomass based on data extracted from 3D model
 
@@ -11,8 +13,8 @@ while(length(dev.list()!=0)){dev.off()}
 par_init <- par(no.readonly = TRUE)
 
 # Script variables
-input_from3d  <- "data//Plant_data_20250717_All_Pot13cm.csv"
-input_biomass <- "data//20250623_biomass_data.csv"
+input_from3d  <- "data//pilot_data//Plant_data_20250717_All_Pot13cm.csv"
+input_biomass <- "data//pilot_data//20250623_biomass_data.csv"
 output_label  <- "20250717"
 output_folder <- "output//Pilot01"
 save_plot     <- FALSE

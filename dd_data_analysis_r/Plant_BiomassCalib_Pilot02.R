@@ -1,6 +1,6 @@
 # ---- Header ----
 # Name: plant_harvestCalib_Pilot02
-# Description: Calibrate plant biomass based on data extracted from 3D model from 2nd pilot
+# Description: Calibrate plant biomass based on data extracted from 3D model from pilot October-November 2026
 
 # ---- Preparation ----
 
@@ -11,9 +11,9 @@ while(length(dev.list()!=0)){dev.off()}
 par_init <- par(no.readonly = TRUE)
 
 # Script variables
-input_from3d  <- "data//Plant_data_20260114_pilot02_commented.csv"
-input_harvest <- "data//20251217_ppa_drought.csv"
-input_organes <- "data//Plant_organes_count_20251210.csv"
+input_from3d  <- "data//pilot_data//Plant_data_20260114_pilot02_commented.csv"
+input_harvest <- "data//pilot_data//20251217_ppa_drought.csv"
+input_organes <- "data//pilot_data//Plant_organes_count_20251210.csv"
 output_label  <- "20260114"
 output_folder <- "output//Pilot02"
 save_plot     <- FALSE
